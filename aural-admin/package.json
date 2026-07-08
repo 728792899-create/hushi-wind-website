@@ -1,0 +1,28 @@
+{
+  "name": "aural-admin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/build-admin.js",
+    "build:prod": "node scripts/build-production.js",
+    "verify:dist": "node scripts/verify-dist-api.js",
+    "check:admin-ui": "node scripts/check-admin-ui-regression.js",
+    "audit:prod": "npm audit --omit=dev",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.13.6",
+    "echarts": "^6.0.0",
+    "element-plus": "^2.13.5",
+    "vue": "^3.5.25",
+    "vue-echarts": "^8.0.1",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.2",
+    "vite": "^7.3.1"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "aural-website",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "launch:check": "node scripts/launch-check.js",
+    "desktop:check": "node scripts/desktop-check.js",
+    "smoke:e2e": "node scripts/smoke-e2e.js",
+    "perf:check": "node scripts/perf-check.js",
+    "bundle:check": "node scripts/bundle-check.js",
+    "verify:public": "node scripts/verify-public-build.js",
+    "security:check": "node scripts/check-response-security.js",
+    "audit:prod": "npm audit --omit=dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "deploy:package": "node scripts/create-deploy-package.js"
+  },
+  "dependencies": {
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "gsap": "^3.14.2",
+    "nuxt": "^4.3.1",
+    "vue": "^3.5.29",
+    "vue-router": "^4.6.4"
+  }
+}

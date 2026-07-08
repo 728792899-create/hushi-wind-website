@@ -1,0 +1,19 @@
+{
+  "name": "shangkong-website-suite",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Aural Hushi Wind full-stack website, CMS admin, and API suite.",
+  "scripts": {
+    "install:all": "npm --prefix aural-api install && npm --prefix aural-website install && npm --prefix aural-admin install",
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "node scripts/dev.mjs --api-only",
+    "dev:website": "npm --prefix aural-website run dev -- --host 127.0.0.1 --port 3000",
+    "dev:admin": "npm --prefix aural-admin run dev -- --host 127.0.0.1 --port 5175",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "check": "npm run check:api",
+    "check:api": "npm --prefix aural-api run check && npm --prefix aural-api run audit:prod && cd aural-api && DATABASE_URL=file:./dev.db npx prisma validate --schema prisma/schema.prisma",
+    "build:admin": "VITE_API_BASE=https://api.shangkong.xyz VITE_SITE_URL=https://www.shangkong.xyz npm --prefix aural-admin run build:prod",
+    "build:website": "NUXT_PUBLIC_API_BASE=https://api.shangkong.xyz NUXT_PUBLIC_SITE_URL=https://www.shangkong.xyz npm --prefix aural-website run build",
+    "quality": "npm run check:api && npm run build:admin && npm run build:website"
+  }
+}

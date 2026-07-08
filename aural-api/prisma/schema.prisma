@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id           Int      @id @default(autoincrement())
+  title        String
+  slug         String   @unique
+  sku          String?
+  model        String?
+  color        String?
+  type         String   
+  categoryName String   
+  description  String   
+  imageUrl     String?  
+  gallery      String?
+  specs        String?
+  features     String?
+  scenes       String?
+  warranty     String?
+  series       String?  
+  quantity     Int      @default(1)
+  price        Float    @default(0.0)
+  isFeatured   Boolean  @default(false) 
+  status       String   @default("published") 
+  seoTitle      String?
+  seoDescription String?
+  seoKeywords   String?
+  ogImageUrl    String?
+  relatedProductIds String?
+  accessories   String?
+  availableFrom DateTime?
+  availableUntil DateTime?
+  publishedAt  DateTime?
+  hiddenAt     DateTime?
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Article {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String?
+  description String?
+  category    String   
+  imageUrl    String?
+  date        String
+  views       Int      @default(0) 
+  status      String   @default("published")
+  seoTitle      String?
+  seoDescription String?
+  seoKeywords   String?
+  ogImageUrl    String?
+  publishedAt  DateTime?
+  hiddenAt     DateTime?
+  lastEditedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime? @updatedAt
+}
+
+model SystemConfig {
+  id                 Int      @id @default(1)
+  heroImageUrl       String?  
+  aboutTitle         String?  
+  aboutText          String?  
+  contactEmail       String?  
+  contactPhone       String?  
+  footerText         String?  
+  
+  coreTechImageUrl   String?
+  coreTechTitle      String?
+  coreTechDesc       String?
+  coreTechLinkText   String?
+  coreTechBgColor    String?  @default("#0a0a0a") 
+  coreTechBgImageUrl String?
+
+  quoteText          String?
+  quoteAuthor        String?
+  quoteBgImageUrl    String?
+
+  artistHeroImageUrl String?
+  audioHeroImageUrl  String?
+  
+  // 🌟 新增：支持服务页面的顶部巨幕背景
+  supportHeroImageUrl String?
+
+  updatedAt          DateTime @updatedAt
+}
+
+model Inquiry {
+  id           Int      @id @default(autoincrement())
+  customerName String   
+  contactInfo  String  
+  message      String  
+  inquiryType  String? 
+  productId    Int?
+  productTitle String?
+  city         String?
+  budget       String?
+  preferredTime String?
+  status       String   @default("new")
+  priority     String   @default("normal")
+  internalNote String?
+  followedAt   DateTime?
+  isRead       Boolean  @default(false) 
+  createdAt    DateTime @default(now()) 
+}
+
+model ArtistApplication {
+  id           Int      @id @default(autoincrement())
+  name         String   
+  email        String   
+  phone        String?  
+  portfolioUrl String   
+  message      String?  
+  status       String   @default("pending") 
+  createdAt    DateTime @default(now())
+}
+
+model Artist {
+  id        Int      @id @default(autoincrement())
+  name      String   
+  role      String   
+  imageUrl  String?  
+  bio       String?  
+  equipment String?  
+  sortOrder Int      @default(0) 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SupportFaq {
+  id        Int      @id @default(autoincrement())
+  question  String
+  answer    String
+  category  String   @default("general")
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model SupportDownload {
+  id        Int      @id @default(autoincrement())
+  name      String
+  size      String
+  type      String   
+  fileUrl   String?  
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model AudioSolution {
+  id        Int      @id @default(autoincrement())
+  en        String   
+  title     String   
+  desc      String   
+  imageUrl  String?  
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model AudioStat {
+  id        Int      @id @default(autoincrement())
+  label     String   
+  value     String   
+  desc      String   
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model BrandTimeline {
+  id        Int      @id @default(autoincrement())
+  year      String   
+  title     String   
+  desc      String   
+  imageUrl  String?  
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model EcosystemService {
+  id        Int      @id @default(autoincrement())
+  icon      String   
+  title     String
+  desc      String
+  imageUrl  String?
+  link      String   
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model QuickGuide {
+  id        Int      @id @default(autoincrement())
+  title     String
+  duration  String   
+  category  String   
+  coverUrl  String?  
+  videoUrl  String?  
+  sortOrder Int      @default(0)
+  status    String   @default("published")
+}
+
+model PageContent {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique 
+  title     String   
+  content   String   
+  status    String   @default("published")
+  updatedAt DateTime @updatedAt
+}
+
+model AdminUser {
+  id               Int      @id @default(autoincrement())
+  username         String   @unique
+  displayName      String?
+  role             String   @default("super_admin")
+  status           String   @default("active")
+  passwordHash     String
+  passwordSalt     String
+  totpSecret       String?
+  totpEnabled      Boolean  @default(false)
+  tokenVersion     Int      @default(1)
+  failedLoginCount Int      @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model LoginRecord {
+  id          Int      @id @default(autoincrement())
+  username    String
+  adminUserId Int?
+  success     Boolean
+  ip          String?
+  userAgent   String?
+  message     String?
+  createdAt   DateTime @default(now())
+}
+
+model OperationLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int?
+  operator    String?
+  role        String?
+  action      String
+  module      String
+  target      String?
+  targetId    String?
+  summary     String?
+  beforeData  String?
+  afterData   String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model ExportRecord {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int?
+  operator    String?
+  module      String
+  filters     String?
+  rowCount    Int      @default(0)
+  filename    String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model ContentVersion {
+  id          Int      @id @default(autoincrement())
+  module      String
+  recordId    Int
+  title       String?
+  status      String?
+  snapshot    String
+  adminUserId Int?
+  operator    String?
+  createdAt   DateTime @default(now())
+}
+
+model BackupRecord {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  size        Int      @default(0)
+  status      String   @default("success")
+  message     String?
+  adminUserId Int?
+  operator    String?
+  createdAt   DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id          Int      @id @default(autoincrement())
+  eventType   String
+  pagePath    String?
+  source      String?
+  sessionId   String?
+  visitorId   String?
+  entityType  String?
+  entityId    String?
+  entityTitle String?
+  searchTerm  String?
+  ctaName     String?
+  metadata    String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([entityType, entityId])
+  @@index([sessionId, createdAt])
+}
+
+model ApiRequestLog {
+  id           Int      @id @default(autoincrement())
+  method       String
+  path         String
+  status       Int
+  durationMs   Int
+  ip           String?
+  userAgent    String?
+  errorCode    String?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([path, createdAt])
+}
+
+model AlertRecord {
+  id        Int      @id @default(autoincrement())
+  level     String   @default("warning")
+  type      String
+  title     String
+  message   String?
+  metadata  String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([status, createdAt])
+}

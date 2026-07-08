@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    # reviewers:
+    #   - "your-github-username"  # 请替换为实际的 GitHub 用户名
+    # assignees:
+    #   - "your-github-username"  # 请替换为实际的 GitHub 用户名
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    versioning-strategy: increase
+    groups:
+      nuxt:
+        patterns:
+          - "nuxt*"
+          - "@nuxt/*"
+          - "vue*"
+          - "@vue/*"
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"

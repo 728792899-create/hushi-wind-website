@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+release/
+dist-electron/
+.nuxt/
+.output/
+frontend-dist/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.local-example
+!.env.production.example
+*.pfx
+*.cer
+*.key
+*.pem
+
+# Runtime/user data
+*.sqlite
+*.sqlite3
+*.db
+logs/
+uploads/
+runtime/browser-profile*/
+
+# Packages / installers
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.exe
+*.dmg
+*.pkg
+*.msi
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# TypeScript build cache
+*.tsbuildinfo

@@ -1,0 +1,91 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NUXT_PUBLIC_SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
+          NUXT_PUBLIC_API_BASE: ${{ secrets.NUXT_PUBLIC_API_BASE }}
+          NUXT_API_INTERNAL_BASE: ${{ secrets.NUXT_API_INTERNAL_BASE }}
+          NUXT_PUBLIC_UPLOAD_BASE: ${{ secrets.NUXT_PUBLIC_UPLOAD_BASE }}
+          NUXT_PUBLIC_CDN_URL: ${{ secrets.NUXT_PUBLIC_CDN_URL }}
+          NUXT_PUBLIC_BRAND_IMAGE_BASE: ${{ secrets.NUXT_PUBLIC_BRAND_IMAGE_BASE }}
+
+      - name: Verify build output
+        run: npm run verify:public
+
+      - name: Run launch checks
+        run: npm run launch:check
+        env:
+          SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
+          ADMIN_URL: ${{ secrets.NUXT_PUBLIC_API_BASE }}
+          API_BASE: ${{ secrets.NUXT_PUBLIC_API_BASE }}
+
+      - name: Run smoke tests
+        run: npm run smoke:e2e
+        env:
+          SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
+
+      - name: Run security checks
+        run: npm run security:check
+        env:
+          SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Create deployment package
+        run: |
+          tar -czf aural-website-${{ github.sha }}.tar.gz .output package.json package-lock.json
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: aural-website-${{ github.sha }}.tar.gz
+          retention-days: 30
+
+      # 可选：自动部署到服务器
+      # - name: Deploy to server
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     username: ${{ secrets.SERVER_USER }}
+      #     key: ${{ secrets.SERVER_SSH_KEY }}
+      #     source: "aural-website-${{ github.sha }}.tar.gz"
+      #     target: "/tmp/"
+      #
+      # - name: Restart application
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     username: ${{ secrets.SERVER_USER }}
+      #     key: ${{ secrets.SERVER_SSH_KEY }}
+      #     script: |
+      #       cd /var/www/shangkong/aural-website
+      #       cp -r .output .output.backup.$(date +%Y%m%d-%H%M%S)
+      #       tar -xzf /tmp/aural-website-${{ github.sha }}.tar.gz
+      #       pm2 restart shangkong-web

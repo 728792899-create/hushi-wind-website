@@ -1,0 +1,46 @@
+{
+  "name": "aural-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "preflight": "node scripts/preflight.js",
+    "backup:db": "node scripts/backup-database.js",
+    "check:db": "node scripts/check-database.js",
+    "deploy:guard": "node scripts/deploy-guard.js",
+    "deploy:safe": "node scripts/safe-deploy.js",
+    "deploy:history": "node scripts/deploy-history.js",
+    "check:ports": "node scripts/check-ports.js",
+    "check:nginx": "node scripts/check-nginx-targets.js",
+    "check:disk": "node scripts/check-disk-space.js",
+    "check:p1": "node scripts/p1-stability-check.js",
+    "check:final": "node scripts/full-acceptance-check.js",
+    "check:acceptance": "node scripts/full-acceptance-check.js",
+    "check:usability": "node scripts/final-usability-check.js",
+    "postdeploy:check": "node scripts/post-deploy-check.js",
+    "alert:test": "node scripts/test-alert-webhook.js",
+    "audit:images": "node scripts/audit-images.js",
+    "cleanup:brand": "node scripts/brand-cleanup.js",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "deploy:production": "node scripts/deploy-production.js",
+    "cleanup:analytics": "node scripts/cleanup-analytics.js",
+    "start": "node server.js",
+    "check": "node --check server.js",
+    "audit:prod": "npm audit --omit=dev",
+    "test": "npm run check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.2"
+  }
+}
