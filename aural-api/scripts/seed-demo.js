@@ -64,20 +64,20 @@ async function main() {
     where: { id: 1 },
     update: {
       aboutTitle: '胡氏管乐演示站',
-      aboutText: '这是用于 GitHub 作品展示的脱敏演示数据，展示官网、CMS 后台和 API 的完整交付结构。',
+      aboutText: '这是用于本地演示的脱敏数据，展示官网、CMS 后台和 API 的完整交付结构。',
       contactEmail: 'demo@example.com',
       contactPhone: '000-0000-0000',
-      footerText: 'Demo content for portfolio review.',
+      footerText: 'Demo content for local review.',
       coreTechTitle: '声学设计与数字化服务',
       coreTechDesc: '用结构化内容管理产品、案例、支持资料和客户线索。',
     },
     create: {
       id: 1,
       aboutTitle: '胡氏管乐演示站',
-      aboutText: '这是用于 GitHub 作品展示的脱敏演示数据，展示官网、CMS 后台和 API 的完整交付结构。',
+      aboutText: '这是用于本地演示的脱敏数据，展示官网、CMS 后台和 API 的完整交付结构。',
       contactEmail: 'demo@example.com',
       contactPhone: '000-0000-0000',
-      footerText: 'Demo content for portfolio review.',
+      footerText: 'Demo content for local review.',
       coreTechTitle: '声学设计与数字化服务',
       coreTechDesc: '用结构化内容管理产品、案例、支持资料和客户线索。',
     },
@@ -93,7 +93,7 @@ async function main() {
         color: 'Black',
         type: 'woodwind',
         categoryName: '单簧管',
-        description: '用于作品集演示的脱敏产品数据，展示产品目录、详情页和后台内容维护能力。',
+        description: '用于本地演示的脱敏产品数据，展示产品目录、详情页和后台内容维护能力。',
         specs: JSON.stringify(['ABS 管体', '镀镍按键', '适合教学与演出']),
         features: JSON.stringify(['稳定音准', '维护方便', '入门友好']),
         scenes: JSON.stringify(['音乐教室', '社团排练', '小型演出']),
@@ -176,4 +176,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
