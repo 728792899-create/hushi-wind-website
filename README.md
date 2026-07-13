@@ -22,6 +22,8 @@ npm run dev
 demo_admin / DemoPass_2026!
 ```
 
+需要录制作业、作品集或面试演示时，按 [`docs/demo-script.md`](docs/demo-script.md) 的三端分镜执行；整个演示只依赖本地脱敏数据，不要求线上服务器可用。
+
 ## 技术栈
 
 - 前台：Nuxt 4 / Vue 3 / Tailwind CSS
