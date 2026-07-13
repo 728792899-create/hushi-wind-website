@@ -15,6 +15,17 @@ function hashPassword(password) {
 }
 
 async function resetContent() {
+  // Demo seeding is intentionally destructive and must return a repeatedly
+  // used local database to the same fictional baseline. Production never runs
+  // this command.
+  await prisma.alertRecord.deleteMany();
+  await prisma.apiRequestLog.deleteMany();
+  await prisma.analyticsEvent.deleteMany();
+  await prisma.backupRecord.deleteMany();
+  await prisma.contentVersion.deleteMany();
+  await prisma.exportRecord.deleteMany();
+  await prisma.operationLog.deleteMany();
+  await prisma.loginRecord.deleteMany();
   await prisma.inquiry.deleteMany();
   await prisma.artistApplication.deleteMany();
   await prisma.product.deleteMany();
@@ -28,6 +39,7 @@ async function resetContent() {
   await prisma.ecosystemService.deleteMany();
   await prisma.quickGuide.deleteMany();
   await prisma.pageContent.deleteMany();
+  await prisma.adminUser.deleteMany({ where: { username: { not: ADMIN_USERNAME } } });
 }
 
 async function seedAdmin() {

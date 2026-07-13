@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="dialogRef"
     class="fixed inset-0 z-[220] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
     data-no-scroll-fx
     role="dialog"
@@ -7,6 +8,7 @@
     aria-labelledby="product-compare-title"
     tabindex="-1"
     @keydown.esc="close"
+    @keydown="handleKeydown"
   >
     <button type="button" class="absolute inset-0 cursor-default" aria-label="关闭产品对比" @click="close"></button>
     <div class="relative flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -16,10 +18,10 @@
           <h2 id="product-compare-title" class="text-2xl font-black text-black md:text-3xl">产品选型对比</h2>
           <p class="mt-2 text-sm leading-relaxed text-zinc-500">对比价格、库存、参数、适用场景与售后说明，快速判断哪一款更适合当前用途。</p>
         </div>
-        <button type="button" class="h-11 w-11 shrink-0 rounded-full bg-zinc-100 text-2xl leading-none text-zinc-500 transition-all hover:bg-black hover:text-white" aria-label="关闭对比" @click="close">&times;</button>
+        <button type="button" data-autofocus class="h-11 w-11 shrink-0 rounded-full bg-zinc-100 text-2xl leading-none text-zinc-500 transition-all hover:bg-black hover:text-white" aria-label="关闭对比" @click="close">&times;</button>
       </div>
 
-      <div class="overflow-auto px-4 py-5 md:px-8 md:py-7">
+      <div class="overflow-auto px-4 py-5 md:px-8 md:py-7" tabindex="0" aria-label="产品对比内容，可横向滚动">
         <div class="space-y-4 md:hidden">
           <article v-for="item in products" :key="`mobile-${item.id}`" class="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
             <NuxtLink :to="`/products/${item.slug || item.id}`" class="flex gap-4" @click="close">
@@ -71,7 +73,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   products: {
@@ -81,6 +83,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const dialogRef = ref(null)
+const { handleKeydown } = useDialogFocus(dialogRef)
 const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.productPiano)
 

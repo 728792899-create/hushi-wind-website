@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="bg-[#fbfbfd] min-h-screen pb-32 relative overflow-x-hidden">
-    
+
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
       <button @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto">
         <div class="w-10 h-10 flex items-center justify-center rounded-full border border-white/50 group-hover:border-white transition-colors">
@@ -24,19 +24,19 @@
     <section class="max-w-[85rem] mx-auto px-4 md:px-12 mt-5 md:-mt-20 relative z-20">
       <div class="support-action-list grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <div v-for="(item, index) in supportCategories" :key="item.name" role="button" tabindex="0" @click="openModal(item.action)" @keydown.enter.prevent="openModal(item.action)" @keydown.space.prevent="openModal(item.action)" class="support-action-card group relative min-h-[7.25rem] md:min-h-[10.5rem] bg-white/95 md:bg-white/92 backdrop-blur-xl overflow-hidden rounded-2xl md:rounded-[2rem] shadow-[0_12px_32px_-18px_rgba(0,0,0,0.22)] md:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15)] cursor-pointer p-5 md:p-6 lg:p-10 flex flex-col justify-between border border-zinc-100 md:border-white/50 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] hover:-translate-y-2 md:aspect-[4/5]">
-          
+
           <div class="default-view relative z-10">
             <div class="w-6 h-[1px] bg-black/20 mb-4 md:mb-6 group-hover:w-12 group-hover:bg-black transition-all duration-700 ease-out"></div>
             <div class="text-zinc-400 font-mono text-[10px] tracking-[0.3em] mb-2 font-bold">0{{ index + 1 }}</div>
             <h3 class="text-xl md:text-2xl font-serif text-black mb-2 md:mb-3 group-hover:text-blue-600 transition-colors duration-500">{{ item.name }}</h3>
             <p class="text-zinc-500 text-xs md:text-sm font-light leading-relaxed">{{ item.tagline }}</p>
           </div>
-          
+
           <div class="pointer-events-none absolute right-4 top-5 z-0 flex items-center justify-center md:static md:flex-1 opacity-100 md:opacity-10 group-hover:opacity-100 transition-opacity duration-700">
              <div class="flex h-10 w-10 md:h-20 md:w-20 items-center justify-center rounded-full border border-black/10 bg-zinc-50 text-xs md:text-xl font-serif italic text-black">{{ item.iconText }}</div>
           </div>
           <span class="support-action-arrow pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 text-xl text-zinc-300">→</span>
-          
+
           <div class="absolute inset-0 border border-black/5 rounded-[2rem] pointer-events-none"></div>
         </div>
       </div>
@@ -59,7 +59,7 @@
           </button>
         </div>
       </div>
-      
+
       <div v-if="pendingFaqs" class="text-center py-10"><div class="w-8 h-8 border-4 border-zinc-200 border-t-black rounded-full animate-spin mx-auto"></div></div>
       <FrontState
         v-else-if="errF"
@@ -97,7 +97,7 @@
           </Transition>
         </div>
       </div>
-      
+
       <div class="mt-14 md:mt-32 border-t border-zinc-200 pt-10 md:pt-20 flex flex-col items-center">
         <p class="text-[10px] md:text-xs tracking-[0.28em] md:tracking-[0.3em] text-zinc-400 uppercase mb-6 md:mb-8 font-bold">客服支持</p>
         <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16">
@@ -118,7 +118,7 @@
       <Transition name="apple-modal">
         <div v-if="modal.show" class="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-900/40 backdrop-blur-md p-4 overflow-y-auto" @keydown.esc="closeModal" tabindex="-1">
           <div @click="closeModal" class="absolute inset-0 cursor-pointer"></div>
-          
+
           <div class="support-modal relative bg-white/95 backdrop-blur-xl w-full max-w-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:p-10 lg:p-14 shadow-2xl rounded-[1.75rem] md:rounded-[2.5rem] border border-white flex flex-col max-h-[92dvh] my-auto">
             <button @click="closeModal" class="absolute top-5 right-5 md:top-8 md:right-8 w-11 h-11 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-all hover:rotate-90 z-50" aria-label="关闭弹窗">
               <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -130,7 +130,7 @@
             </div>
 
             <div class="flex-1 overflow-y-auto pr-1 md:pr-4 custom-scrollbar">
-              
+
               <div v-if="modal.type === 'download'" class="space-y-4">
                 <div v-if="pendingDownloads" class="text-center py-10 text-xs text-zinc-400 tracking-widest uppercase">Syncing...</div>
                 <FrontState
@@ -142,7 +142,7 @@
                 />
                 <div v-else v-for="file in displayDownloads" :key="file.id" class="flex justify-between items-center p-6 bg-zinc-50/50 hover:bg-zinc-100 transition-colors rounded-2xl border border-zinc-100">
                   <div><p class="font-bold text-sm text-black mb-1">{{ file.name }}</p><p class="text-[10px] text-zinc-400 uppercase font-mono">{{ file.size }} | {{ file.type }}</p></div>
-                  <a v-if="file.fileUrl" :href="file.fileUrl" target="_blank" download class="inline-flex min-h-11 items-center text-xs font-bold border-b border-black/20 pb-1 hover:border-black transition-colors text-black" @click="triggerToast('资料即将开始下载...', 'success')">DOWNLOAD</a>
+                  <a v-if="file.fileUrl" :href="file.fileUrl" target="_blank" download class="inline-flex min-h-11 items-center text-xs font-bold border-b border-black/20 pb-1 hover:border-black transition-colors text-black" @click="trackDownload(file)">DOWNLOAD</a>
                   <span v-else class="text-xs font-bold text-zinc-300 cursor-not-allowed">NO FILE</span>
                 </div>
               </div>
@@ -252,6 +252,7 @@
 <script setup>
 import { ref, reactive, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { conversionEvents } from '../lib/analytics'
 
 const route = useRoute(); const router = useRouter()
 const smartBack = useSmartBack('/')
@@ -380,7 +381,7 @@ const handleFormSubmit = async () => {
         ...getGuardPayload()
       }
     })
-    track('form_submit', {
+    track(conversionEvents.inquirySubmit, {
       entityType: 'support',
       entityTitle: serviceTypeLabels[contactForm.serviceType] || '故障报修',
       ctaName: 'support-ticket',
@@ -459,8 +460,17 @@ const openModal = (type) => {
   if (type === 'download' && !rawDownloads.value && !pendingDownloads.value) refreshDownloads()
   if (type === 'quickstart' && !rawGuides.value && !pendingGuides.value) refreshGuides()
   if (type === 'contact') {
-    track('form_open', { entityType: 'support', ctaName: 'support-ticket' })
+    track(conversionEvents.inquiryStart, { entityType: 'support', ctaName: 'support-ticket' })
   }
+}
+const trackDownload = (file) => {
+  triggerToast('资料即将开始下载...', 'success')
+  track(conversionEvents.resourceDownload, {
+    entityType: 'support-download',
+    entityId: String(file.id || ''),
+    entityTitle: file.name || '',
+    metadata: { source: 'support-page', fileType: file.type || '' }
+  })
 }
 const closeModal = () => { supportModalHistory.closeViaHistory() }
 

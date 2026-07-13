@@ -1,4 +1,5 @@
 import { computed, unref } from 'vue'
+import { buildBreadcrumbSchema, buildBusinessSchema, buildFaqSchema, createStructuredDataScript } from '../lib/seo'
 
 const resolveValue = (value, fallback = '') => {
   const next = typeof value === 'function' ? value() : unref(value)
@@ -20,19 +21,7 @@ export const useBreadcrumbSchema = (items = []) => {
 
     return {
       script: [
-        {
-          type: 'application/ld+json',
-          children: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'BreadcrumbList',
-            itemListElement: resolvedItems.map((item, index) => ({
-              '@type': 'ListItem',
-              position: index + 1,
-              name: item.name,
-              item: item.url.startsWith('http') ? item.url : `${siteUrl.value}${item.url}`
-            }))
-          })
-        }
+        createStructuredDataScript(buildBreadcrumbSchema(siteUrl.value, resolvedItems))
       ]
     }
   })
@@ -48,21 +37,7 @@ export const useFaqSchema = (faqs) => {
 
     return {
       script: [
-        {
-          type: 'application/ld+json',
-          children: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: faqItems.map((item) => ({
-              '@type': 'Question',
-              name: item.question,
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: item.answer
-              }
-            }))
-          })
-        }
+        createStructuredDataScript(buildFaqSchema(faqItems))
       ]
     }
   })
@@ -75,50 +50,9 @@ export const useGlobalBusinessSchema = () => {
     const baseUrl = siteUrl.value
     if (!baseUrl) return {}
 
-    const organizationId = `${baseUrl}/#organization`
-    const websiteId = `${baseUrl}/#website`
-
     return {
       script: [
-        {
-          key: 'global-business-schema',
-          type: 'application/ld+json',
-          children: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@graph': [
-              {
-                '@type': 'Organization',
-                '@id': organizationId,
-                name: '胡氏管乐',
-                alternateName: 'HUSHI WIND',
-                url: baseUrl,
-                logo: `${baseUrl}/favicon.ico`,
-                contactPoint: [
-                  {
-                    '@type': 'ContactPoint',
-                    contactType: 'customer support',
-                    url: `${baseUrl}/support`,
-                    availableLanguage: ['zh-CN']
-                  }
-                ]
-              },
-              {
-                '@type': 'WebSite',
-                '@id': websiteId,
-                name: '胡氏管乐',
-                alternateName: 'HUSHI WIND',
-                url: baseUrl,
-                inLanguage: 'zh-CN',
-                publisher: { '@id': organizationId },
-                potentialAction: {
-                  '@type': 'SearchAction',
-                  target: `${baseUrl}/products?q={search_term_string}`,
-                  'query-input': 'required name=search_term_string'
-                }
-              }
-            ]
-          })
-        }
+        createStructuredDataScript(buildBusinessSchema(baseUrl), 'global-business-schema')
       ]
     }
   })

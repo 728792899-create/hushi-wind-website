@@ -13,6 +13,8 @@ dist-electron/
 .nuxt/
 .output/
 frontend-dist/
+playwright-report/
+test-results/
 
 # Environment / secrets
 .env
@@ -20,6 +22,7 @@ frontend-dist/
 !.env.example
 !.env.local-example
 !.env.production.example
+!.env.staging.example
 *.pfx
 *.cer
 *.key

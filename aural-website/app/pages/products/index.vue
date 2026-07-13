@@ -70,19 +70,19 @@
             <button v-if="searchQuery" type="button" class="absolute right-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors" aria-label="清空搜索" @click="searchQuery = ''">&times;</button>
             <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <select v-model="priceFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select v-model="priceFilter" aria-label="价格区间" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="all">全部价格</option>
             <option value="consult">咨询报价</option>
             <option value="under10000">1 万以内</option>
             <option value="10000-50000">1-5 万</option>
             <option value="over50000">5 万以上</option>
           </select>
-          <select v-model="stockFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select v-model="stockFilter" aria-label="库存状态" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="all">全部库存</option>
             <option value="inStock">可咨询体验</option>
             <option value="outStock">待补货</option>
           </select>
-          <select v-model="sortMode" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select v-model="sortMode" aria-label="产品排序" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="featured">推荐优先</option>
             <option value="latest">最新更新</option>
             <option value="priceAsc">价格从低到高</option>
@@ -92,7 +92,7 @@
       </div>
     </section>
 
-    <main class="max-w-7xl mx-auto px-4 pt-8 md:pt-16">
+    <section class="max-w-7xl mx-auto px-4 pt-8 md:pt-16" aria-label="产品结果">
       <div v-if="pending" class="py-32 flex flex-col items-center justify-center text-gray-400">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-black mb-6"></div>
         <p class="text-[10px] tracking-[0.3em] font-bold uppercase">连接产品数据...</p>
@@ -230,7 +230,7 @@
           @retry="resetFilters"
         />
       </template>
-    </main>
+    </section>
 
     <Transition name="compare-bar">
       <div v-if="selectedCompareProducts.length" class="fixed bottom-4 left-1/2 z-[110] w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_24px_70px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl md:px-5 md:pb-4" data-no-scroll-fx>
@@ -347,8 +347,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { conversionEvents } from '../../lib/analytics'
+import { filterAndSortProducts, formatProductPrice, normalizeCatalogProduct } from '../../lib/products'
 
 const route = useRoute()
 const router = useRouter()
@@ -388,44 +390,10 @@ const priceFilter = ref(readQueryValue('price', 'all', allowedValues.price))
 const stockFilter = ref(readQueryValue('stock', 'all', allowedValues.stock))
 const sortMode = ref(readQueryValue('sort', 'featured', allowedValues.sort))
 const mobileViewMode = ref('compact')
-let isSyncingFromRoute = false
 let isRestoringScroll = false
 let scrollRestoreTimer = 0
 
-const parseJson = (value, fallback) => {
-  if (!value) return fallback
-  if (Array.isArray(value)) return value
-  try {
-    return JSON.parse(value)
-  } catch {
-    return fallback
-  }
-}
-
-const products = computed(() => {
-  return (apiResponse.value?.data || []).map((item) => {
-    const attributes = item.attributes || item
-    const imagePath = attributes.image?.data?.attributes?.url || attributes.imageUrl
-    return {
-      id: item.id,
-      title: attributes.title || '未命名产品',
-      slug: attributes.slug || '',
-      type: attributes.type || 'other',
-      series: attributes.series || attributes.categoryName || attributes.type || 'HUSHI WIND',
-      description: attributes.description || '该产品暂无详细介绍。',
-      image: mediaUrl(imagePath, ''),
-      quantity: attributes.quantity || 0,
-      price: Number(attributes.price || 0),
-      isFeatured: Boolean(attributes.isFeatured),
-      status: attributes.status || 'published',
-      updatedAt: attributes.updatedAt || attributes.createdAt || '',
-      specs: parseJson(attributes.specs, []),
-      features: parseJson(attributes.features, []),
-      scenes: parseJson(attributes.scenes, []),
-      warranty: attributes.warranty || ''
-    }
-  })
-})
+const products = computed(() => (apiResponse.value?.data || []).map((item) => normalizeCatalogProduct(item, mediaUrl)))
 
 const isProductPublished = (status) => ['published', 'active'].includes(status || 'published')
 
@@ -469,50 +437,18 @@ const buildFilterQuery = () => {
 }
 
 const syncFiltersToRoute = () => {
-  if (isSyncingFromRoute) return
   router.replace({ path: route.path, query: buildFilterQuery() })
 }
 
-watch([activeCategory, searchQuery, priceFilter, stockFilter, sortMode], syncFiltersToRoute)
+watch([activeCategory, priceFilter, stockFilter, sortMode], syncFiltersToRoute)
 
-watch(() => route.query, () => {
-  isSyncingFromRoute = true
-  pendingCategoryFromRoute.value = readQueryValue('category', 'all')
-  activeCategory.value = readQueryValue('category', 'all', allowedValues.category)
-  searchQuery.value = readQueryValue('q', '')
-  priceFilter.value = readQueryValue('price', 'all', allowedValues.price)
-  stockFilter.value = readQueryValue('stock', 'all', allowedValues.stock)
-  sortMode.value = readQueryValue('sort', 'featured', allowedValues.sort)
-  nextTick(() => { isSyncingFromRoute = false })
-})
-
-const filteredProducts = computed(() => {
-  const keyword = searchQuery.value.trim().toLowerCase()
-  let list = products.value.filter((product) => {
-    const matchCategory = activeCategory.value === 'all' || product.type === activeCategory.value
-    const matchPrice = priceFilter.value === 'all'
-      || (priceFilter.value === 'consult' && product.price === 0)
-      || (priceFilter.value === 'under10000' && product.price > 0 && product.price < 10000)
-      || (priceFilter.value === '10000-50000' && product.price >= 10000 && product.price <= 50000)
-      || (priceFilter.value === 'over50000' && product.price > 50000)
-    const matchStock = stockFilter.value === 'all'
-      || (stockFilter.value === 'inStock' && product.quantity > 0)
-      || (stockFilter.value === 'outStock' && product.quantity <= 0)
-    const matchKeyword = !keyword || [product.title, product.series, product.description, product.type]
-      .concat(product.scenes)
-      .concat(product.specs.map((spec) => `${spec.label} ${spec.value}`))
-      .filter(Boolean)
-      .some((field) => field.toLowerCase().includes(keyword))
-    return matchCategory && matchPrice && matchStock && matchKeyword
-  })
-
-  return [...list].sort((a, b) => {
-    if (sortMode.value === 'priceAsc') return a.price - b.price
-    if (sortMode.value === 'priceDesc') return b.price - a.price
-    if (sortMode.value === 'latest') return new Date(b.updatedAt) - new Date(a.updatedAt)
-    return Number(b.isFeatured) - Number(a.isFeatured)
-  })
-})
+const filteredProducts = computed(() => filterAndSortProducts(products.value, {
+  category: activeCategory.value,
+  query: searchQuery.value,
+  price: priceFilter.value,
+  stock: stockFilter.value,
+  sort: sortMode.value
+}))
 
 const hasFilters = computed(() => activeCategory.value !== 'all' || searchQuery.value || priceFilter.value !== 'all' || stockFilter.value !== 'all' || sortMode.value !== 'featured')
 const selectedCategoryLabel = computed(() => categories.value.find((item) => item.value === activeCategory.value)?.label || '全部系列')
@@ -577,12 +513,12 @@ const toggleCompare = (product) => {
     return
   }
   selectedCompareIds.value = [...selectedCompareIds.value, id]
-  track('cta_click', {
+  track(conversionEvents.productCompare, {
     entityType: 'product',
     entityId: id,
     entityTitle: product.title,
     ctaName: 'product-compare-add',
-    metadata: { source: 'product-catalog' }
+    metadata: { source: 'product-catalog', stage: 'selection' }
   })
 }
 
@@ -606,10 +542,11 @@ const openCompare = () => {
     return
   }
   isCompareOpen.value = true
-  track('cta_click', {
+  track(conversionEvents.productCompare, {
     ctaName: 'product-compare-open',
     metadata: {
       source: 'product-catalog',
+      stage: 'comparison-opened',
       productIds: selectedCompareProducts.value.map((item) => item.id),
       productTitles: selectedCompareProducts.value.map((item) => item.title)
     }
@@ -640,7 +577,7 @@ watch(searchQuery, (value) => {
   searchTrackTimer = window.setTimeout(() => {
     if (keyword === lastTrackedSearch) return
     lastTrackedSearch = keyword
-    track('search', {
+    track(conversionEvents.productSearch, {
       searchTerm: keyword,
       metadata: {
         scope: 'products',
@@ -697,10 +634,7 @@ const trackProductClick = (product) => {
   })
 }
 
-const formatPrice = (price) => {
-  if (!price) return '咨询报价'
-  return `¥ ${price.toFixed(2)}`
-}
+const formatPrice = formatProductPrice
 
 watch(filteredProducts, () => {
   if (process.server || isRestoringScroll) return

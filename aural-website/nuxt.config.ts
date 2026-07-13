@@ -4,6 +4,10 @@
 // still requires explicit public URLs and keeps the deployment fuse intact.
 const isInstallPrepare = process.env.npm_lifecycle_event === 'postinstall'
 const isProductionBuild = process.env.NODE_ENV === 'production' && !isInstallPrepare
+const sentryEnabled = Boolean(process.env.NUXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN)
+const sentryUploadEnabled = sentryEnabled && Boolean(
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+)
 
 const requiredPublicUrl = (name: string, devFallback: string) => {
   const value = process.env[name]
@@ -39,8 +43,17 @@ const connectSourceList = ["'self'", 'https:', ...assetOrigins].join(' ')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: process.env.NODE_ENV !== 'production' },
-  modules: ['@nuxtjs/tailwindcss'],
+  devtools: { enabled: process.env.NODE_ENV !== 'production' && process.env.NUXT_DEVTOOLS !== 'false' },
+  modules: [
+    '@nuxtjs/tailwindcss',
+    ...(sentryEnabled ? ['@sentry/nuxt/module'] : [])
+  ],
+  css: ['~/assets/css/design-tokens.css'],
+  vite: {
+    optimizeDeps: {
+      include: ['gsap', 'gsap/ScrollTrigger']
+    }
+  },
   nitro: {
     routeRules: {
       '/_nuxt/**': {
@@ -90,7 +103,19 @@ export default defineNuxtConfig({
     public: {
       apiBase: publicApiBase,
       siteUrl: publicSiteUrl,
-      brandImageBase: publicBrandImageBase
+      brandImageBase: publicBrandImageBase,
+      mixpanelEnabled: process.env.NUXT_PUBLIC_MIXPANEL_ENABLED === 'true'
     }
-  }
+  },
+  sourcemap: sentryUploadEnabled ? { client: 'hidden', server: true } : false,
+  sentry: sentryEnabled
+    ? {
+        enabled: true,
+        telemetry: false,
+        authToken: sentryUploadEnabled ? process.env.SENTRY_AUTH_TOKEN : undefined,
+        org: sentryUploadEnabled ? process.env.SENTRY_ORG : undefined,
+        project: sentryUploadEnabled ? process.env.SENTRY_PROJECT : undefined,
+        sourcemaps: { disable: !sentryUploadEnabled }
+      }
+    : { enabled: false }
 })

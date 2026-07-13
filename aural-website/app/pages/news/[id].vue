@@ -418,7 +418,7 @@ useHead(() => ({
   script: article.value ? [
     {
       type: 'application/ld+json',
-      children: JSON.stringify({
+      textContent: JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
         headline: article.value.title,

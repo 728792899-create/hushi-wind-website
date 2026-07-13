@@ -1,8 +1,7 @@
 export default defineNuxtPlugin(() => {
   if (import.meta.server) return
 
-  const track = useAuralTrack()
-  const config = useRuntimeConfig()
+  const { track } = useAuralTrack()
 
   let lcp = 0
   let fid = 0
@@ -17,7 +16,7 @@ export default defineNuxtPlugin(() => {
       url: window.location.pathname
     }
 
-    track('performance', payload)
+    track('performance_metric', { metadata: payload })
   }
 
   if ('PerformanceObserver' in window) {
@@ -81,12 +80,8 @@ export default defineNuxtPlugin(() => {
 
   window.addEventListener('beforeunload', () => {
     if (lcp || fid || cls || ttfb) {
-      track('performance_summary', {
-        lcp,
-        fid,
-        cls,
-        ttfb,
-        url: window.location.pathname
+      track('performance_metric', {
+        metadata: { metric: 'navigation_summary', lcp, fid, cls, ttfb, url: window.location.pathname }
       })
     }
   })

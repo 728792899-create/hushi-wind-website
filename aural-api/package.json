@@ -6,6 +6,7 @@
   "scripts": {
     "preflight": "node scripts/preflight.js",
     "backup:db": "node scripts/backup-database.js",
+    "backup:verify": "node scripts/verify-backup-restore.js",
     "check:db": "node scripts/check-database.js",
     "deploy:guard": "node scripts/deploy-guard.js",
     "deploy:safe": "node scripts/safe-deploy.js",
@@ -23,24 +24,34 @@
     "cleanup:brand": "node scripts/brand-cleanup.js",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "migrate:postgresql": "prisma migrate deploy --schema prisma/postgresql/schema.prisma && prisma generate --schema prisma/postgresql/schema.prisma",
+    "db:deploy": "node scripts/deploy-database.js",
+    "validate:postgresql": "prisma validate --schema prisma/postgresql/schema.prisma",
     "deploy:production": "node scripts/deploy-production.js",
     "cleanup:analytics": "node scripts/cleanup-analytics.js",
     "start": "node server.js",
     "check": "node --check server.js",
     "audit:prod": "npm audit --omit=dev",
-    "test": "npm run check"
+    "test": "node scripts/run-tests.js",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "node scripts/run-tests.js --integration-only"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1086.0",
     "@prisma/client": "^6.19.3",
+    "@sentry/node": "^10.65.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "multer": "^2.1.1"
+    "multer": "^2.1.1",
+    "redis": "^6.1.0"
   },
   "devDependencies": {
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.10"
   }
 }

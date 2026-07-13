@@ -158,6 +158,7 @@
                   :href="file.fileUrl || '/support?type=download'"
                   target="_blank"
                   class="group flex items-center justify-between gap-4 border border-zinc-100 bg-zinc-50 px-5 py-4 transition-colors hover:border-black"
+                  @click="trackResourceDownload(file)"
                 >
                   <span class="min-w-0">
                     <span class="block truncate text-sm font-bold text-black">{{ file.name }}</span>
@@ -341,6 +342,9 @@ import { computed, ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { conversionEvents } from '../../lib/analytics'
+import { formatProductPrice, parseJsonValue } from '../../lib/products'
+import { buildProductSchema, createStructuredDataScript } from '../../lib/seo'
 
 const route = useRoute()
 const router = useRouter()
@@ -398,16 +402,6 @@ const typeLabels = {
   synth: '电子键盘'
 }
 
-const parseJson = (value, fallback) => {
-  if (!value) return fallback
-  if (Array.isArray(value)) return value
-  try {
-    return JSON.parse(value)
-  } catch {
-    return fallback
-  }
-}
-
 const fallbackFeatures = {
   piano: [
     '严选高等级云杉音板与稳定共鸣结构，呈现自然、宽阔的动态层次。',
@@ -435,7 +429,7 @@ const fallbackFeatures = {
   ]
 }
 
-const normalizeStringList = (value) => parseJson(value, [])
+const normalizeStringList = (value) => parseJsonValue(value, [])
   .map((item) => {
     if (typeof item === 'string') return item.trim()
     if (item && typeof item === 'object') return String(item.name || item.title || item.label || item.value || '').trim()
@@ -447,7 +441,7 @@ const normalizeProduct = (targetProduct) => {
   const item = targetProduct.attributes || targetProduct
   const imagePath = item.image?.data?.attributes?.url || item.imageUrl
   const imageUrl = mediaUrl(imagePath, brandAssets.productPiano)
-  const rawGallery = parseJson(item.gallery, [])
+  const rawGallery = parseJsonValue(item.gallery, [])
   const gallery = [imagePath, ...rawGallery]
     .filter(Boolean)
     .map((image) => mediaUrl(image, imageUrl))
@@ -468,14 +462,14 @@ const normalizeProduct = (targetProduct) => {
     series: item.series || item.categoryName || 'PREMIUM',
     imageUrl,
     gallery: gallery.length ? gallery : [imageUrl],
-    specs: parseJson(item.specs, [
+    specs: parseJsonValue(item.specs, [
       { label: '产品系列', value: item.series || item.categoryName || 'HUSHI WIND' },
       { label: '产品分类', value: typeLabels[item.type] || item.type || '声学设备' },
       { label: '库存状态', value: Number(item.quantity || 0) > 0 ? '可咨询体验' : '待补货' },
       { label: '报价方式', value: Number(item.price || 0) > 0 ? '公开参考价' : '专属顾问报价' }
     ]),
-    features: parseJson(item.features, fallbackFeatures[item.type] || fallbackFeatures.default),
-    scenes: parseJson(item.scenes, []),
+    features: parseJsonValue(item.features, fallbackFeatures[item.type] || fallbackFeatures.default),
+    scenes: parseJsonValue(item.scenes, []),
     warranty: item.warranty || '',
     relatedProductIds: normalizeStringList(item.relatedProductIds),
     accessories: normalizeStringList(item.accessories)
@@ -554,7 +548,7 @@ watch(product, (nextProduct) => {
   const trackingKey = `${nextProduct.id}:${nextProduct.slug || route.params.id}`
   if (trackedProductKeys.has(trackingKey)) return
   trackedProductKeys.add(trackingKey)
-  track('product_view', {
+  track(conversionEvents.productView, {
     entityType: 'product',
     entityId: String(nextProduct.id),
     entityTitle: nextProduct.title,
@@ -567,10 +561,7 @@ watch(product, (nextProduct) => {
   })
 }, { immediate: true })
 
-const formatPrice = (price) => {
-  if (!price) return '咨询报价'
-  return `¥ ${price.toFixed(2)}`
-}
+const formatPrice = formatProductPrice
 
 const handleBack = () => {
   smartBack()
@@ -586,7 +577,7 @@ const openModal = (type) => {
     entityTitle: product.value?.title || '',
     ctaName: type
   })
-  track('form_open', {
+  track(conversionEvents.inquiryStart, {
     entityType: 'product',
     entityId: product.value?.id ? String(product.value.id) : '',
     entityTitle: product.value?.title || '',
@@ -627,6 +618,15 @@ const trackPhoneCta = () => {
   })
 }
 
+const trackResourceDownload = (file) => {
+  track(conversionEvents.resourceDownload, {
+    entityType: 'support-download',
+    entityId: String(file.id || ''),
+    entityTitle: file.name || '',
+    metadata: { source: 'product-detail', productId: product.value?.id, fileType: file.type || '' }
+  })
+}
+
 const handleSubmit = async () => {
   clearFormErrors()
   const name = formData.name.trim()
@@ -660,7 +660,7 @@ const handleSubmit = async () => {
         ...getGuardPayload()
       }
     })
-    track('form_submit', {
+    track(conversionEvents.inquirySubmit, {
       entityType: 'product',
       entityId: product.value?.id ? String(product.value.id) : '',
       entityTitle: product.value?.title || '',
@@ -729,38 +729,7 @@ useSiteSeo({
 
 useHead(() => ({
   script: product.value ? [
-    {
-      type: 'application/ld+json',
-      children: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: product.value.title,
-        description: product.value.description,
-        image: product.value.gallery,
-        brand: { '@type': 'Brand', name: '胡氏管乐 HUSHI WIND' },
-        sku: product.value.sku || undefined,
-        model: product.value.model || undefined,
-        color: product.value.color || undefined,
-        category: product.value.typeLabel,
-        isRelatedTo: relatedProducts.value.map((item) => ({
-          '@type': 'Product',
-          name: item.title,
-          url: siteUrl.value + `/products/${item.slug || item.id}`
-        })),
-        additionalProperty: product.value.specs.map((spec) => ({
-          '@type': 'PropertyValue',
-          name: spec.label,
-          value: spec.value
-        })),
-        offers: {
-          '@type': 'Offer',
-          priceCurrency: 'CNY',
-          price: product.value.price || undefined,
-          availability: product.value.quantity > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-          url: siteUrl.value + `/products/${product.value.slug || route.params.id}`
-        }
-      })
-    }
+    createStructuredDataScript(buildProductSchema({ baseUrl: siteUrl.value, product: product.value, relatedProducts: relatedProducts.value }))
   ] : []
 }))
 

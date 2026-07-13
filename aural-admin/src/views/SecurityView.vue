@@ -682,8 +682,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api, extractErrorMessage, getCurrentUser, hasPermission, sensitiveConfirmation, setCurrentUser, setToken } from '../lib/api'
+import { api, extractErrorMessage, getCurrentUser, hasPermission, sensitiveConfirmation, setCsrfToken, setCurrentUser, setToken } from '../lib/api'
 import { formatTime } from '../lib/format'
+import {
+  alertLevelLabel, alertLevelType, backupHealthFor, fileSize, inDateRange,
+  parseJsonValue, prettyJson, readinessActionLabel, readinessStatusLabel,
+  readinessTagType, statusLabel, statusType
+} from '../lib/securityModel'
 
 const currentUser = ref(getCurrentUser())
 const users = ref([])
@@ -820,15 +825,7 @@ const backupVerificationLabel = (row) => {
   return backupVerified(row) ? '已演练' : '待演练'
 }
 
-const backupHealth = computed(() => {
-  const row = latestBackupRecord.value
-  if (!row) return { tone: 'danger', title: '没有可用备份', desc: '上线后应立即创建一次数据库备份。' }
-  if (row.status !== 'success') return { tone: 'danger', title: '最近备份失败', desc: row.message || '请检查服务器文件权限和数据库路径。' }
-  const ageMs = Date.now() - new Date(row.createdAt).getTime()
-  const ageDays = Math.max(0, Math.floor(ageMs / (24 * 60 * 60 * 1000)))
-  if (ageMs > 7 * 24 * 60 * 60 * 1000) return { tone: 'warning', title: `已 ${ageDays} 天未备份`, desc: '建议本周补一次手动备份并做恢复演练。' }
-  return { tone: 'success', title: '备份状态正常', desc: `最近 ${ageDays || '今天'} 已有成功备份。` }
-})
+const backupHealth = computed(() => backupHealthFor(latestBackupRecord.value))
 const hasFreshBackup = computed(() => backupHealth.value.tone === 'success')
 const activeSuperAdmins = computed(() => users.value.filter((user) => user.status === 'active' && user.role === 'super_admin'))
 const enabledTwoFactorUsers = computed(() => users.value.filter((user) => user.status === 'active' && user.totpEnabled))
@@ -944,62 +941,7 @@ const filteredExportRecords = computed(() => {
   })
 })
 
-const inDateRange = (value, range) => {
-  if (!range?.length || !value) return true
-  const time = new Date(value).getTime()
-  const start = new Date(range[0]).setHours(0, 0, 0, 0)
-  const end = new Date(range[1]).setHours(23, 59, 59, 999)
-  return time >= start && time <= end
-}
-
 const roleLabel = (role) => roles.value?.[role]?.label || role || '-'
-
-const statusLabel = (status) => {
-  if (status === 'active') return '启用'
-  if (status === 'disabled') return '停用'
-  return status || '-'
-}
-
-const statusType = (status) => {
-  if (status === 'active') return 'success'
-  if (status === 'disabled') return 'info'
-  return 'warning'
-}
-
-const alertLevelLabel = (level) => {
-  if (level === 'critical') return '严重'
-  if (level === 'warning') return '警告'
-  return level || '-'
-}
-
-const alertLevelType = (level) => {
-  if (level === 'critical') return 'danger'
-  if (level === 'warning') return 'warning'
-  return 'info'
-}
-
-const readinessTagType = (item) => {
-  if (item.ok) return 'success'
-  if (item.level === 'critical') return 'danger'
-  if (item.level === 'warning') return 'warning'
-  return 'info'
-}
-
-const readinessStatusLabel = (item) => {
-  if (item.ok) return '已通过'
-  if (item.level === 'critical') return '必须处理'
-  if (item.level === 'warning') return '建议整改'
-  return '待确认'
-}
-
-const readinessActionLabel = (item) => {
-  if (item.key === 'credentials') return '去改密码/账号'
-  if (item.key === 'two_factor') return '去绑定 2FA'
-  if (item.key === 'backup') return '去备份记录'
-  if (item.key === 'open_alerts') return '去处理告警'
-  if (item.key === 'api_errors' || item.key === 'login_failures') return '查看日志'
-  return item.ok ? '查看状态' : '查看详情'
-}
 
 const goReadinessTarget = (item) => {
   if (item.key === 'credentials' || item.key === 'two_factor') tab.value = 'users'
@@ -1019,12 +961,6 @@ const goHardeningStep = (step) => {
     else twoFactorDrawer.value = true
   } else if (step.key === 'alerts') tab.value = 'alerts'
   else tab.value = 'operations'
-}
-
-const fileSize = (value) => {
-  const bytes = Number(value || 0)
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
 const fetchUsers = async () => {
@@ -1091,19 +1027,6 @@ const rangeParams = (range) => {
   })
 }
 
-const parseJsonValue = (value) => {
-  if (!value) return null
-  if (typeof value !== 'string') return value
-  try { return JSON.parse(value) } catch { return value }
-}
-
-const prettyJson = (value) => {
-  const parsed = parseJsonValue(value)
-  if (!parsed) return '无记录'
-  if (typeof parsed === 'string') return parsed
-  return JSON.stringify(parsed, null, 2)
-}
-
 const openAuditDrawer = (row) => {
   activeAudit.value = row
   auditDrawer.value = true
@@ -1156,6 +1079,7 @@ const resolveCurrentAlerts = async () => {
 
 const applyAuthResponse = (data) => {
   if (data?.token) setToken(data.token)
+  if (data?.csrfToken) setCsrfToken(data.csrfToken)
   if (data?.user) {
     setCurrentUser(data.user)
     currentUser.value = data.user

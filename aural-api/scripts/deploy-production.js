@@ -8,5 +8,4 @@ const run = (command, args) => {
 }
 
 run('node', ['scripts/preflight.js'])
-run('npx', ['prisma', 'migrate', 'deploy'])
-run('npx', ['prisma', 'generate'])
+run('node', ['scripts/deploy-database.js'])

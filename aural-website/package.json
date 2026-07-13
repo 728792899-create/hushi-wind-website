@@ -14,15 +14,28 @@
     "verify:public": "node scripts/verify-public-build.js",
     "security:check": "node scripts/check-response-security.js",
     "audit:prod": "npm audit --omit=dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "deploy:package": "node scripts/create-deploy-package.js"
   },
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
+    "@sentry/nuxt": "^10.65.0",
     "gsap": "^3.14.2",
     "nuxt": "^4.4.8",
     "vue": "^3.5.39",
     "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.10.6",
+    "vitest": "^4.1.10"
   }
 }

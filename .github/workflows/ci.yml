@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, 'codex/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            aural-api/package-lock.json
+            aural-admin/package-lock.json
+            aural-website/package-lock.json
+      - run: npm run install:all
+      - run: npm run seed:demo
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run check:api
+      - run: npm run backup:verify
+      - run: npm run build:admin
+      - run: npm run build:website
+      - run: npm --prefix aural-website run perf:check
+      - run: npm --prefix aural-website run bundle:check
+      - run: EXPECTED_API_BASE=https://api.shangkong.xyz EXPECTED_SITE_URL=https://www.shangkong.xyz npm --prefix aural-website run verify:public
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-builds
+          path: |
+            aural-admin/dist
+            aural-website/.output
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            aural-api/package-lock.json
+            aural-admin/package-lock.json
+            aural-website/package-lock.json
+      - run: npm run install:all
+      - run: npm --prefix aural-website exec playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            aural-website/playwright-report
+            aural-website/test-results
+          retention-days: 7
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix aural-api ci
+      - run: npm --prefix aural-admin ci
+      - run: npm --prefix aural-website ci
+      - run: npm --prefix aural-api audit --omit=dev --audit-level=high
+      - run: npm --prefix aural-admin audit --omit=dev --audit-level=high
+      - run: npm --prefix aural-website audit --omit=dev --audit-level=high

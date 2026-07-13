@@ -27,6 +27,29 @@
   --admin-swatch-shine: rgba(255, 255, 255, 0.12);
   --admin-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   --admin-radius: 8px;
+  --admin-space-1: 4px;
+  --admin-space-2: 8px;
+  --admin-space-3: 12px;
+  --admin-space-4: 16px;
+  --admin-space-6: 24px;
+  --admin-radius-control: 8px;
+  --admin-radius-card: 14px;
+  --admin-motion-fast: 160ms;
+  --admin-motion-normal: 260ms;
+}
+
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 :root[data-admin-theme="midnight"] {

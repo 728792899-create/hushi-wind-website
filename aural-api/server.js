@@ -1,4 +1,5 @@
-﻿const express = require('express');
+﻿const { setupExpressErrorHandler: setupSentryExpressErrorHandler } = require('./src/observability/sentry');
+const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
@@ -6,21 +7,17 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { HttpError, createError, asyncHandler } = require('./src/core/http');
+const { roleDefinitions, canAdmin, publicAdminUser } = require('./src/security/permissions');
+const { registerProductRoutes } = require('./src/routes/productRoutes');
+const { registerInquiryRoutes } = require('./src/routes/inquiryRoutes');
+const { createAssetStorage } = require('./src/infrastructure/assetStorage');
+const { createRateLimitStore } = require('./src/infrastructure/rateLimitStore');
+const logger = require('./src/observability/logger');
 
 const app = express();
 app.disable('x-powered-by');
 const prisma = new PrismaClient();
-
-class HttpError extends Error {
-  constructor(status, code, message) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-
-const createError = (status, code, message) => new HttpError(status, code, message);
-const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
@@ -32,7 +29,8 @@ const isStrongPassword = (password) => {
   const baseRules = value.length >= minLength && value.length <= 64 && /[A-Za-z]/.test(value) && /\d/.test(value);
   return IS_PRODUCTION ? baseRules && /[a-z]/.test(value) && /[A-Z]/.test(value) && /[^A-Za-z0-9]/.test(value) : baseRules;
 };
-const ADMIN_TOKEN_TTL_MS = Number.parseInt(process.env.ADMIN_TOKEN_TTL_MS || '', 10) || 1000 * 60 * 60 * 12;
+const isPlaceholderConfig = (value) => /replace|change[-_ ]?me|your-company|example\.(com|org|net)|placeholder/i.test(String(value || ''));
+const ADMIN_TOKEN_TTL_MS = Number.parseInt(process.env.ADMIN_TOKEN_TTL_MS || '', 10) || 1000 * 60 * 60 * (IS_PRODUCTION ? 2 : 12);
 const LOGIN_LOCK_AFTER = 5;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const API_RATE_WINDOW_MS = Number.parseInt(process.env.API_RATE_WINDOW_MS || '', 10) || 1000 * 60;
@@ -48,6 +46,7 @@ const PUBLIC_ADMIN_URL = process.env.PUBLIC_ADMIN_URL || '';
 const API_PUBLIC_URL = process.env.API_PUBLIC_URL || '';
 const UPLOAD_PUBLIC_BASE = (process.env.UPLOAD_PUBLIC_BASE || '').replace(/\/$/, '');
 const RATE_LIMIT_STORE = process.env.RATE_LIMIT_STORE || 'memory';
+const UPLOAD_STORAGE = process.env.UPLOAD_STORAGE || 'local';
 const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_WEBHOOK_PROVIDER = String(process.env.ALERT_WEBHOOK_PROVIDER || 'generic').toLowerCase();
 const ALERT_EMAIL_TO = process.env.ALERT_EMAIL_TO || '';
@@ -93,7 +92,9 @@ const HOST = process.env.HOST || (IS_PRODUCTION ? '0.0.0.0' : '127.0.0.1');
 const isLoopbackHost = (host) => ['127.0.0.1', 'localhost', '::1'].includes(String(host).trim());
 const usingWeakAdminDefaults =
   ADMIN_USERNAME === 'admin' ||
+  ADMIN_USERNAME === 'demo_admin' ||
   ADMIN_PASSWORD === '123456' ||
+  ADMIN_PASSWORD === 'DemoPass_2026!' ||
   ADMIN_TOKEN_SECRET === 'hushi-local-admin-secret';
 if (!isLoopbackHost(HOST) && usingWeakAdminDefaults) {
   throw new Error('检测到弱默认账号/密钥且监听非本地地址：请设置强 ADMIN_USERNAME / ADMIN_PASSWORD / ADMIN_TOKEN_SECRET，或将 HOST 设为 127.0.0.1 仅本机访问');
@@ -112,7 +113,7 @@ const corsOptions = {
   },
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Sensitive-Confirmation']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token', 'X-Sensitive-Confirmation']
 };
 
 const securityHeaders = (req, res, next) => {
@@ -138,14 +139,18 @@ app.use(express.json({ limit: '1mb' }));
 if (IS_PRODUCTION && (
   !process.env.ADMIN_USERNAME
   || !process.env.ADMIN_PASSWORD
-  || ADMIN_USERNAME === 'admin'
-  || ADMIN_PASSWORD === '123456'
+  || ['admin', 'demo_admin'].includes(ADMIN_USERNAME)
+  || ['123456', 'DemoPass_2026!'].includes(ADMIN_PASSWORD)
   || !isStrongPassword(ADMIN_PASSWORD)
+  || isPlaceholderConfig(ADMIN_USERNAME)
+  || isPlaceholderConfig(ADMIN_PASSWORD)
   || !process.env.ADMIN_TOKEN_SECRET
   || ADMIN_TOKEN_SECRET === 'hushi-local-admin-secret'
   || ADMIN_TOKEN_SECRET.length < 32
+  || isPlaceholderConfig(ADMIN_TOKEN_SECRET)
   || allowedOrigins.size === 0
-  || ![PUBLIC_SITE_URL, PUBLIC_ADMIN_URL, API_PUBLIC_URL, UPLOAD_PUBLIC_BASE].every(isProductionUrl)
+  || ![PUBLIC_SITE_URL, PUBLIC_ADMIN_URL, API_PUBLIC_URL, UPLOAD_PUBLIC_BASE].every((value) => isProductionUrl(value) && !isPlaceholderConfig(value))
+  || [...allowedOrigins].some(isPlaceholderConfig)
 )) {
   throw new Error('生产环境必须配置 HTTPS 正式域名、CORS 白名单、强管理员密码、上传资源域名和 32 位以上 ADMIN_TOKEN_SECRET');
 }
@@ -464,46 +469,6 @@ const healthHandler = async (req, res) => {
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
-const roleDefinitions = {
-  super_admin: {
-    label: '超级管理员',
-    permissions: ['*']
-  },
-  operations: {
-    label: '运营管理员',
-    permissions: [
-      'dashboard:read', 'products:read', 'products:write', 'articles:read', 'articles:write',
-      'cms:read', 'cms:write', 'artists:read', 'artists:write', 'config:read', 'config:write',
-      'resources:read', 'resources:write', 'exports:create',
-      'logs:read', 'backups:create'
-    ]
-  },
-  support: {
-    label: '客服',
-    permissions: ['dashboard:read', 'crm:read', 'crm:write', 'crm:private', 'exports:create']
-  },
-  editor: {
-    label: '内容编辑',
-    permissions: ['dashboard:read', 'articles:read', 'articles:write', 'cms:read', 'cms:write', 'artists:read', 'products:read', 'resources:read', 'config:read']
-  },
-  readonly: {
-    label: '只读观察员',
-    permissions: ['dashboard:read', 'products:read', 'articles:read', 'cms:read', 'artists:read', 'resources:read', 'crm:read', 'config:read', 'logs:read']
-  }
-};
-
-const publicAdminUser = (admin) => ({
-  id: admin.id,
-  username: admin.username,
-  displayName: admin.displayName || admin.username,
-  role: admin.role,
-  roleLabel: roleDefinitions[admin.role]?.label || admin.role,
-  status: admin.status,
-  permissions: roleDefinitions[admin.role]?.permissions || [],
-  totpEnabled: Boolean(admin.totpEnabled),
-  lastLoginAt: admin.lastLoginAt
-});
-
 const toInt = (value, fallback = 0) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -637,6 +602,17 @@ const adminTokenFromRequest = (req) => {
   return rawHeader.startsWith('Bearer ') ? rawHeader.slice(7).trim() : '';
 };
 
+const createCsrfToken = (token) => crypto
+  .createHmac('sha256', ADMIN_TOKEN_SECRET)
+  .update(`csrf:${String(token || '')}`)
+  .digest('base64url');
+
+const csrfMatches = (token, candidate) => {
+  const expected = Buffer.from(createCsrfToken(token));
+  const received = Buffer.from(String(candidate || ''));
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+};
+
 const isAuthorizedAdmin = (req) => Boolean(req.admin);
 
 const getRequestMeta = (req) => ({
@@ -690,12 +666,6 @@ const requireSensitiveConfirmation = (req, actionLabel = '敏感操作') => {
   if (value !== SENSITIVE_CONFIRMATION_TEXT) {
     throw createError(400, 'SENSITIVE_CONFIRMATION_REQUIRED', `${actionLabel}需要输入确认短语：${SENSITIVE_CONFIRMATION_TEXT}`);
   }
-};
-
-const canAdmin = (admin, permission) => {
-  if (!admin) return false;
-  const permissions = roleDefinitions[admin.role]?.permissions || [];
-  return permissions.includes('*') || permissions.includes(permission);
 };
 
 const loadAdminFromRequest = async (req) => {
@@ -988,27 +958,23 @@ const assertSafeUploadedFile = (file) => {
   return true;
 };
 
-const rateBuckets = new Map();
-app.use('/api', (req, res, next) => {
+const rateLimitStore = createRateLimitStore({ mode: RATE_LIMIT_STORE, redisUrl: process.env.REDIS_URL });
+app.use('/api', asyncHandler(async (req, res, next) => {
   const meta = getRequestMeta(req);
   const key = `${meta.ip}:${req.path}`;
-  const now = Date.now();
-  const bucket = rateBuckets.get(key) || { count: 0, resetAt: now + API_RATE_WINDOW_MS };
-  if (bucket.resetAt < now) {
-    bucket.count = 0;
-    bucket.resetAt = now + API_RATE_WINDOW_MS;
-  }
-  bucket.count += 1;
-  rateBuckets.set(key, bucket);
+  const bucket = await rateLimitStore.increment(key, API_RATE_WINDOW_MS);
+  res.setHeader('RateLimit-Limit', API_RATE_LIMIT);
+  res.setHeader('RateLimit-Remaining', Math.max(0, API_RATE_LIMIT - bucket.count));
+  res.setHeader('RateLimit-Reset', Math.ceil(bucket.resetAt / 1000));
   if (bucket.count > API_RATE_LIMIT) return next(createError(429, 'RATE_LIMITED', '访问过于频繁，请稍后再试'));
   return next();
-});
+}));
 
 const publicFormBuckets = new Map();
 const publicFormError = '提交校验未通过或过于频繁，请稍后再试';
 const analyticsEvents = [
-  'page_view', 'product_view', 'news_view', 'search', 'cta_click',
-  'form_open', 'form_submit', 'form_submit_failed', 'faq_click', 'faq_feedback',
+  'page_view', 'product_view', 'news_view', 'search', 'product_search', 'product_compare', 'resource_download', 'cta_click',
+  'form_open', 'form_submit', 'inquiry_start', 'inquiry_submit', 'form_submit_failed', 'faq_click', 'faq_feedback',
   'frontend_error', 'resource_error', 'api_error', 'performance_metric'
 ];
 const maxAnalyticsMetadataLength = 4000;
@@ -1105,6 +1071,7 @@ const recordApiLog = async (req, res, startedAt, error = null) => {
         errorMessage: error?.message ? String(error.message).slice(0, 500) : null
       }
     });
+    logger.info('api_request', { method: req.method, path: req.path, status, durationMs, ip: anonymizeIp(meta.ip) });
     if (status >= 500) {
       createAlert({
         level: 'critical',
@@ -1123,7 +1090,7 @@ const recordApiLog = async (req, res, startedAt, error = null) => {
       });
     }
   } catch (logError) {
-    if (!IS_PRODUCTION) console.warn('API log failed:', logError.message);
+    logger.warn('api_log_failed', { error: logError.message });
   }
 };
 
@@ -1170,62 +1137,24 @@ app.use('/api', asyncHandler(async (req, res, next) => {
   return next();
 }));
 
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const token = adminTokenFromRequest(req);
+  if (!token) return next();
+  if (!csrfMatches(token, req.headers['x-csrf-token'])) {
+    return next(createError(403, 'CSRF_VALIDATION_FAILED', '后台安全校验已过期，请刷新页面后重试'));
+  }
+  return next();
+});
+
 app.post('/api/events', asyncHandler(async (req, res) => {
   await recordAnalyticsEvent(req, req.body);
   res.status(201).json({ success: true });
 }));
 
-const productFields = [
-  'title', 'slug', 'type', 'categoryName', 'description', 'imageUrl', 'gallery',
-  'specs', 'features', 'scenes', 'warranty', 'series', 'quantity', 'price',
-  'isFeatured', 'status', 'sku', 'model', 'color', 'seoTitle', 'seoDescription',
-  'seoKeywords', 'ogImageUrl', 'relatedProductIds', 'accessories',
-  'availableFrom', 'availableUntil', 'publishedAt', 'hiddenAt', 'lastEditedBy'
-];
-
 const articleFields = ['title', 'slug', 'description', 'category', 'imageUrl', 'date', 'views', 'status', 'seoTitle', 'seoDescription', 'seoKeywords', 'ogImageUrl', 'publishedAt', 'hiddenAt', 'lastEditedBy'];
 const statusValues = ['published', 'active', 'draft', 'hidden', 'inactive'];
 const publicStatusWhere = { OR: [{ status: 'published' }, { status: 'active' }] };
-
-const inquiryFields = [
-  'customerName', 'contactInfo', 'message', 'inquiryType', 'productId',
-  'productTitle', 'city', 'budget', 'preferredTime', 'status', 'priority',
-  'internalNote'
-];
-const publicInquiryFields = [
-  'customerName', 'contactInfo', 'message', 'inquiryType', 'productId',
-  'productTitle', 'city', 'budget', 'preferredTime'
-];
-
-const normalizeProductPayload = (body) => {
-  const data = pick(body, productFields);
-  ['title', 'slug', 'type', 'categoryName', 'description', 'sku', 'model', 'color', 'seoTitle', 'seoDescription', 'seoKeywords', 'ogImageUrl', 'relatedProductIds', 'accessories', 'lastEditedBy'].forEach((field) => optionalTrim(data, field));
-  if (Object.prototype.hasOwnProperty.call(data, 'quantity')) data.quantity = toInt(data.quantity, 0);
-  if (Object.prototype.hasOwnProperty.call(data, 'price')) data.price = toFloat(data.price, 0);
-  if (Object.prototype.hasOwnProperty.call(data, 'isFeatured')) data.isFeatured = Boolean(data.isFeatured);
-  ['availableFrom', 'availableUntil', 'publishedAt', 'hiddenAt'].forEach((field) => {
-    if (Object.prototype.hasOwnProperty.call(data, field)) data[field] = data[field] ? new Date(data[field]) : null;
-  });
-  if (!data.status) data.status = 'published';
-  data.status = requireAllowed(data.status, statusValues, 'published');
-  if (data.status === 'active') data.status = 'published';
-  return data;
-};
-
-const validateProductPayload = (body) => {
-  const data = normalizeProductPayload(body);
-  requiredString(data, 'title', '产品名称');
-  requiredString(data, 'slug', '产品 URL 后缀');
-  requiredString(data, 'type', '系统归类');
-  requiredString(data, 'categoryName', '中文分类');
-  if (!Object.prototype.hasOwnProperty.call(data, 'description') || data.description == null) data.description = '';
-  if (!slugPattern.test(data.slug)) throw createError(400, 'VALIDATION_ERROR', '产品 URL 后缀只能使用小写字母、数字和短横线');
-  if (data.price < 0) throw createError(400, 'VALIDATION_ERROR', '价格不能小于 0');
-  if (data.quantity < 0) throw createError(400, 'VALIDATION_ERROR', '库存不能小于 0');
-  if (data.imageUrl && !/^(https?:\/\/|\/uploads\/)/i.test(data.imageUrl)) throw createError(400, 'VALIDATION_ERROR', '主图地址格式不正确');
-  if (data.ogImageUrl && !/^(https?:\/\/|\/uploads\/)/i.test(data.ogImageUrl)) throw createError(400, 'VALIDATION_ERROR', 'OG 图地址格式不正确');
-  return data;
-};
 
 const statusFilterWhere = (status) => {
   if (!status || status === 'all') return {};
@@ -1257,43 +1186,6 @@ const validateArticlePayload = (body) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date) && Number.isNaN(new Date(data.date).getTime())) {
     throw createError(400, 'VALIDATION_ERROR', '发布日期格式不正确');
   }
-  return data;
-};
-
-const normalizeInquiryPayload = (body) => {
-  const data = pick(body, inquiryFields);
-  if (Object.prototype.hasOwnProperty.call(data, 'productId') && data.productId !== null && data.productId !== '') {
-    data.productId = toInt(data.productId, null);
-  } else {
-    delete data.productId;
-  }
-  if (!data.status) data.status = 'new';
-  if (!data.priority) data.priority = 'normal';
-  return data;
-};
-
-const validateInquiryPayload = (body, { publicOnly = true } = {}) => {
-  const source = publicOnly ? pick(body, publicInquiryFields) : body;
-  const data = normalizeInquiryPayload(source);
-  ['customerName', 'contactInfo', 'message', 'productTitle', 'city', 'budget', 'preferredTime'].forEach((field) => optionalTrim(data, field));
-  requiredString(data, 'customerName', '客户姓名');
-  requiredString(data, 'contactInfo', '联系方式');
-  requiredString(data, 'message', '需求描述');
-  if (data.customerName.length < 2 || data.customerName.length > 40) throw createError(400, 'VALIDATION_ERROR', '客户姓名长度不正确');
-  if (!contactPattern.test(data.contactInfo)) throw createError(400, 'VALIDATION_ERROR', '联系方式格式不正确');
-  if (data.message.length < 2 || data.message.length > 1000) throw createError(400, 'VALIDATION_ERROR', '需求描述长度不正确');
-  data.status = requireAllowed(data.status, ['new', 'contacted', 'quoted', 'processing', 'done', 'closed'], 'new');
-  data.priority = requireAllowed(data.priority, ['normal', 'high', 'urgent'], 'normal');
-  return data;
-};
-
-const inquiryUpdateFields = ['status', 'priority', 'internalNote', 'isRead'];
-const normalizeInquiryUpdatePayload = (body) => {
-  const data = pick(body, inquiryUpdateFields);
-  if (Object.prototype.hasOwnProperty.call(data, 'isRead')) data.isRead = Boolean(data.isRead);
-  if (Object.prototype.hasOwnProperty.call(data, 'status')) data.status = requireAllowed(data.status || 'new', ['new', 'contacted', 'quoted', 'processing', 'done', 'closed'], 'new');
-  if (Object.prototype.hasOwnProperty.call(data, 'priority')) data.priority = requireAllowed(data.priority || 'normal', ['normal', 'high', 'urgent'], 'normal');
-  if (Object.prototype.hasOwnProperty.call(data, 'status') && data.status !== 'new') data.followedAt = new Date();
   return data;
 };
 
@@ -1424,8 +1316,8 @@ const analyticsSummary = async (range = '7d') => {
   ]);
   const eventCounts = countBy(events, (event) => event.eventType);
   const productViews = events.filter((event) => event.eventType === 'product_view');
-  const formOpens = events.filter((event) => event.eventType === 'form_open');
-  const formSubmits = events.filter((event) => event.eventType === 'form_submit');
+  const formOpens = events.filter((event) => ['form_open', 'inquiry_start'].includes(event.eventType));
+  const formSubmits = events.filter((event) => ['form_submit', 'inquiry_submit'].includes(event.eventType));
   const faqClickEvents = events.filter((event) => event.eventType === 'faq_click');
   const faqFeedbackEvents = events.filter((event) => event.eventType === 'faq_feedback');
   const frontendErrorEvents = events.filter((event) => event.eventType === 'frontend_error');
@@ -1443,7 +1335,7 @@ const analyticsSummary = async (range = '7d') => {
   const submitCount = formSubmits.length;
   const pageViews = events.filter((event) => event.eventType === 'page_view');
   const ctaClicks = events.filter((event) => event.eventType === 'cta_click');
-  const searchEvents = events.filter((event) => event.eventType === 'search');
+  const searchEvents = events.filter((event) => ['search', 'product_search'].includes(event.eventType));
   const searchClickEvents = ctaClicks.filter((event) => event.searchTerm);
   const deviceRows = events.map((event) => ({
     event,
@@ -1459,8 +1351,8 @@ const analyticsSummary = async (range = '7d') => {
   [...formOpens, ...formSubmits, ...ctaClicks].forEach((event) => {
     const key = pagePathOnly(event.pagePath);
     const existing = pageStats.get(key) || { path: key, views: 0, formOpens: 0, formSubmits: 0, ctaClicks: 0 };
-    if (event.eventType === 'form_open') existing.formOpens += 1;
-    if (event.eventType === 'form_submit') existing.formSubmits += 1;
+    if (['form_open', 'inquiry_start'].includes(event.eventType)) existing.formOpens += 1;
+    if (['form_submit', 'inquiry_submit'].includes(event.eventType)) existing.formSubmits += 1;
     if (event.eventType === 'cta_click') existing.ctaClicks += 1;
     pageStats.set(key, existing);
   });
@@ -1516,8 +1408,8 @@ const analyticsSummary = async (range = '7d') => {
   const deviceStats = ['desktop', 'tablet', 'mobile', 'unknown'].map((device) => {
     const rows = deviceRows.filter((row) => row.device === device);
     const productRows = rows.filter((row) => row.event.eventType === 'product_view');
-    const openRows = rows.filter((row) => row.event.eventType === 'form_open');
-    const submitRows = rows.filter((row) => row.event.eventType === 'form_submit');
+    const openRows = rows.filter((row) => ['form_open', 'inquiry_start'].includes(row.event.eventType));
+    const submitRows = rows.filter((row) => ['form_submit', 'inquiry_submit'].includes(row.event.eventType));
     return {
       device,
       visits: rows.filter((row) => row.event.eventType === 'page_view').length,
@@ -1867,6 +1759,18 @@ const buildProductionReadiness = ({ adminUsers = [], backup = null, alerts = {},
 // 1. 静态资源与图片上传
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+const assetStorage = createAssetStorage({
+  mode: UPLOAD_STORAGE,
+  publicBase: process.env.S3_PUBLIC_BASE || UPLOAD_PUBLIC_BASE,
+  bucket: process.env.S3_BUCKET,
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  prefix: process.env.S3_PREFIX || 'uploads',
+  accessKeyId: process.env.S3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+  cacheControl: `public, max-age=${UPLOAD_CACHE_SECONDS}, immutable`
+});
 app.use('/uploads', express.static(uploadDir, {
   immutable: true,
   maxAge: UPLOAD_CACHE_SECONDS * 1000,
@@ -1904,22 +1808,22 @@ const upload = multer({
     return cb(createError(400, 'INVALID_UPLOAD_TYPE', '仅支持图片、PDF、ZIP/RAR 和 MP4/MOV 文件'));
   }
 });
-app.post('/api/upload', requireAdmin, upload.single('file'), (req, res, next) => {
+app.post('/api/upload', requireAdmin, upload.single('file'), asyncHandler(async (req, res) => {
   try {
     assertSafeUploadedFile(req.file);
-    const relativeUrl = `/uploads/${req.file.filename}`;
+    const published = await assetStorage.publish(req.file);
     auditOperation(req, { action: 'UPLOAD', module: 'resources', target: req.file.filename, summary: `上传 ${req.file.mimetype}` }).catch(() => {});
     return res.json({
-      url: relativeUrl,
-      publicUrl: UPLOAD_PUBLIC_BASE ? `${UPLOAD_PUBLIC_BASE}${relativeUrl}` : relativeUrl,
+      url: published.url,
+      publicUrl: published.publicUrl,
       dimensions: req.file.dimensions || null,
       size: req.file.size
     });
   } catch (error) {
     if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    return next(error);
+    throw error;
   }
-});
+}));
 
 const normalizeUploadUrl = (value) => {
   const raw = typeof value === 'string' ? value.trim() : '';
@@ -2365,16 +2269,19 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
     });
   }
   const token = createAdminToken(updated);
-  res.json({ success: true, token, expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
+  res.json({ success: true, token, csrfToken: createCsrfToken(token), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
 }));
 
-app.get('/api/auth/session', requireAdmin, (req, res) => res.json({ success: true, user: req.admin, expiresIn: ADMIN_TOKEN_TTL_MS / 1000 }));
+app.get('/api/auth/session', requireAdmin, (req, res) => {
+  const token = adminTokenFromRequest(req);
+  res.json({ success: true, csrfToken: createCsrfToken(token), user: req.admin, expiresIn: ADMIN_TOKEN_TTL_MS / 1000 });
+});
 
 app.post('/api/auth/refresh', requireAdmin, asyncHandler(async (req, res) => {
   const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.id } });
   if (!admin || admin.status !== 'active') throw createError(401, 'UNAUTHORIZED', '请先登录后台');
   const token = createAdminToken(admin);
-  res.json({ success: true, token, expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(admin) });
+  res.json({ success: true, token, csrfToken: createCsrfToken(token), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(admin) });
 }));
 
 app.post('/api/auth/change-password', requireAdmin, asyncHandler(async (req, res) => {
@@ -2410,7 +2317,8 @@ app.post('/api/auth/2fa/enable', requireAdmin, asyncHandler(async (req, res) => 
   if (!verifyTotp(admin.totpSecret, req.body.code)) throw createError(400, 'INVALID_TOTP_CODE', '2FA 动态验证码不正确');
   const updated = await prisma.adminUser.update({ where: { id: admin.id }, data: { totpEnabled: true, tokenVersion: { increment: 1 } } });
   await auditOperation(req, { action: 'TOTP_ENABLE', module: 'security', target: admin.username, summary: '启用 2FA' });
-  res.json({ success: true, token: createAdminToken(updated), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
+  const token = createAdminToken(updated);
+  res.json({ success: true, token, csrfToken: createCsrfToken(token), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
 }));
 
 app.post('/api/auth/2fa/disable', requireAdmin, asyncHandler(async (req, res) => {
@@ -2419,7 +2327,8 @@ app.post('/api/auth/2fa/disable', requireAdmin, asyncHandler(async (req, res) =>
   if (admin.totpEnabled && !verifyTotp(admin.totpSecret, req.body.code)) throw createError(400, 'INVALID_TOTP_CODE', '2FA 动态验证码不正确');
   const updated = await prisma.adminUser.update({ where: { id: admin.id }, data: { totpEnabled: false, totpSecret: null, tokenVersion: { increment: 1 } } });
   await auditOperation(req, { action: 'TOTP_DISABLE', module: 'security', target: admin.username, summary: '关闭 2FA' });
-  res.json({ success: true, token: createAdminToken(updated), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
+  const token = createAdminToken(updated);
+  res.json({ success: true, token, csrfToken: createCsrfToken(token), expiresIn: ADMIN_TOKEN_TTL_MS / 1000, user: publicAdminUser(updated) });
 }));
 
 app.get('/api/admin/users', requireAdmin, requirePermission('logs:read'), asyncHandler(async (req, res) => {
@@ -2911,93 +2820,7 @@ app.get('/api/admin/analytics', requireAdmin, requirePermission('dashboard:read'
 }));
 
 // 3. 核心业务线 (产品、新闻、系统配置、展示名录)
-app.get('/api/products', asyncHandler(async (req, res) => {
-  if ((req.query.admin === '1' || req.query.preview === '1') && !isAuthorizedAdmin(req)) throw createError(401, 'UNAUTHORIZED', '请先登录后台');
-  if (isAdminRequest(req) && !canAdmin(req.admin, 'products:read')) throw createError(403, 'FORBIDDEN', '当前账号没有产品查看权限');
-  const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-  const type = typeof req.query.type === 'string' ? req.query.type.trim() : '';
-  const status = cleanQueryValue(req.query.status);
-  const { page, pageSize, skip, take } = normalizePagination(req, isAdminRequest(req) ? 20 : 50);
-  const filters = mergeWhere(
-    {
-    ...(type && type !== 'all' ? { type } : {}),
-    ...(search ? {
-      OR: [
-        { title: { contains: search } },
-        { series: { contains: search } },
-        { categoryName: { contains: search } },
-        { description: { contains: search } },
-        { specs: { contains: search } },
-        { features: { contains: search } },
-        { scenes: { contains: search } }
-      ]
-    } : {})
-    },
-    isAdminRequest(req) ? statusFilterWhere(status) : {}
-  );
-  const where = mergeWhere(isAdminRequest(req) ? {} : publicStatusWhere, filters);
-  const [total, list] = await Promise.all([
-    prisma.product.count({ where }),
-    prisma.product.findMany({ where, orderBy: { updatedAt: 'desc' }, skip, take })
-  ]);
-  res.json(paginatedPayload(list.map(p => ({ id: p.id, attributes: { ...p, image: p.imageUrl ? { data: { attributes: { url: p.imageUrl } } } : null } })), total, page, pageSize));
-}));
-app.get('/api/products/slug-check/:slug', requireAdmin, requirePermission('products:read'), asyncHandler(async (req, res) => {
-  const slug = cleanQueryValue(req.params.slug);
-  if (!slugPattern.test(slug)) throw createError(400, 'VALIDATION_ERROR', '产品 URL 后缀格式不正确');
-  const excludeId = toInt(req.query.excludeId, 0);
-  const row = await prisma.product.findFirst({ where: mergeWhere({ slug }, excludeId ? { NOT: { id: excludeId } } : {}) });
-  res.json({ available: !row });
-}));
-app.get('/api/products/:id/versions', requireAdmin, requirePermission('products:read'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const data = await prisma.contentVersion.findMany({ where: { module: 'product', recordId: id }, orderBy: { createdAt: 'desc' }, take: 30 });
-  res.json({ data });
-}));
-app.post('/api/products/:id/restore/:versionId', requireAdmin, requirePermission('products:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const versionId = toId(req.params.versionId);
-  const version = await prisma.contentVersion.findUnique({ where: { id: versionId } });
-  if (!version || version.module !== 'product' || version.recordId !== id) throw createError(404, 'NOT_FOUND', '版本不存在');
-  const before = await prisma.product.findUnique({ where: { id } });
-  const snapshot = JSON.parse(version.snapshot);
-  delete snapshot.id;
-  delete snapshot.createdAt;
-  delete snapshot.updatedAt;
-  const updated = await prisma.product.update({ where: { id }, data: validateProductPayload({ ...snapshot, lastEditedBy: req.admin.username }) });
-  await saveContentVersion(req, 'product', before);
-  await auditOperation(req, { action: 'RESTORE', module: 'products', target: updated.title, targetId: id, summary: `恢复版本 ${versionId}`, beforeData: before, afterData: updated });
-  res.json(updated);
-}));
-app.post('/api/products', requireAdmin, requirePermission('products:write'), asyncHandler(async (req, res) => {
-  const data = validateProductPayload({ ...req.body, lastEditedBy: req.admin.username });
-  if (data.status === 'published' && !data.publishedAt) data.publishedAt = new Date();
-  const created = await prisma.product.create({ data });
-  await saveContentVersion(req, 'product', created);
-  await auditOperation(req, { action: 'CREATE', module: 'products', target: created.title, targetId: created.id, summary: '创建产品', afterData: created });
-  res.status(201).json(created);
-}));
-app.put('/api/products/:id', requireAdmin, requirePermission('products:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const before = await prisma.product.findUnique({ where: { id } });
-  if (!before) throw createError(404, 'NOT_FOUND', '产品不存在');
-  await saveContentVersion(req, 'product', before);
-  const data = validateProductPayload({ ...req.body, lastEditedBy: req.admin.username });
-  if (data.status === 'published' && !data.publishedAt) data.publishedAt = before.publishedAt || new Date();
-  if (data.status === 'hidden' && !data.hiddenAt) data.hiddenAt = new Date();
-  const updated = await prisma.product.update({ where: { id }, data });
-  await auditOperation(req, { action: 'UPDATE', module: 'products', target: updated.title, targetId: id, summary: '更新产品', beforeData: before, afterData: updated });
-  res.json(updated);
-}));
-app.delete('/api/products/:id', requireAdmin, requirePermission('products:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const before = await prisma.product.findUnique({ where: { id } });
-  if (!before) throw createError(404, 'NOT_FOUND', '产品不存在');
-  await saveContentVersion(req, 'product', before);
-  await prisma.product.delete({ where: { id } });
-  await auditOperation(req, { action: 'DELETE', module: 'products', target: before.title, targetId: id, summary: '删除产品', beforeData: before });
-  res.json({ success: true });
-}));
+registerProductRoutes(app, { prisma, requireAdmin, requirePermission, saveContentVersion, auditOperation });
 
 app.get('/api/articles', asyncHandler(async (req, res) => {
   if ((req.query.admin === '1' || req.query.preview === '1') && !isAuthorizedAdmin(req)) throw createError(401, 'UNAUTHORIZED', '请先登录后台');
@@ -3122,110 +2945,18 @@ app.delete('/api/artists/:id', requireAdmin, requirePermission('artists:write'),
 }));
 
 // 4. 客户与工单 CRM 中心
-app.post('/api/inquiries', asyncHandler(async (req, res) => {
-  try {
-    assertPublicFormGuard(req, 'inquiry');
-  } catch (error) {
-    await createAlert({
-      level: 'warning',
-      type: 'form_submit_failed',
-      title: '公开表单提交被拦截',
-      message: error.message,
-      metadata: { form: 'inquiry', pagePath: req.body?.pagePath, code: error.code, ip: getRequestMeta(req).ip }
-    });
-    throw error;
-  }
-  const data = validateInquiryPayload(req.body, { publicOnly: true });
-  const created = await prisma.inquiry.create({ data });
-  notifyWebhook('inquiry_created', {
-    id: created.id,
-    type: created.inquiryType,
-    priority: created.priority,
-    city: created.city,
-    productTitle: created.productTitle,
-    customerName: created.customerName,
-    contactInfo: maskContact(created.contactInfo)
-  });
-  await recordAnalyticsEvent(req, {
-    eventType: 'form_submit',
-    pagePath: req.body.pagePath,
-    source: req.body.source,
-    sessionId: req.body.sessionId,
-    visitorId: req.body.visitorId,
-    entityType: data.productId ? 'product' : 'support',
-    entityId: data.productId ? String(data.productId) : '',
-    entityTitle: data.productTitle,
-    ctaName: data.inquiryType === 'quote' ? 'quote' : data.inquiryType === 'appointment' ? 'appointment' : 'support-ticket',
-    metadata: { city: data.city, budget: data.budget, preferredTime: data.preferredTime }
-  });
-  res.status(201).json({ success: true, data: created });
-}));
-app.get('/api/inquiries', requireAdmin, requirePermission('crm:read'), asyncHandler(async (req, res) => {
-  const keyword = cleanQueryValue(req.query.keyword);
-  const status = cleanQueryValue(req.query.status);
-  const priority = cleanQueryValue(req.query.priority);
-  const type = cleanQueryValue(req.query.type);
-  const city = cleanQueryValue(req.query.city);
-  const product = cleanQueryValue(req.query.product);
-  const startDate = normalizeDateStart(req.query.startDate);
-  const endDate = normalizeDateEnd(req.query.endDate);
-  const { page, pageSize, skip, take } = normalizePagination(req);
-  const where = mergeWhere(
-    status && status !== 'all' ? { status } : {},
-    priority && priority !== 'all' ? { priority } : {},
-    type && type !== 'all' ? (type === 'general' ? { OR: [{ inquiryType: null }, { inquiryType: '' }, { inquiryType: 'general' }] } : { inquiryType: type }) : {},
-    city ? { city: { contains: city } } : {},
-    product ? { productTitle: { contains: product } } : {},
-    keyword ? {
-      OR: [
-        { customerName: { contains: keyword } },
-        { contactInfo: { contains: keyword } },
-        { productTitle: { contains: keyword } },
-        { city: { contains: keyword } },
-        { message: { contains: keyword } },
-        { internalNote: { contains: keyword } }
-      ]
-    } : {},
-    startDate || endDate ? {
-      createdAt: {
-        ...(startDate ? { gte: startDate } : {}),
-        ...(endDate ? { lte: endDate } : {})
-      }
-    } : {}
-  );
-  const [total, rows] = await Promise.all([
-    prisma.inquiry.count({ where }),
-    prisma.inquiry.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take })
-  ]);
-  const data = canAdmin(req.admin, 'crm:private') ? rows : rows.map((row) => ({
-    ...row,
-    contactInfo: maskContact(row.contactInfo),
-    internalNote: row.internalNote ? '已隐藏' : ''
-  }));
-  res.json(paginatedPayload(data, total, page, pageSize));
-}));
-app.put('/api/inquiries/:id/read', requireAdmin, requirePermission('crm:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  await prisma.inquiry.update({ where: { id }, data: { isRead: true } });
-  await auditOperation(req, { action: 'READ', module: 'crm', target: 'inquiry', targetId: id, summary: '标记工单已读' });
-  res.json({ success: true });
-}));
-app.put('/api/inquiries/:id', requireAdmin, requirePermission('crm:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const before = await prisma.inquiry.findUnique({ where: { id } });
-  if (!before) throw createError(404, 'NOT_FOUND', '工单不存在');
-  const data = await prisma.inquiry.update({ where: { id }, data: normalizeInquiryUpdatePayload(req.body) });
-  await auditOperation(req, { action: 'UPDATE', module: 'crm', target: before.customerName, targetId: id, summary: '更新工单跟进', beforeData: before, afterData: data });
-  res.json({ success: true, data });
-}));
-app.delete('/api/inquiries/:id', requireAdmin, requirePermission('crm:write'), asyncHandler(async (req, res) => {
-  const id = toId(req.params.id);
-  const before = await prisma.inquiry.findUnique({ where: { id } });
-  if (!before) throw createError(404, 'NOT_FOUND', '工单不存在');
-  await prisma.inquiry.delete({ where: { id } });
-  await auditOperation(req, { action: 'DELETE', module: 'crm', target: before.customerName, targetId: id, summary: '删除工单', beforeData: before });
-  res.json({ success: true });
-}));
+registerInquiryRoutes(app, {
+  prisma,
+  requireAdmin,
+  requirePermission,
+  auditOperation,
+  assertPublicFormGuard,
+  createAlert,
+  getRequestMeta,
+  notifyWebhook,
+  maskContact,
+  recordAnalyticsEvent
+});
 
 app.post('/api/artist-applications', asyncHandler(async (req, res) => {
   try {
@@ -3394,6 +3125,8 @@ app.use('/api', (req, res) => {
   res.status(404).json({ success: false, error: { code: 'API_NOT_FOUND', message: '接口不存在' } });
 });
 
+setupSentryExpressErrorHandler(app);
+
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
 
@@ -3414,7 +3147,7 @@ app.use((err, req, res, next) => {
     code = 'CONFLICT';
     message = '存在重复的唯一字段，请检查 URL 后缀等内容';
   } else if (status >= 500) {
-    console.error(err);
+    logger.error('unhandled_api_error', { method: req.method, path: req.path, code, error: err.message });
     message = '服务器处理失败';
   }
 
@@ -3426,4 +3159,24 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
-app.listen(PORT, HOST, () => console.log(`🚀 Backend running on http://${HOST}:${PORT}`));
+let httpServer = null;
+
+const startServer = () => {
+  if (httpServer) return httpServer;
+  httpServer = app.listen(PORT, HOST, () => logger.info('server_started', { host: HOST, port: PORT }));
+  return httpServer;
+};
+
+const stopServer = async () => {
+  if (httpServer) {
+    await new Promise((resolve, reject) => httpServer.close((error) => error ? reject(error) : resolve()));
+    httpServer = null;
+  }
+  await rateLimitStore.close();
+  await assetStorage.close();
+  await prisma.$disconnect();
+};
+
+if (require.main === module) startServer();
+
+module.exports = { app, prisma, startServer, stopServer };

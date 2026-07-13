@@ -5,21 +5,33 @@ export const SITE = (import.meta.env.VITE_SITE_URL || (import.meta.env.DEV ? 'ht
 export const SENSITIVE_CONFIRMATION_TEXT = import.meta.env.VITE_SENSITIVE_CONFIRMATION_TEXT || '确认执行'
 export const AUTH_KEY = 'aural-admin-auth-token'
 export const USER_KEY = 'aural-admin-user'
+export const CSRF_KEY = 'aural-admin-csrf-token'
+
+try {
+  window.localStorage.removeItem(AUTH_KEY)
+  window.localStorage.removeItem(USER_KEY)
+  window.localStorage.removeItem(CSRF_KEY)
+} catch {}
 
 export const storageGet = (key, fallback = '') => {
-  try { return window.localStorage.getItem(key) || fallback } catch { return fallback }
+  try { return window.sessionStorage.getItem(key) || fallback } catch { return fallback }
 }
 
 export const storageSet = (key, value) => {
-  try { window.localStorage.setItem(key, value) } catch {}
+  try { window.sessionStorage.setItem(key, value) } catch {}
 }
 
 export const storageRemove = (key) => {
-  try { window.localStorage.removeItem(key) } catch {}
+  try {
+    window.sessionStorage.removeItem(key)
+    window.localStorage.removeItem(key)
+  } catch {}
 }
 
 export const getToken = () => storageGet(AUTH_KEY)
 export const setToken = (token) => storageSet(AUTH_KEY, token)
+export const getCsrfToken = () => storageGet(CSRF_KEY)
+export const setCsrfToken = (token) => storageSet(CSRF_KEY, token)
 export const setCurrentUser = (user) => storageSet(USER_KEY, JSON.stringify(user || null))
 export const getCurrentUser = () => {
   try { return JSON.parse(storageGet(USER_KEY, 'null')) } catch { return null }
@@ -27,6 +39,7 @@ export const getCurrentUser = () => {
 export const clearToken = () => {
   storageRemove(AUTH_KEY)
   storageRemove(USER_KEY)
+  storageRemove(CSRF_KEY)
 }
 export const hasToken = () => Boolean(getToken())
 export const hasPermission = (permission) => {
@@ -43,7 +56,8 @@ export const mediaSrc = (path, fallback = '') => {
 
 export const adminUploadHeaders = () => {
   const token = getToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  const csrfToken = getCsrfToken()
+  return token ? { Authorization: `Bearer ${token}`, 'X-CSRF-Token': csrfToken, 'X-Requested-With': 'hushi-admin' } : {}
 }
 
 export const openPreview = (path = '/') => {
@@ -67,6 +81,10 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
+  config.headers['X-Requested-With'] = 'hushi-admin'
+  if (token && !['get', 'head', 'options'].includes(String(config.method || 'get').toLowerCase())) {
+    config.headers['X-CSRF-Token'] = getCsrfToken()
+  }
   return config
 })
 
@@ -87,12 +105,14 @@ export const login = async (username, password, totpCode = '') => {
   const res = await api.post('/api/auth/login', { username, password, totpCode })
   if (!res.data?.token) throw new Error('登录失败')
   setToken(res.data.token)
+  setCsrfToken(res.data.csrfToken || '')
   setCurrentUser(res.data.user)
   return res.data
 }
 
 export const validateSession = async () => {
   const res = await api.get('/api/auth/session')
+  if (res.data?.csrfToken) setCsrfToken(res.data.csrfToken)
   if (res.data?.user) setCurrentUser(res.data.user)
   return res
 }
@@ -100,6 +120,7 @@ export const validateSession = async () => {
 export const refreshSession = async () => {
   const res = await api.post('/api/auth/refresh')
   if (res.data?.token) setToken(res.data.token)
+  if (res.data?.csrfToken) setCsrfToken(res.data.csrfToken)
   if (res.data?.user) setCurrentUser(res.data.user)
   return res
 }

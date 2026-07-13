@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light;
+  --color-ink: #09090b;
+  --color-ink-soft: #27272a;
+  --color-paper: #ffffff;
+  --color-paper-soft: #f7f7f8;
+  --color-muted: #71717a;
+  --color-border: #e4e4e7;
+  --color-danger: #b42318;
+  --color-success: #18794e;
+  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-display: Georgia, "Noto Serif SC", "Songti SC", serif;
+  --space-page: clamp(1rem, 3vw, 3rem);
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-overlay: 1.75rem;
+  --shadow-overlay: 0 28px 90px -34px rgb(0 0 0 / 0.5);
+  --motion-fast: 160ms;
+  --motion-normal: 280ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --focus-ring: 0 0 0 3px rgb(255 255 255 / 0.9), 0 0 0 5px rgb(9 9 11 / 0.95);
+}
+
+body { font-family: var(--font-sans); }
+.font-serif { font-family: var(--font-display); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-fast: 1ms; --motion-normal: 1ms; }
+}

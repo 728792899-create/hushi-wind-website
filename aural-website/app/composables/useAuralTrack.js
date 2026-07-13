@@ -1,5 +1,7 @@
 ﻿import { computed } from 'vue'
 
+import { isMixpanelAllowed, sanitizeAnalyticsMetadata } from '../lib/analytics'
+
 const VISITOR_KEY = 'hushi:visitor-id'
 const SESSION_KEY = 'hushi:session-id'
 
@@ -40,6 +42,7 @@ const deviceCategory = () => {
 export const useAuralTrack = () => {
   const route = useRoute()
   const eventUrl = useApiUrl('/api/events')
+  const config = useRuntimeConfig()
 
   const context = computed(() => ({
     pagePath: route.fullPath || route.path,
@@ -50,22 +53,36 @@ export const useAuralTrack = () => {
 
   const track = async (eventType, payload = {}) => {
     if (process.server) return
+    const metadata = sanitizeAnalyticsMetadata({
+      ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}),
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      device: deviceCategory(),
+      reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
+    })
+    const eventPayload = { ...payload, metadata }
     try {
       await $fetch(eventUrl.value, {
         method: 'POST',
         body: {
           eventType,
           ...context.value,
-          ...payload,
-          metadata: {
-            ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}),
-            viewport: `${window.innerWidth}x${window.innerHeight}`,
-            device: deviceCategory(),
-            reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
-          }
+          ...eventPayload
         }
       })
     } catch {}
+    if (config.public.mixpanelEnabled && isMixpanelAllowed(window.localStorage)) {
+      try {
+        window.mixpanel?.track?.(eventType, {
+          pagePath: context.value.pagePath,
+          source: context.value.source,
+          entityType: payload.entityType,
+          entityId: payload.entityId,
+          ctaName: payload.ctaName,
+          searchTerm: payload.searchTerm,
+          ...metadata
+        })
+      } catch {}
+    }
   }
 
   const guardPayload = () => context.value

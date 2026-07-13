@@ -24,8 +24,15 @@ flowchart TB
 
   subgraph DATA["数据与素材"]
     PRISMA["Prisma Client"]
-    SQLITE["SQLite"]
-    UPLOADS["Local Uploads / Demo Assets"]
+    DATABASE["SQLite Demo / PostgreSQL Production"]
+    UPLOADS["Local Uploads / S3-compatible + CDN"]
+    REDIS["Memory / Redis Rate Limits"]
+  end
+
+  subgraph OBS["可观测性"]
+    LOGS["Structured JSON Logs"]
+    SENTRY["Sentry Website / CMS / API"]
+    FUNNEL["Consent-gated Mixpanel / First-party Events"]
   end
 
   VISITOR --> WEBSITE
@@ -36,11 +43,17 @@ flowchart TB
   PUBLIC --> EXPRESS
   CMS --> EXPRESS
   EXPRESS --> OPS
-  EXPRESS --> PRISMA --> SQLITE
+  EXPRESS --> PRISMA --> DATABASE
   EXPRESS --> UPLOADS
+  EXPRESS --> REDIS
+  EXPRESS --> LOGS
+  EXPRESS --> SENTRY
+  WEBSITE --> SENTRY
+  ADMIN --> SENTRY
+  WEBSITE --> FUNNEL
 ```
 
-前台只消费公开内容接口并提交公开表单；后台的写操作必须经过管理员会话和权限点校验。API 是唯一数据边界，前端不直接连接数据库或读写上传目录。
+前台只消费公开内容接口并提交公开表单；后台的写操作必须经过管理员会话、每会话 CSRF token 和权限点校验。API 是唯一数据边界，前端不直接连接数据库或读写上传目录。产品和询价域已分成 route → controller → service → repository，校验和 permission 为独立边界。
 
 ## 2. CMS 内容发布与版本恢复
 
@@ -53,8 +66,8 @@ sequenceDiagram
   participant W as Nuxt 官网
 
   O->>A: 登录并编辑产品、文章或页面内容
-  A->>API: 携带管理员会话提交变更
-  API->>API: IP 白名单、会话与 Permission 校验
+  A->>API: 携带管理员会话 + CSRF 提交变更
+  API->>API: CORS、IP 白名单、会话、2FA 与 Permission 校验
   API->>DB: 保存旧版本与新内容
   API->>DB: 写入操作日志
   API-->>A: 返回更新结果
@@ -84,7 +97,7 @@ flowchart LR
   ACTION --> AUDIT["Operation / Export Audit"]
 ```
 
-公开表单不复用宽松的普通内容读取路径：它有独立的请求桶、字段守卫和持久化记录；线索的读取、修改与导出只允许具备 CRM 权限的后台用户执行。
+公开表单不复用宽松的普通内容读取路径：它有独立的请求桶、honeypot/时间守卫、字段校验和持久化记录；线索的读取、修改与导出只允许具备 CRM 权限的后台用户执行。分析仅记录 `inquiry_submit` 与非 PII 上下文，不复制姓名、电话、城市或留言。
 
 ## 4. 鉴权、限流与日志隐私边界
 
@@ -106,7 +119,7 @@ flowchart TB
   HANDLER --> AUDIT["Operation Logs / Alerts"]
 ```
 
-IP 匿名化只发生在持久日志写库处。限流键与管理员 IP 白名单继续使用原始 IP，否则会降低防刷和访问控制的准确性。应用内 `Map` 限流是单实例兜底，多实例环境必须把网关限流作为第一道防线。
+IP 匿名化只发生在持久日志写库处。限流键与管理员 IP 白名单继续使用原始 IP，否则会降低防刷和访问控制的准确性。应用内存限流是单实例兜底，`RATE_LIMIT_STORE=redis` 通过共享适配器支持多实例，边缘/WAF 仍应作为第一道防线。
 
 ## 5. 生产部署与验收边界
 
@@ -118,8 +131,9 @@ flowchart LR
   LIMIT --> ADMIN["Admin Static App"]
   LIMIT --> API["Express on 127.0.0.1"]
 
-  API --> DB["SQLite + Backup"]
-  API --> FILES["Uploads"]
+  API --> DB["PostgreSQL + Verified Backups"]
+  API --> FILES["S3-compatible Storage + CDN"]
+  API --> SHARED["Redis + JSON Logs + Sentry"]
 
   CHECK["Full Acceptance Check"] --> SITE
   CHECK --> ADMIN
@@ -130,4 +144,4 @@ flowchart LR
 - 开发态默认只监听回环地址；弱默认凭据与非本地监听组合会直接拒绝启动。
 - 生产启动会检查管理员账号、密码、Token 等关键配置，前后台生产构建会拒绝 localhost API 地址。
 - 上线验收脚本同时探测官网、后台和 API，并检查后台安全响应头，而不是只验证构建目录存在。
-- SQLite 与本地上传适合当前交付规模；扩展为多实例前应迁移数据库、对象存储、共享限流与集中日志。
+- SQLite 与本地上传保留为可复现 Demo 模式；多实例 production 使用已提供的 PostgreSQL、S3-compatible、Redis 和集中日志适配边界。

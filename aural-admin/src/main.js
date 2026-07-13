@@ -47,9 +47,11 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css' // 开启暗黑模式
 import App from './App.vue'
 import { router } from './router'
+import { initAdminSentry } from './lib/sentry'
 import './style.css'
 
 const app = createApp(App)
+initAdminSentry(app)
 ;[
   ElAlert,
   ElAside,

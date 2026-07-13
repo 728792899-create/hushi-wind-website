@@ -144,9 +144,6 @@ const isHeaderHidden = ref(false)
 const initialSearchQuery = ref('')
 useOverlayLock('header-search', isSearchOpen, { className: 'search-open' })
 useOverlayLock('mobile-menu', isMobileMenuOpen, { className: 'mobile-menu-open' })
-const closeMobileMenuHistory = useOverlayHistory('mobile-menu', isMobileMenuOpen, () => {
-  isMobileMenuOpen.value = false
-})
 const closeSearchHistory = useOverlayHistory('header-search', isSearchOpen, () => {
   isSearchOpen.value = false
   initialSearchQuery.value = ''
@@ -171,11 +168,11 @@ const toggleMobileMenu = () => {
 }
 
 const closeMobileMenu = () => {
-  closeMobileMenuHistory.closeDirect()
+  isMobileMenuOpen.value = false
 }
 
 const closeMobileMenuWithHistory = () => {
-  closeMobileMenuHistory.closeViaHistory()
+  isMobileMenuOpen.value = false
 }
 
 let lastHeaderScrollY = 0
@@ -196,10 +193,11 @@ const handleOpenSearchEvent = () => {
   openSearch()
 }
 
-watch(() => route.fullPath, (newVal, oldVal) => {
+// Query-only updates (for example catalog filters) must not dismiss a menu
+// that the visitor has just opened. Route links already close the menu, while
+// this watcher covers browser-driven page navigation.
+watch(() => route.path, () => {
   closeMobileMenu()
-  if (route.query.openSearch) return
-  if (oldVal?.includes('openSearch=') && !newVal.includes('openSearch=')) return
   closeSearch()
 })
 

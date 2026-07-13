@@ -1,8 +1,10 @@
 # 胡氏管乐官网
 
-> 项目定位：真实业务网站交付样板，展示前台官网、后台 CMS、API、Prisma、SQLite、本地部署与基础安全校验能力。公开仓库保留完整的虚构品牌内容与开源许可素材，但不提交生产密钥、运行数据库或临时上传文件。
+胡氏管乐是一套可独立部署的商业官网样板：Nuxt 4 官网、Vue 3 CMS 与 Express/Prisma API 共用一套内容、权限、审计和可观测性边界。仓库只包含虚构 Demo 数据和已记录来源的公开素材，不包含客户数据、生产数据库或密钥。
 
-## 10 分钟运行路径
+## 本地复现
+
+要求 Node.js 22+ 与 `sqlite3` CLI。
 
 ```bash
 npm run install:all
@@ -10,76 +12,76 @@ npm run seed:demo
 npm run dev
 ```
 
-访问入口：
-
-- 前台官网：`http://127.0.0.1:3000`
-- 后台管理：`http://127.0.0.1:5175`
+- 官网：`http://127.0.0.1:3000`
+- CMS：`http://127.0.0.1:5175`
 - API 健康检查：`http://127.0.0.1:1337/health`
+- 本地 Demo 账号：`demo_admin / DemoPass_2026!`
 
-后台演示账号：
+Demo 账号只能用于本机或演示环境。生产启动会拒绝 Demo 值、弱密码、示例域名、`Replace-*` 密码和占位 token。
 
-```text
-demo_admin / DemoPass_2026!
+## 质量门禁
+
+```bash
+npm run lint
+npm run test
+npm run test:e2e
+npm run backup:verify
+npm run quality
 ```
 
-需要录制作业、作品集或面试演示时，按 [`docs/demo-script.md`](docs/demo-script.md) 的三端分镜执行；整个演示只依赖仓库内的虚构内容和本地数据，不要求线上服务器可用。
+`npm run test` 覆盖 API 集成测试、Nuxt 组件/composable/SEO/结构化数据测试与 CMS 单元测试。Playwright 覆盖官网搜索、筛选、对比、询价提交以及 CMS 登录、发布和版本恢复，同时执行桌面/手机响应式和 axe 可访问性检查。
 
-## 演示截图
+GitHub Actions 在 push/PR 上执行 lint、三端测试、Prisma SQLite/PostgreSQL 校验、备份恢复、生产构建、Playwright 与依赖安全审计。
 
-### 官网首页
-
-![胡氏管乐官网首页](docs/screenshots/01-homepage.jpg)
-
-### 商品目录
-
-![胡氏管乐商品目录](docs/screenshots/02-products.jpg)
-
-### CMS 运营后台
-
-![胡氏管乐 CMS 运营后台](docs/screenshots/03-admin-dashboard.jpg)
-
-## 架构概览
+## 架构与运行模式
 
 ```mermaid
 flowchart LR
-  VISITOR["访客"] --> WEB["Nuxt 4 官网"]
-  OPERATOR["运营人员"] --> ADMIN["Vue 3 CMS 后台"]
-  WEB -->|"公开内容 / 咨询提交"| API["Express API"]
-  ADMIN -->|"登录 / RBAC / 内容维护"| API
-  API --> PRISMA["Prisma"]
-  PRISMA --> DB["SQLite"]
-  API --> FILES["本地上传与演示素材"]
-  GATEWAY["Nginx / HTTPS / 网关限流"] --> WEB
-  GATEWAY --> ADMIN
-  GATEWAY --> API
+  V["官网访客"] --> W["Nuxt 4 Website"]
+  O["CMS 运营"] --> C["Vue 3 Admin"]
+  W --> A["Express API"]
+  C --> A
+  A --> P["Prisma"]
+  P --> D["SQLite Demo / PostgreSQL Production"]
+  A --> F["Local Assets / S3-compatible + CDN"]
+  A --> R["Memory / Redis Rate Limits"]
+  W --> M["Consent-gated Mixpanel Adapter"]
+  W --> S["Sentry"]
+  C --> S
+  A --> S
 ```
 
-完整的三端组件关系、CMS 内容流、咨询线索流、鉴权审计和部署安全边界见 [架构说明](docs/architecture.md)。
+- Demo：SQLite + 本地素材 + 内存限流，可完全离线复现。
+- Staging：可使用单实例 SQLite，但必须使用独立域名、密钥和数据。
+- Production：PostgreSQL、S3 兼容对象存储/CDN、Redis 共享限流、JSON 日志与三端 Sentry。
 
-## 技术栈
+详见 [架构说明](docs/architecture.md)、[部署与回滚](docs/deployment.md)、[测试与验收](docs/testing-and-acceptance.md)、[可观测性](docs/observability.md) 和 [转化事件规范](docs/analytics.md)。
 
-- 前台：Nuxt 4 / Vue 3 / Tailwind CSS
-- 后台：Vue 3 / Vite / Element Plus
-- API：Node.js / Express / Prisma / SQLite
-- 工程：本地 seed、健康检查、生产构建保护、部署前检查脚本
+## 安全摘要
 
-## 可以展示的能力
+- CMS 使用有时限会话、RBAC、可选 2FA、每会话 CSRF token、CORS 白名单、登录锁定与 IP 白名单。
+- 写操作、导出、备份和版本恢复写入审计记录。
+- 上传校验 MIME、文件签名、大小、图片像素与安全文件名；可外接 ClamAV 扫描。
+- 日志和 Sentry 默认不发送请求体、cookie、header 或用户 PII；转化分析会删除姓名、电话、邮箱、地址、留言和 token 类字段。
 
-- 前台浏览产品、文章、支持内容和品牌页面。
-- 后台登录后管理产品、文章、FAQ、页面内容和线索。
-- API 统一提供内容接口、后台鉴权、健康检查、安全响应头和生产配置校验。
-- Prisma schema 管理业务表结构，SQLite 支持本地演示与交付。
-- 后台接口使用会话鉴权与权限点校验，关键操作写入登录记录、操作日志、导出记录和安全告警。
-- 产品、文章和 CMS 内容支持版本记录与恢复；公开表单有独立限流和输入校验。
-- 持久访问日志在写库前截断 IP，限流键与管理员 IP 白名单仍保留原始 IP，避免削弱安全判断。
+漏洞报告方式与响应级别见 [SECURITY.md](SECURITY.md)。
 
-## 公开仓库说明
+## 截图
 
-- `aural-api/prisma/dev.db`、`backups/`、临时上传文件和 `.env` 不进入公开仓库；`uploads/real-assets`、演示资源及素材来源说明会保留。
-- `npm run seed:demo` 会生成完整的虚构商品、文章、艺术家、支持内容和 demo 管理员。
-- 品牌故事、商品型号、人物、联系方式和业务数据均为作品集虚构内容；图片来自 Pexels / Unsplash，来源与许可记录见 [`aural-api/uploads/asset-sources.json`](aural-api/uploads/asset-sources.json)。
-- 生产构建必须显式传入正式域名，避免把 localhost 打进产物。
+![官网首页](docs/screenshots/01-homepage.jpg)
 
-## 边界
+![产品目录](docs/screenshots/02-products.jpg)
 
-该项目不是大型通用 CMS。当前 SQLite 与本地文件适合单机演示和小规模交付；应用层限流是单进程兜底，多实例生产环境需使用 Nginx 等统一网关限流。对象存储、集中式日志、多环境 CI/CD 和自动化发布仍是后续升级方向。
+![CMS 运营后台](docs/screenshots/03-admin-dashboard.jpg)
+
+### 响应式验收
+
+![平板产品目录](docs/screenshots/04-tablet-products.jpg)
+
+![手机产品筛选](docs/screenshots/05-mobile-products.jpg)
+
+## 发布
+
+发布前必须通过 [`docs/release-checklist.md`](docs/release-checklist.md)。生产环境文件必须从 `*.env.production.example` 复制后全部替换，不得将 `.env`、备份、数据库或客户上传文件提交到 Git。
+
+本项目以 [MIT License](LICENSE) 发布；图片来源另见 [`aural-api/uploads/asset-sources.json`](aural-api/uploads/asset-sources.json)。

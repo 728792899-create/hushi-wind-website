@@ -4,16 +4,29 @@
   "version": "1.0.0",
   "description": "Aural Hushi Wind full-stack website, CMS admin, and API suite.",
   "scripts": {
-    "install:all": "npm --prefix aural-api install && npm --prefix aural-website install && npm --prefix aural-admin install",
+    "install:all": "npm ci --ignore-scripts && npm --prefix aural-api ci && npm --prefix aural-website ci && npm --prefix aural-admin ci",
     "dev": "node scripts/dev.mjs",
     "dev:api": "node scripts/dev.mjs --api-only",
     "dev:website": "npm --prefix aural-website run dev -- --host 127.0.0.1 --port 3000",
     "dev:admin": "npm --prefix aural-admin run dev -- --host 127.0.0.1 --port 5175",
     "seed:demo": "node scripts/seed-demo.mjs",
-    "check": "npm run check:api",
-    "check:api": "npm --prefix aural-api run check && npm --prefix aural-api run audit:prod && cd aural-api && DATABASE_URL=file:./dev.db npx prisma validate --schema prisma/schema.prisma",
+    "lint": "eslint . --max-warnings=0",
+    "check": "npm run test && npm run check:api",
+    "test": "npm run test:api && npm run test:website && npm run test:admin",
+    "test:api": "npm --prefix aural-api test",
+    "test:website": "npm --prefix aural-website test",
+    "test:admin": "npm --prefix aural-admin test",
+    "test:e2e": "npm run seed:demo && npm --prefix aural-website run test:e2e",
+    "test:e2e:smoke": "npm run seed:demo && npm --prefix aural-website run test:e2e:smoke",
+    "backup:verify": "npm --prefix aural-api run backup:verify",
+    "check:api": "npm --prefix aural-api run check && npm --prefix aural-api run audit:prod && cd aural-api && DATABASE_URL=file:./dev.db npx prisma validate --schema prisma/schema.prisma && DATABASE_URL=postgresql://hushi:placeholder@127.0.0.1:5432/hushi npx prisma validate --schema prisma/postgresql/schema.prisma",
     "build:admin": "VITE_API_BASE=https://api.shangkong.xyz VITE_SITE_URL=https://www.shangkong.xyz npm --prefix aural-admin run build:prod",
     "build:website": "NUXT_PUBLIC_API_BASE=https://api.shangkong.xyz NUXT_PUBLIC_SITE_URL=https://www.shangkong.xyz npm --prefix aural-website run build",
-    "quality": "npm run check:api && npm run build:admin && npm run build:website"
+    "quality": "npm run lint && npm run test && npm run check:api && npm run backup:verify && npm run build:admin && npm run build:website"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
+    "vue-eslint-parser": "^10.4.1"
   }
 }

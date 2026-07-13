@@ -10,10 +10,13 @@
     "verify:dist": "node scripts/verify-dist-api.js",
     "check:admin-ui": "node scripts/check-admin-ui-regression.js",
     "audit:prod": "npm audit --omit=dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@sentry/vue": "^10.65.0",
     "axios": "^1.13.6",
     "echarts": "^6.1.0",
     "element-plus": "^2.13.5",
@@ -23,6 +26,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.2",
-    "vite": "^7.3.6"
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.10.6",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
   }
 }
