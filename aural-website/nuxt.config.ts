@@ -1,5 +1,9 @@
 ﻿// https://nuxt.com/docs/api/configuration/nuxt-config
-const isProductionBuild = process.env.NODE_ENV === 'production'
+// Nuxt runs `prepare` during npm postinstall with production semantics. Allow that
+// install-time type generation to use local fallbacks; an actual production build
+// still requires explicit public URLs and keeps the deployment fuse intact.
+const isInstallPrepare = process.env.npm_lifecycle_event === 'postinstall'
+const isProductionBuild = process.env.NODE_ENV === 'production' && !isInstallPrepare
 
 const requiredPublicUrl = (name: string, devFallback: string) => {
   const value = process.env[name]

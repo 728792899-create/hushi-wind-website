@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +13,19 @@ const env = {
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "DemoPass_2026!",
 };
 
+// Prisma 6.19 may fail with an empty "Schema engine error" when db push targets
+// a SQLite file that does not exist yet. The datasource path is resolved relative
+// to schema.prisma, so create only the empty local file before Prisma owns it.
+function ensureLocalSqliteFile(databaseUrl) {
+  if (!databaseUrl.startsWith("file:")) return;
+  const rawPath = decodeURIComponent(databaseUrl.slice("file:".length).split("?")[0]);
+  const databasePath = path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(API_DIR, "prisma", rawPath);
+  mkdirSync(path.dirname(databasePath), { recursive: true });
+  closeSync(openSync(databasePath, "a"));
+}
+
 function run(label, command, args, cwd = API_DIR) {
   const result = spawnSync(command, args, {
     cwd,
@@ -24,5 +38,6 @@ function run(label, command, args, cwd = API_DIR) {
   }
 }
 
+ensureLocalSqliteFile(env.DATABASE_URL);
 run("prisma db push", "npx", ["prisma", "db", "push", "--schema", "prisma/schema.prisma"]);
 run("demo seed", "node", ["scripts/seed-demo.js"]);
