@@ -1,5 +1,7 @@
 # 可观测性与告警
 
+![三端错误、性能、日志和转化可观测性闭环](images/observability-loop.svg)
+
 ## 三端 Sentry
 
 | 端 | SDK | 关键配置 | 默认隐私 |

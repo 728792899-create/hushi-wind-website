@@ -1,5 +1,9 @@
 # 部署、迁移、备份与回滚
 
+![从质量门禁到发布观察的流水线](images/release-pipeline.svg)
+
+命令、环境和顺序在本文维护；事故响应、备份恢复演练与事后复盘模板见 [运维 Runbook](operations-runbook.md)。
+
 ## 环境分层
 
 | 环境 | 数据库 | 素材 | 限流 | 用途 |

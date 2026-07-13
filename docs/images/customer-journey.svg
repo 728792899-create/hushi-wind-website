@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">从产品浏览到咨询处理的转化路径</title>
+  <desc id="desc">用户经过浏览、搜索、对比、咨询和 CMS 处理五个阶段</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07090a"/><stop offset="1" stop-color="#151b17"/></linearGradient><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0l10 5-10 5z" fill="#9ed7b3"/></marker></defs>
+  <rect width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <g font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="56" y="64" fill="#9ed7b3" font-size="17" font-weight="700" letter-spacing="4">CUSTOMER JOURNEY</text>
+    <text x="56" y="108" fill="#fff" font-size="34" font-weight="750">浏览 → 对比 → 咨询 → 运营闭环</text>
+    <path d="M144 306H1050" stroke="#32433a" stroke-width="6" marker-end="url(#a)"/>
+    <g text-anchor="middle">
+      <g transform="translate(150 0)"><circle cy="306" r="54" fill="#9ed7b3"/><text y="315" font-size="25" font-weight="800" fill="#07110b">01</text><text y="402" fill="#fff" font-size="22" font-weight="700">产品浏览</text><text y="434" fill="#849189" font-size="15">product_view</text></g>
+      <g transform="translate(370 0)"><circle cy="306" r="54" fill="#18221d" stroke="#9ed7b3" stroke-width="3"/><text y="315" font-size="25" font-weight="800" fill="#9ed7b3">02</text><text y="402" fill="#fff" font-size="22" font-weight="700">搜索筛选</text><text y="434" fill="#849189" font-size="15">product_search</text></g>
+      <g transform="translate(590 0)"><circle cy="306" r="54" fill="#18221d" stroke="#9ed7b3" stroke-width="3"/><text y="315" font-size="25" font-weight="800" fill="#9ed7b3">03</text><text y="402" fill="#fff" font-size="22" font-weight="700">产品对比</text><text y="434" fill="#849189" font-size="15">product_compare</text></g>
+      <g transform="translate(810 0)"><circle cy="306" r="54" fill="#18221d" stroke="#9ed7b3" stroke-width="3"/><text y="315" font-size="25" font-weight="800" fill="#9ed7b3">04</text><text y="402" fill="#fff" font-size="22" font-weight="700">咨询提交</text><text y="434" fill="#849189" font-size="15">inquiry_submit</text></g>
+      <g transform="translate(1030 0)"><circle cy="306" r="54" fill="#9ed7b3"/><text y="315" font-size="25" font-weight="800" fill="#07110b">05</text><text y="402" fill="#fff" font-size="22" font-weight="700">CMS 处理</text><text y="434" fill="#849189" font-size="15">crm:read / write</text></g>
+    </g>
+    <g transform="translate(56 510)">
+      <rect width="1088" height="92" rx="20" fill="#101512" stroke="#2f3b34"/>
+      <text x="26" y="38" fill="#9ed7b3" font-size="16" font-weight="700">PRIVACY CONTRACT</text>
+      <text x="26" y="66" fill="#aeb9b3" font-size="16">分析仅保留页面、产品、类目和事件阶段；姓名、电话、邮箱、地址、留言与 token 不进入 Mixpanel 事件。</text>
+    </g>
+  </g>
+</svg>

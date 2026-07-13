@@ -113,6 +113,10 @@ curl -I http://127.0.0.1:1337/health
 
 ![胡氏管乐本地演示首页](screenshots/01-homepage.jpg)
 
-![胡氏管乐产品目录](screenshots/02-products.png)
+![胡氏管乐产品目录](screenshots/02-products.jpg)
 
-![胡氏管乐 CMS 运营仪表盘](screenshots/03-admin-dashboard.png)
+![胡氏管乐 CMS 运营仪表盘](screenshots/03-admin-dashboard.jpg)
+
+![胡氏管乐产品选型对比](screenshots/07-product-compare.png)
+
+![胡氏管乐 CMS 安全与审计](screenshots/10-admin-security.png)

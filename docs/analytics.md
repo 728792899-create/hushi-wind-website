@@ -1,5 +1,7 @@
 # 产品转化事件规范
 
+![产品浏览、对比、咨询与 CMS 处理路径](images/customer-journey.svg)
+
 ## 目标漏斗
 
 ```mermaid

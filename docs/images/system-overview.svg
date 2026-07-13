@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">胡氏管乐三端系统架构</title>
+  <desc id="desc">官网访客与运营人员通过两个前端访问 Express API，API 连接数据、素材和可观测性服务</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07090a"/><stop offset="1" stop-color="#111914"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#9ed7b3"/></marker>
+  </defs>
+  <rect width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <g font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="56" y="64" fill="#9ed7b3" font-size="17" font-weight="700" letter-spacing="4">SYSTEM OVERVIEW</text>
+    <text x="56" y="108" fill="#fff" font-size="34" font-weight="750">三端分离，API 是唯一数据边界</text>
+    <g fill="#121719" stroke="#334139">
+      <rect x="56" y="160" width="236" height="144" rx="22"/><rect x="56" y="366" width="236" height="144" rx="22"/>
+      <rect x="390" y="160" width="252" height="144" rx="22"/><rect x="390" y="366" width="252" height="144" rx="22"/>
+      <rect x="740" y="234" width="228" height="204" rx="26" fill="#17241d" stroke="#78b98f"/>
+      <rect x="1040" y="150" width="112" height="96" rx="18"/><rect x="1040" y="274" width="112" height="96" rx="18"/><rect x="1040" y="398" width="112" height="96" rx="18"/>
+    </g>
+    <g fill="#fff" text-anchor="middle">
+      <text x="174" y="214" font-size="22" font-weight="700">官网访客</text><text x="174" y="252" fill="#8e9a93" font-size="16">浏览 · 搜索 · 咨询</text>
+      <text x="174" y="420" font-size="22" font-weight="700">运营人员</text><text x="174" y="458" fill="#8e9a93" font-size="16">内容 · CRM · 审计</text>
+      <text x="516" y="214" font-size="23" font-weight="700">Nuxt 4 Website</text><text x="516" y="252" fill="#8e9a93" font-size="16">SSR · SEO · Responsive</text>
+      <text x="516" y="420" font-size="23" font-weight="700">Vue 3 CMS</text><text x="516" y="458" fill="#8e9a93" font-size="16">RBAC · Version · Restore</text>
+      <text x="854" y="302" font-size="27" font-weight="760">Express API</text><text x="854" y="338" fill="#9ed7b3" font-size="17">Route → Controller</text><text x="854" y="368" fill="#9ed7b3" font-size="17">Service → Repository</text><text x="854" y="404" fill="#8e9a93" font-size="15">Validation · Permission · Audit</text>
+      <text x="1096" y="188" font-size="16" font-weight="700">DATA</text><text x="1096" y="216" fill="#8e9a93" font-size="13">SQLite / PG</text>
+      <text x="1096" y="312" font-size="16" font-weight="700">ASSETS</text><text x="1096" y="340" fill="#8e9a93" font-size="13">Local / S3</text>
+      <text x="1096" y="436" font-size="16" font-weight="700">OPS</text><text x="1096" y="464" fill="#8e9a93" font-size="13">Redis / Sentry</text>
+    </g>
+    <g stroke="#9ed7b3" stroke-width="3" fill="none" marker-end="url(#arrow)">
+      <path d="M292 232h86"/><path d="M292 438h86"/><path d="M642 232c54 0 54 72 86 72"/><path d="M642 438c54 0 54-72 86-72"/>
+      <path d="M968 294h60"/><path d="M968 336h60"/><path d="M968 378h60"/>
+    </g>
+    <text x="56" y="614" fill="#74827b" font-size="16">Public reads and forms stay separate from authenticated CMS mutations. No frontend connects to the database directly.</text>
+  </g>
+</svg>

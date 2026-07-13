@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">从代码到生产的发布流水线</title>
+  <desc id="desc">提交经过 lint、三端测试、安全审计、构建、备份、迁移、发布和观察</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07090a"/><stop offset="1" stop-color="#151c18"/></linearGradient><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0l10 5-10 5z" fill="#9ed7b3"/></marker></defs>
+  <rect width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <g font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="56" y="64" fill="#9ed7b3" font-size="17" font-weight="700" letter-spacing="4">RELEASE PIPELINE</text>
+    <text x="56" y="108" fill="#fff" font-size="34" font-weight="750">每一次发布都要有证据和回滚点</text>
+    <g transform="translate(56 168)">
+      <g fill="#121916" stroke="#35443c"><rect width="240" height="124" rx="22"/><rect x="264" width="240" height="124" rx="22"/><rect x="528" width="240" height="124" rx="22"/><rect x="792" width="240" height="124" rx="22"/></g>
+      <g text-anchor="middle"><text x="120" y="43" fill="#9ed7b3" font-size="15" font-weight="700">01 · VERIFY</text><text x="120" y="78" fill="#fff" font-size="20" font-weight="700">Lint + 30 Tests</text><text x="120" y="103" fill="#849189" font-size="14">Prisma · Audit · E2E</text>
+      <text x="384" y="43" fill="#9ed7b3" font-size="15" font-weight="700">02 · PACKAGE</text><text x="384" y="78" fill="#fff" font-size="20" font-weight="700">Nuxt + CMS Build</text><text x="384" y="103" fill="#849189" font-size="14">Bundle budget · Domain check</text>
+      <text x="648" y="43" fill="#9ed7b3" font-size="15" font-weight="700">03 · PROTECT</text><text x="648" y="78" fill="#fff" font-size="20" font-weight="700">Verified Backup</text><text x="648" y="103" fill="#849189" font-size="14">Release ID · Restore point</text>
+      <text x="912" y="43" fill="#9ed7b3" font-size="15" font-weight="700">04 · MIGRATE</text><text x="912" y="78" fill="#fff" font-size="20" font-weight="700">Prisma Deploy</text><text x="912" y="103" fill="#849189" font-size="14">Forward-compatible schema</text></g>
+      <g stroke="#9ed7b3" stroke-width="3" marker-end="url(#a)"><path d="M240 62h17"/><path d="M504 62h17"/><path d="M768 62h17"/></g>
+      <g transform="translate(132 220)"><rect width="240" height="124" rx="22" fill="#17241d" stroke="#78b98f"/><rect x="264" width="240" height="124" rx="22" fill="#17241d" stroke="#78b98f"/><rect x="528" width="240" height="124" rx="22" fill="#17241d" stroke="#78b98f"/>
+        <g text-anchor="middle"><text x="120" y="43" fill="#9ed7b3" font-size="15" font-weight="700">05 · RELEASE</text><text x="120" y="78" fill="#fff" font-size="20" font-weight="700">API → Website → CMS</text><text x="120" y="103" fill="#849189" font-size="14">Health-gated rollout</text>
+        <text x="384" y="43" fill="#9ed7b3" font-size="15" font-weight="700">06 · SMOKE</text><text x="384" y="78" fill="#fff" font-size="20" font-weight="700">Business Journey</text><text x="384" y="103" fill="#849189" font-size="14">Browse → Inquiry → CMS</text>
+        <text x="648" y="43" fill="#9ed7b3" font-size="15" font-weight="700">07 · OBSERVE</text><text x="648" y="78" fill="#fff" font-size="20" font-weight="700">30-minute Window</text><text x="648" y="103" fill="#849189" font-size="14">5xx · p95 · Sentry · Funnel</text></g>
+        <g stroke="#9ed7b3" stroke-width="3" marker-end="url(#a)"><path d="M240 62h17"/><path d="M504 62h17"/></g>
+      </g>
+    </g>
+    <rect x="56" y="566" width="1088" height="58" rx="18" fill="#0f1512" stroke="#313f37"/>
+    <text x="80" y="602" fill="#b5c0ba" font-size="16">ROLLBACK: 切回上一不可变 release → post-deploy smoke → 数据恢复作为独立高风险决策。</text>
+  </g>
+</svg>

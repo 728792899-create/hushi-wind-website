@@ -1,5 +1,9 @@
 # 架构说明
 
+![胡氏管乐三端系统架构](images/system-overview.svg)
+
+下文从系统、发布、公开线索、安全与生产五个视角说明边界。如果只需了解用户如何完成浏览到咨询，先阅读 [产品与用户旅程](product-tour.md)；如果需要调用 API，阅读 [API 使用指南](api-reference.md)。
+
 ## 1. 官网、CMS 与 API 三端架构
 
 ```mermaid

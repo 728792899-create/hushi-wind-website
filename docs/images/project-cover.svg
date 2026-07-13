@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">胡氏管乐全栈官网项目封面</title>
+  <desc id="desc">Nuxt 官网、Vue CMS 与 Express API 的商业交付级三端系统</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050607"/>
+      <stop offset="0.55" stop-color="#101517"/>
+      <stop offset="1" stop-color="#18271f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="75%" cy="30%" r="55%">
+      <stop offset="0" stop-color="#9ed7b3" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#9ed7b3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+  <rect width="1280" height="640" rx="32" fill="url(#glow)"/>
+  <g opacity=".18" stroke="#d9f5e2">
+    <path d="M0 116h1280M0 524h1280"/>
+    <path d="M968 0v640M1088 0v640M1208 0v640"/>
+  </g>
+  <g font-family="Inter, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="80" y="92" fill="#9ed7b3" font-size="18" font-weight="700" letter-spacing="5">HUSHI WIND · FULL-STACK DELIVERY</text>
+    <text x="80" y="212" fill="#ffffff" font-size="76" font-weight="760">胡氏管乐官网</text>
+    <text x="80" y="278" fill="#d5ddd8" font-size="28">可测试 · 可部署 · 可监控 · 可运营</text>
+    <text x="80" y="338" fill="#8f9c95" font-size="21">Nuxt 4 Website + Vue 3 CMS + Express / Prisma API</text>
+    <g transform="translate(80 406)" font-size="17" font-weight="650">
+      <rect width="146" height="48" rx="24" fill="#9ed7b3"/><text x="73" y="31" text-anchor="middle" fill="#07110b">30 TESTS</text>
+      <rect x="162" width="146" height="48" rx="24" fill="#17211c" stroke="#405148"/><text x="235" y="31" text-anchor="middle" fill="#e9efeb">4 E2E FLOWS</text>
+      <rect x="324" width="190" height="48" rx="24" fill="#17211c" stroke="#405148"/><text x="419" y="31" text-anchor="middle" fill="#e9efeb">SQLITE + POSTGRES</text>
+      <rect x="530" width="176" height="48" rx="24" fill="#17211c" stroke="#405148"/><text x="618" y="31" text-anchor="middle" fill="#e9efeb">RBAC + 2FA</text>
+    </g>
+    <text x="80" y="565" fill="#74827b" font-size="16">Commercial-ready reference implementation · Fictional demo data only</text>
+  </g>
+  <g transform="translate(900 166)" fill="none" stroke-linecap="round">
+    <circle cx="116" cy="116" r="104" stroke="#9ed7b3" stroke-width="2" opacity=".55"/>
+    <circle cx="116" cy="116" r="68" stroke="#ffffff" stroke-width="12" opacity=".9"/>
+    <path d="M48 116h136M116 48v136" stroke="#9ed7b3" stroke-width="4" opacity=".75"/>
+    <circle cx="116" cy="116" r="19" fill="#9ed7b3" stroke="none"/>
+  </g>
+</svg>

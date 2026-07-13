@@ -15,8 +15,19 @@
 
 详细组件、内容流与部署边界见 [`architecture.md`](architecture.md)。
 
-## 后续方向
+## 已落地的生产边界
 
-- 对象存储与图片处理流水线。
-- 集中式日志、跨实例限流与更完整的运营分析。
-- 自动化发布和多环境 CI/CD。
+- 本地素材与 S3-compatible/CDN 存储适配器。
+- 进程内存与 Redis 共享限流适配器。
+- JSON stdout 日志、三端 Sentry 与脱敏合同。
+- staging/production 示例配置、Prisma PostgreSQL 迁移、备份/回滚文档和 GitHub Actions。
+- 产品浏览、搜索、对比、下载和咨询的隐私保护型转化事件。
+
+## 仍需在真实 staging 完成
+
+- 使用真实 PostgreSQL、Redis、S3/CDN 与 Sentry 账号进行集成、故障注入和容量测试。
+- 在隔离 PostgreSQL 实例执行 `pg_restore` 恢复演练并记录 RPO/RTO。
+- 使用实际品牌授权产品素材重新验证 Core Web Vitals、对比度、alt 和 CDN 尺寸策略。
+- 将平台告警路由到真实值班工具并完成一次演练。
+
+完整剩余风险见 [`known-limitations.md`](known-limitations.md)。
