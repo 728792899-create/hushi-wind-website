@@ -40,4 +40,6 @@ function run(label, command, args, cwd = API_DIR) {
 
 ensureLocalSqliteFile(env.DATABASE_URL);
 run("prisma db push", "npx", ["prisma", "db", "push", "--schema", "prisma/schema.prisma"]);
-run("demo seed", "node", ["scripts/seed-demo.js"]);
+run("base seed", "node", ["scripts/seed-demo.js"]);
+run("fictional catalog seed", "node", ["scripts/content-cleanup.js"]);
+run("curated asset mapping", "node", ["scripts/real-assets-upgrade.js"]);

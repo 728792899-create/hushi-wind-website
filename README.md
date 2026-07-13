@@ -1,6 +1,6 @@
 # 胡氏管乐官网
 
-> 项目定位：真实业务网站交付样板，展示前台官网、后台 CMS、API、Prisma、SQLite、本地部署与基础安全校验能力。公开仓库只使用脱敏演示数据，不提交真实客户数据、生产密钥、真实数据库或上传资源。
+> 项目定位：真实业务网站交付样板，展示前台官网、后台 CMS、API、Prisma、SQLite、本地部署与基础安全校验能力。公开仓库保留完整的虚构品牌内容与开源许可素材，但不提交生产密钥、运行数据库或临时上传文件。
 
 ## 10 分钟运行路径
 
@@ -22,7 +22,7 @@ npm run dev
 demo_admin / DemoPass_2026!
 ```
 
-需要录制作业、作品集或面试演示时，按 [`docs/demo-script.md`](docs/demo-script.md) 的三端分镜执行；整个演示只依赖本地脱敏数据，不要求线上服务器可用。
+需要录制作业、作品集或面试演示时，按 [`docs/demo-script.md`](docs/demo-script.md) 的三端分镜执行；整个演示只依赖仓库内的虚构内容和本地数据，不要求线上服务器可用。
 
 ## 技术栈
 
@@ -40,8 +40,9 @@ demo_admin / DemoPass_2026!
 
 ## 公开仓库说明
 
-- `aural-api/prisma/dev.db`、`backups/`、`uploads/`、`.env` 不进入公开仓库。
-- `npm run seed:demo` 会生成脱敏演示数据和 demo 管理员。
+- `aural-api/prisma/dev.db`、`backups/`、临时上传文件和 `.env` 不进入公开仓库；`uploads/real-assets`、演示资源及素材来源说明会保留。
+- `npm run seed:demo` 会生成完整的虚构商品、文章、艺术家、支持内容和 demo 管理员。
+- 品牌故事、商品型号、人物、联系方式和业务数据均为作品集虚构内容；图片来自 Pexels / Unsplash，来源与许可记录见 [`aural-api/uploads/asset-sources.json`](aural-api/uploads/asset-sources.json)。
 - 生产构建必须显式传入正式域名，避免把 localhost 打进产物。
 
 ## 边界

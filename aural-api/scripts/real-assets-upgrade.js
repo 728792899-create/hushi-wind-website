@@ -188,6 +188,10 @@ const img = (key) => `/uploads/real-assets/${imageAssets[key].file}`;
 
 async function downloadAsset(key, asset) {
   const destination = path.join(assetDir, asset.file);
+  if (fs.existsSync(destination)) {
+    const bytes = fs.statSync(destination).size;
+    if (bytes > 0) return { key, ok: true, bytes, source: 'bundled' };
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000);
   try {
@@ -229,12 +233,9 @@ function writeResource(filename, title, sections) {
   <main>
     <h1>${title}</h1>
     <div class="meta">HUSHI WIND / Hushi Wind Support Library / 2026 Edition</div>
-    ${sections.map((section) => `
-      <section>
-        <h2>${section.heading}</h2>
-        ${section.body ? `<p>${section.body}</p>` : ''}
-        ${section.items ? `<ul>${section.items.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''}
-      </section>`).join('')}
+${sections.map((section) => `    <section>
+      <h2>${section.heading}</h2>
+${section.body ? `      <p>${section.body}</p>\n` : ''}${section.items ? `      <ul>${section.items.map((item) => `<li>${item}</li>`).join('')}</ul>\n` : ''}    </section>`).join('\n')}
     <div class="notice">本资料用于产品使用与售后沟通参考。涉及上门调律、拆装、供电检测或复杂维修时，请联系授权服务人员。</div>
   </main>
 </body>
@@ -257,8 +258,9 @@ async function main() {
   const downloadResults = [];
   for (const [key, asset] of Object.entries(imageAssets)) {
     try {
-      downloadResults.push(await downloadAsset(key, asset));
-      console.log(`downloaded ${key}`);
+      const result = await downloadAsset(key, asset);
+      downloadResults.push(result);
+      console.log(`${result.source === 'bundled' ? 'bundled' : 'downloaded'} ${key}`);
     } catch (error) {
       console.warn(`failed ${key}: ${error.message}`);
       throw error;
@@ -496,9 +498,9 @@ async function main() {
   for (const item of quickGuides) await upsertByFind('quickGuide', { title: item.title }, item);
 
   const faqs = [
-    { question: '购买后如何登记保修？', answer: '请在支持页提交产品型号、序列号、购买凭证和联系方式。客服确认资料后会为产品建立保修档案，并发送后续维护建议。', category: 'warranty', sortOrder: 1, status: 'published' },
+    { question: '如何为胡氏管乐产品登记保修？', answer: '请在支持页提交产品型号、序列号、购买凭证和联系方式。客服确认资料后会为产品建立保修档案，并发送后续维护建议。', category: 'warranty', sortOrder: 1, status: 'published' },
     { question: '原声钢琴多久需要调律一次？', answer: '新琴建议到家稳定 2 到 4 周后进行首次调律，之后根据湿度、使用频率和场地变化，每 6 到 12 个月安排一次专业调律。', category: 'maintenance', sortOrder: 2, status: 'published' },
-    { question: '舞台键盘如何更新固件？', answer: '请在支持页下载对应型号的固件包，确认电源稳定后按说明进入更新模式。更新期间不要断电或拔出 USB 设备。', category: 'software', sortOrder: 3, status: 'published' },
+    { question: '舞台键盘和合成器如何更新固件？', answer: '请在支持页下载对应型号的固件包，确认电源稳定后按说明进入更新模式。更新期间不要断电或拔出 USB 设备。', category: 'software', sortOrder: 3, status: 'published' },
     { question: '可以预约线下试奏或试听吗？', answer: '可以。进入产品详情页提交预约试奏，留下城市和期望时间，品牌顾问会协助匹配附近授权体验中心。', category: 'experience', sortOrder: 4, status: 'published' }
   ];
   for (const item of faqs) await upsertByFind('supportFaq', { question: item.question }, item);
@@ -539,7 +541,10 @@ async function main() {
     ],
     downloadResults
   };
-  fs.writeFileSync(path.join(uploadDir, 'asset-sources.json'), JSON.stringify(sourceLog, null, 2), 'utf8');
+  const sourceLogPath = path.join(uploadDir, 'asset-sources.json');
+  if (!fs.existsSync(sourceLogPath)) {
+    fs.writeFileSync(sourceLogPath, JSON.stringify(sourceLog, null, 2), 'utf8');
+  }
 
   console.log('Real asset upgrade completed.');
 }

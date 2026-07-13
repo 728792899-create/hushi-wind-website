@@ -31,6 +31,13 @@ frontend-dist/
 *.db
 logs/
 uploads/
+!aural-api/uploads/
+aural-api/uploads/*
+!aural-api/uploads/real-assets/
+!aural-api/uploads/real-assets/**
+!aural-api/uploads/resources/
+!aural-api/uploads/resources/**
+!aural-api/uploads/asset-sources.json
 runtime/browser-profile*/
 
 # Packages / installers

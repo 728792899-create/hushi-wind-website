@@ -1,0 +1,285 @@
+{
+  "updatedAt": "2026-05-16T05:52:18.006Z",
+  "licenses": {
+    "pexels": "https://www.pexels.com/license/",
+    "unsplash": "https://unsplash.com/license"
+  },
+  "assets": [
+    {
+      "key": "heroConcert",
+      "fileUrl": "/uploads/real-assets/hero-concert-grand-piano.jpg",
+      "originalUrl": "https://images.pexels.com/photos/1293551/pexels-photo-1293551.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/search/grand%20piano/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Concert grand piano performance for the homepage hero."
+    },
+    {
+      "key": "grandPianoMain",
+      "fileUrl": "/uploads/real-assets/product-c3-grand-piano-main.jpg",
+      "originalUrl": "https://images.pexels.com/photos/1293551/pexels-photo-1293551.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/grand%20piano/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Grand piano performance for the C3 Studio Grand."
+    },
+    {
+      "key": "pianoDetail",
+      "fileUrl": "/uploads/real-assets/product-c3-piano-detail.jpg",
+      "originalUrl": "https://images.pexels.com/photos/210764/pexels-photo-210764.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/piano%20sheet%20music/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Piano keys and sheet music detail."
+    },
+    {
+      "key": "uprightPiano",
+      "fileUrl": "/uploads/real-assets/product-u1-upright-piano.jpg",
+      "originalUrl": "https://images.pexels.com/photos/210764/pexels-photo-210764.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/piano/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Piano keyboard detail for upright practice context."
+    },
+    {
+      "key": "musicClassroom",
+      "fileUrl": "/uploads/real-assets/product-u1-music-classroom.jpg",
+      "originalUrl": "https://images.pexels.com/photos/7096811/pexels-photo-7096811.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/photo/a-person-playing-keyboard-synthesizer-7096811/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Digital music learning and production desk."
+    },
+    {
+      "key": "guitarMain",
+      "fileUrl": "/uploads/real-assets/product-t6-electric-guitar-main.jpg",
+      "originalUrl": "https://images.pexels.com/photos/3355317/pexels-photo-3355317.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/electric%20guitar/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Electric guitar close-up for the T6 Electric Guitar."
+    },
+    {
+      "key": "guitarDetail",
+      "fileUrl": "/uploads/real-assets/product-t6-guitar-detail.jpg",
+      "originalUrl": "https://images.pexels.com/photos/258283/pexels-photo-258283.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/guitar%20close%20up/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "String instrument detail for guitar gallery."
+    },
+    {
+      "key": "keyboardMain",
+      "fileUrl": "/uploads/real-assets/product-dx88-stage-keyboard-main.jpg",
+      "originalUrl": "https://images.pexels.com/photos/7096811/pexels-photo-7096811.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/photo/a-person-playing-keyboard-synthesizer-7096811/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Stage keyboard and MIDI controller image for DX-88."
+    },
+    {
+      "key": "keyboardStudio",
+      "fileUrl": "/uploads/real-assets/product-dx88-keyboard-studio.jpg",
+      "originalUrl": "https://images.pexels.com/photos/36269938/pexels-photo-36269938.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/photo/audio-engineer-mixing-in-professional-studio-36269938/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Studio production and monitoring image."
+    },
+    {
+      "key": "coreWorkshop",
+      "fileUrl": "/uploads/real-assets/home-core-acoustic-craft.jpg",
+      "originalUrl": "https://images.pexels.com/photos/210764/pexels-photo-210764.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/piano%20craft/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Piano craft and notation detail for acoustic section."
+    },
+    {
+      "key": "coreRoom",
+      "fileUrl": "/uploads/real-assets/home-core-showroom-background.jpg",
+      "originalUrl": "https://images.pexels.com/photos/167636/pexels-photo-167636.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/search/concert%20stage/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Live venue background for core technology."
+    },
+    {
+      "key": "quoteStage",
+      "fileUrl": "/uploads/real-assets/home-quote-performance-stage.jpg",
+      "originalUrl": "https://images.pexels.com/photos/167636/pexels-photo-167636.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/search/concert%20stage/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Live performance background for brand quote."
+    },
+    {
+      "key": "artistsHero",
+      "fileUrl": "/uploads/real-assets/artists-hero-performance.jpg",
+      "originalUrl": "https://images.pexels.com/photos/167636/pexels-photo-167636.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/search/concert%20stage/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Artist stage hero image."
+    },
+    {
+      "key": "artistPiano",
+      "fileUrl": "/uploads/real-assets/artist-lin-zhiyuan-piano.jpg",
+      "originalUrl": "https://images.pexels.com/photos/1293551/pexels-photo-1293551.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "sourcePage": "https://www.pexels.com/search/pianist/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Pianist performance image."
+    },
+    {
+      "key": "artistGuitar",
+      "fileUrl": "/uploads/real-assets/artist-chen-yichuan-guitar.jpg",
+      "originalUrl": "https://images.pexels.com/photos/7715349/pexels-photo-7715349.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "sourcePage": "https://www.pexels.com/photo/man-playing-guitar-on-the-stage-7715349/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Guitarist performance image."
+    },
+    {
+      "key": "artistKeyboard",
+      "fileUrl": "/uploads/real-assets/artist-zhou-nianan-keyboard.jpg",
+      "originalUrl": "https://images.pexels.com/photos/7096811/pexels-photo-7096811.jpeg?auto=compress&cs=tinysrgb&w=1400",
+      "sourcePage": "https://www.pexels.com/photo/a-person-playing-keyboard-synthesizer-7096811/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Keyboard player and production image."
+    },
+    {
+      "key": "audioHero",
+      "fileUrl": "/uploads/real-assets/audio-hero-recording-studio.jpg",
+      "originalUrl": "https://images.pexels.com/photos/36269938/pexels-photo-36269938.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/photo/audio-engineer-mixing-in-professional-studio-36269938/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Professional recording studio hero image."
+    },
+    {
+      "key": "audioConsole",
+      "fileUrl": "/uploads/real-assets/audio-solution-console.jpg",
+      "originalUrl": "https://images.pexels.com/photos/36269938/pexels-photo-36269938.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/photo/audio-engineer-mixing-in-professional-studio-36269938/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Audio engineer and mixing console."
+    },
+    {
+      "key": "audioLive",
+      "fileUrl": "/uploads/real-assets/audio-solution-live-stage.jpg",
+      "originalUrl": "https://images.pexels.com/photos/167636/pexels-photo-167636.jpeg?auto=compress&cs=tinysrgb&w=1800",
+      "sourcePage": "https://www.pexels.com/search/live%20sound/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Live sound and stage lighting environment."
+    },
+    {
+      "key": "supportHero",
+      "fileUrl": "/uploads/real-assets/support-hero-service-desk.jpg",
+      "originalUrl": "https://images.pexels.com/photos/36269938/pexels-photo-36269938.jpeg?auto=compress&cs=tinysrgb&w=2200",
+      "sourcePage": "https://www.pexels.com/photo/audio-engineer-mixing-in-professional-studio-36269938/",
+      "credit": "Pexels image, used under the Pexels License",
+      "description": "Support and professional audio service hero image."
+    }
+  ],
+  "downloads": [
+    {
+      "name": "C3 / U1 系列保养指南",
+      "fileUrl": "/uploads/resources/c3-u1-care-guide.html"
+    },
+    {
+      "name": "DX-88 快速上手手册",
+      "fileUrl": "/uploads/resources/dx88-quickstart.html"
+    },
+    {
+      "name": "售后资料包",
+      "fileUrl": "/uploads/resources/service-pack.html"
+    }
+  ],
+  "downloadResults": [
+    {
+      "key": "heroConcert",
+      "ok": true,
+      "bytes": 122643
+    },
+    {
+      "key": "grandPianoMain",
+      "ok": true,
+      "bytes": 77591
+    },
+    {
+      "key": "pianoDetail",
+      "ok": true,
+      "bytes": 142991
+    },
+    {
+      "key": "uprightPiano",
+      "ok": true,
+      "bytes": 142991
+    },
+    {
+      "key": "musicClassroom",
+      "ok": true,
+      "bytes": 96149
+    },
+    {
+      "key": "guitarMain",
+      "ok": true,
+      "bytes": 150205
+    },
+    {
+      "key": "guitarDetail",
+      "ok": true,
+      "bytes": 217264
+    },
+    {
+      "key": "keyboardMain",
+      "ok": true,
+      "bytes": 96149
+    },
+    {
+      "key": "keyboardStudio",
+      "ok": true,
+      "bytes": 138756
+    },
+    {
+      "key": "coreWorkshop",
+      "ok": true,
+      "bytes": 142991
+    },
+    {
+      "key": "coreRoom",
+      "ok": true,
+      "bytes": 229249
+    },
+    {
+      "key": "quoteStage",
+      "ok": true,
+      "bytes": 229249
+    },
+    {
+      "key": "artistsHero",
+      "ok": true,
+      "bytes": 229249
+    },
+    {
+      "key": "artistPiano",
+      "ok": true,
+      "bytes": 42695
+    },
+    {
+      "key": "artistGuitar",
+      "ok": true,
+      "bytes": 69547
+    },
+    {
+      "key": "artistKeyboard",
+      "ok": true,
+      "bytes": 65617
+    },
+    {
+      "key": "audioHero",
+      "ok": true,
+      "bytes": 187035
+    },
+    {
+      "key": "audioConsole",
+      "ok": true,
+      "bytes": 138756
+    },
+    {
+      "key": "audioLive",
+      "ok": true,
+      "bytes": 151204
+    },
+    {
+      "key": "supportHero",
+      "ok": true,
+      "bytes": 187035
+    }
+  ]
+}
