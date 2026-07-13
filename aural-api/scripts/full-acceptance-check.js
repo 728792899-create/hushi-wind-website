@@ -98,14 +98,6 @@ const checkHtmlPage = async (label, pagePath) => {
   return `${pagePath} status=${res.status}, bytes=${text.length}`
 }
 
-const checkAbsoluteHtmlPage = async (label, url) => {
-  const { res, text } = await request(url)
-  assert(res.ok, `${url} returned ${res.status}`)
-  assert(/<!doctype html|<html/i.test(text), `${label} is not an HTML page`)
-  assert(!/127\.0\.0\.1|localhost/i.test(text), `${label} contains local development URL`)
-  return `${url} status=${res.status}, bytes=${text.length}`
-}
-
 const checkSeoUtilityRoutes = async () => {
   const robots = await request(`${siteUrl}/robots.txt`)
   assert(robots.res.ok, `/robots.txt returned ${robots.res.status}`)
@@ -142,7 +134,14 @@ const checkFrontendPages = async () => {
 }
 
 const checkAdminHomepage = async () => {
-  return checkAbsoluteHtmlPage('admin homepage', adminUrl)
+  const { res, text } = await request(adminUrl)
+  assert(res.ok, `${adminUrl} 返回 ${res.status}`)
+  ;['x-content-type-options', 'x-frame-options', 'referrer-policy'].forEach((header) => {
+    assert(res.headers.get(header), `后台响应缺少安全头 ${header}`)
+  })
+  assert(/<div id="app">|<title>/i.test(text), '后台页面内容异常')
+  assert(!/127\.0\.0\.1|localhost/i.test(text), '后台页面包含本地开发地址')
+  return `${adminUrl} status=${res.status}, bytes=${text.length}`
 }
 
 const checkApiHealth = async () => {
@@ -570,7 +569,7 @@ const main = async () => {
 
   await runCheck('Frontend pages', checkFrontendPages)
   await runCheck('SEO utility routes', checkSeoUtilityRoutes)
-  await runCheck('Admin homepage', checkAdminHomepage)
+  await runCheck('后台管理端可访问', checkAdminHomepage)
   await runCheck('API health', checkApiHealth)
   await runCheck('Admin login', loginAdmin)
   await runCheck('Admin core APIs', checkAdminReadApis)
