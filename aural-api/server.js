@@ -646,6 +646,21 @@ const getRequestMeta = (req) => ({
 
 const normalizeIp = (value = '') => String(value || '').replace(/^::ffff:/, '').trim();
 
+// 仅用于写入持久日志表时脱敏；限流键和 IP 白名单必须继续使用原始 IP。
+const anonymizeIp = (value = '') => {
+  const ip = normalizeIp(value);
+  if (!ip) return '';
+  if (ip.includes(':')) {
+    return `${ip.split(':').slice(0, 3).join(':')}::`;
+  }
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    parts[3] = '0';
+    return parts.join('.');
+  }
+  return ip;
+};
+
 const isIpAllowed = (ip) => {
   if (!ADMIN_IP_ALLOWLIST.length) return true;
   const normalizedIp = normalizeIp(ip);
@@ -1048,7 +1063,7 @@ const recordAnalyticsEvent = async (req, payload) => {
   const record = await prisma.analyticsEvent.create({
     data: {
       ...data,
-      ip: meta.ip,
+      ip: anonymizeIp(meta.ip),
       userAgent: meta.userAgent
     }
   });
@@ -1084,7 +1099,7 @@ const recordApiLog = async (req, res, startedAt, error = null) => {
         path: req.path,
         status,
         durationMs,
-        ip: meta.ip,
+        ip: anonymizeIp(meta.ip),
         userAgent: meta.userAgent,
         errorCode: error?.code || null,
         errorMessage: error?.message ? String(error.message).slice(0, 500) : null
@@ -2275,7 +2290,7 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
         adminUserId: adminUser?.id || null,
         success,
         message,
-        ip: meta.ip,
+        ip: anonymizeIp(meta.ip),
         userAgent: meta.userAgent
       }
     });
@@ -2340,7 +2355,7 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
     orderBy: { createdAt: 'desc' },
     skip: 1
   });
-  if (lastSuccessLogin?.ip && meta.ip && lastSuccessLogin.ip !== meta.ip) {
+  if (lastSuccessLogin?.ip && meta.ip && lastSuccessLogin.ip !== anonymizeIp(meta.ip)) {
     await createAlert({
       level: 'warning',
       type: 'login_location_changed',
