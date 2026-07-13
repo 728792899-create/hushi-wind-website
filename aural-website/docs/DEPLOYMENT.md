@@ -175,6 +175,31 @@ docker run -d --name shangkong-web -p 3000:3000 --env-file .env.production aural
 
 ---
 
+## 生产网关限流
+
+API 内置的 `rateBuckets` 与公开表单限流是单进程内存兜底，多实例或 PM2 cluster 部署时不能形成全局限流。生产环境应以 Nginx 等统一入口的限流为准，并保留应用层限流作为第二道防线。
+
+以下配置分别限制通用 API 为每个来源 IP 每分钟 180 次、公开咨询表单为每分钟 5 次：
+
+```nginx
+limit_req_zone $binary_remote_addr zone=api_zone:10m rate=180r/m;
+limit_req_zone $binary_remote_addr zone=form_zone:10m rate=5r/m;
+
+location /api/ {
+    limit_req zone=api_zone burst=60 nodelay;
+    proxy_pass http://127.0.0.1:1337;
+}
+
+location = /api/inquiries {
+    limit_req zone=form_zone burst=3 nodelay;
+    proxy_pass http://127.0.0.1:1337;
+}
+```
+
+修改后先执行 `nginx -t`，确认配置有效再平滑重载。若 API 运行多个实例，应将 `proxy_pass` 指向统一的 upstream；不要依赖每个 Node.js 进程各自的内存计数器实现全局防刷。
+
+---
+
 ## 部署前检查清单
 
 在部署到生产环境前，**必须**完成以下检查：
