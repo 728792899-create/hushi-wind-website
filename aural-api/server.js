@@ -89,6 +89,16 @@ const isProductionUrl = (value) => /^https:\/\//i.test(String(value || '')) && !
 
 app.set('trust proxy', process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true');
 
+const HOST = process.env.HOST || (IS_PRODUCTION ? '0.0.0.0' : '127.0.0.1');
+const isLoopbackHost = (host) => ['127.0.0.1', 'localhost', '::1'].includes(String(host).trim());
+const usingWeakAdminDefaults =
+  ADMIN_USERNAME === 'admin' ||
+  ADMIN_PASSWORD === '123456' ||
+  ADMIN_TOKEN_SECRET === 'hushi-local-admin-secret';
+if (!isLoopbackHost(HOST) && usingWeakAdminDefaults) {
+  throw new Error('检测到弱默认账号/密钥且监听非本地地址：请设置强 ADMIN_USERNAME / ADMIN_PASSWORD / ADMIN_TOKEN_SECRET，或将 HOST 设为 127.0.0.1 仅本机访问');
+}
+
 const isLocalDevOrigin = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
 const corsOptions = {
@@ -3401,4 +3411,4 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
-app.listen(PORT, () => console.log(`🚀 AURAL Backend Running on Port: ${PORT}`));
+app.listen(PORT, HOST, () => console.log(`🚀 Backend running on http://${HOST}:${PORT}`));
