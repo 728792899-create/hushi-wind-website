@@ -154,7 +154,7 @@ async function main() {
   await prisma.supportFaq.createMany({
     data: [
       { question: '这份数据是真实客户资料吗？', answer: '不是。公开仓库只包含脱敏演示数据。', category: 'demo', sortOrder: 1 },
-      { question: '后台演示账号是什么？', answer: `用户名 ${ADMIN_USERNAME}，密码 ${ADMIN_PASSWORD}。`, category: 'demo', sortOrder: 2 },
+      { question: '后台演示账号如何获取？', answer: '演示账号仅在本地运行说明（README / 终端 seed 输出）中提供，不在前台公开展示。', category: 'demo', sortOrder: 2 },
     ],
   });
 
