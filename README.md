@@ -24,6 +24,20 @@ demo_admin / DemoPass_2026!
 
 需要录制作业、作品集或面试演示时，按 [`docs/demo-script.md`](docs/demo-script.md) 的三端分镜执行；整个演示只依赖仓库内的虚构内容和本地数据，不要求线上服务器可用。
 
+## 演示截图
+
+### 官网首页
+
+![胡氏管乐官网首页](docs/screenshots/01-homepage.png)
+
+### 商品目录
+
+![胡氏管乐商品目录](docs/screenshots/02-products.png)
+
+### CMS 运营后台
+
+![胡氏管乐 CMS 运营后台](docs/screenshots/03-admin-dashboard.png)
+
 ## 技术栈
 
 - 前台：Nuxt 4 / Vue 3 / Tailwind CSS
