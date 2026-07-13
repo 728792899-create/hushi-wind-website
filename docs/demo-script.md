@@ -111,7 +111,7 @@ curl -I http://127.0.0.1:1337/health
 
 以下截图均由本地虚构数据生成，可直接用于项目 README、作品集或录屏封面：
 
-![胡氏管乐本地演示首页](screenshots/01-homepage.png)
+![胡氏管乐本地演示首页](screenshots/01-homepage.jpg)
 
 ![胡氏管乐产品目录](screenshots/02-products.png)
 

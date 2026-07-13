@@ -28,15 +28,33 @@ demo_admin / DemoPass_2026!
 
 ### 官网首页
 
-![胡氏管乐官网首页](docs/screenshots/01-homepage.png)
+![胡氏管乐官网首页](docs/screenshots/01-homepage.jpg)
 
 ### 商品目录
 
-![胡氏管乐商品目录](docs/screenshots/02-products.png)
+![胡氏管乐商品目录](docs/screenshots/02-products.jpg)
 
 ### CMS 运营后台
 
-![胡氏管乐 CMS 运营后台](docs/screenshots/03-admin-dashboard.png)
+![胡氏管乐 CMS 运营后台](docs/screenshots/03-admin-dashboard.jpg)
+
+## 架构概览
+
+```mermaid
+flowchart LR
+  VISITOR["访客"] --> WEB["Nuxt 4 官网"]
+  OPERATOR["运营人员"] --> ADMIN["Vue 3 CMS 后台"]
+  WEB -->|"公开内容 / 咨询提交"| API["Express API"]
+  ADMIN -->|"登录 / RBAC / 内容维护"| API
+  API --> PRISMA["Prisma"]
+  PRISMA --> DB["SQLite"]
+  API --> FILES["本地上传与演示素材"]
+  GATEWAY["Nginx / HTTPS / 网关限流"] --> WEB
+  GATEWAY --> ADMIN
+  GATEWAY --> API
+```
+
+完整的三端组件关系、CMS 内容流、咨询线索流、鉴权审计和部署安全边界见 [架构说明](docs/architecture.md)。
 
 ## 技术栈
 
@@ -51,6 +69,9 @@ demo_admin / DemoPass_2026!
 - 后台登录后管理产品、文章、FAQ、页面内容和线索。
 - API 统一提供内容接口、后台鉴权、健康检查、安全响应头和生产配置校验。
 - Prisma schema 管理业务表结构，SQLite 支持本地演示与交付。
+- 后台接口使用会话鉴权与权限点校验，关键操作写入登录记录、操作日志、导出记录和安全告警。
+- 产品、文章和 CMS 内容支持版本记录与恢复；公开表单有独立限流和输入校验。
+- 持久访问日志在写库前截断 IP，限流键与管理员 IP 白名单仍保留原始 IP，避免削弱安全判断。
 
 ## 公开仓库说明
 
@@ -61,4 +82,4 @@ demo_admin / DemoPass_2026!
 
 ## 边界
 
-该项目不是大型通用 CMS。权限模型、审计日志、运营分析、对象存储、自动化发布和多环境 CI/CD 仍是后续升级方向。
+该项目不是大型通用 CMS。当前 SQLite 与本地文件适合单机演示和小规模交付；应用层限流是单进程兜底，多实例生产环境需使用 Nginx 等统一网关限流。对象存储、集中式日志、多环境 CI/CD 和自动化发布仍是后续升级方向。
