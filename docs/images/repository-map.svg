@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">胡氏管乐仓库结构与开发循环 / Repository map and development loop</title>
+  <desc id="desc">展示官网、后台、API、数据库、文档与质量门禁之间的开发关系。</desc>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#07090b"/><stop offset="1" stop-color="#141a1e"/></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#78c6a3"/></marker></defs>
+  <rect width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <text x="70" y="76" fill="#f2f5f4" font-family="Arial,sans-serif" font-size="34" font-weight="700">仓库结构 / REPOSITORY MAP</text>
+  <text x="70" y="110" fill="#8d9a96" font-family="Arial,sans-serif" font-size="16">One source repository · three applications · one quality gate</text>
+  <g font-family="Arial,sans-serif">
+    <rect x="70" y="165" width="300" height="150" rx="18" fill="#11171a" stroke="#2f3b3a"/><text x="100" y="210" fill="#78c6a3" font-size="18" font-weight="700">aural-website/</text><text x="100" y="244" fill="#f1f4f3" font-size="25">Nuxt 4 公开官网</text><text x="100" y="276" fill="#98a39f" font-size="15">SEO · products · inquiry · responsive</text>
+    <rect x="450" y="165" width="300" height="150" rx="18" fill="#11171a" stroke="#2f3b3a"/><text x="480" y="210" fill="#78c6a3" font-size="18" font-weight="700">aural-admin/</text><text x="480" y="244" fill="#f1f4f3" font-size="25">Vue 3 运营 CMS</text><text x="480" y="276" fill="#98a39f" font-size="15">publish · CRM · resources · security</text>
+    <rect x="830" y="165" width="300" height="150" rx="18" fill="#11171a" stroke="#2f3b3a"/><text x="860" y="210" fill="#78c6a3" font-size="18" font-weight="700">aural-api/</text><text x="860" y="244" fill="#f1f4f3" font-size="25">Express / Prisma API</text><text x="860" y="276" fill="#98a39f" font-size="15">auth · RBAC · data · audit · uploads</text>
+    <path d="M370 240 H445 M750 240 H825" stroke="#78c6a3" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="170" y="390" width="250" height="110" rx="16" fill="#0d1215" stroke="#27312f"/><text x="200" y="433" fill="#f1f4f3" font-size="21">docs/ · .github/</text><text x="200" y="465" fill="#8d9a96" font-size="15">双语合同 / Bilingual contracts</text>
+    <rect x="475" y="390" width="250" height="110" rx="16" fill="#0d1215" stroke="#27312f"/><text x="505" y="433" fill="#f1f4f3" font-size="21">SQLite / PostgreSQL</text><text x="505" y="465" fill="#8d9a96" font-size="15">Demo / Production parity</text>
+    <rect x="780" y="390" width="250" height="110" rx="16" fill="#0d1215" stroke="#27312f"/><text x="810" y="433" fill="#f1f4f3" font-size="21">npm run quality</text><text x="810" y="465" fill="#8d9a96" font-size="15">tests · builds · backup · docs</text>
+    <path d="M420 445 H470 M725 445 H775" stroke="#78c6a3" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="250" y="560" width="700" height="58" rx="29" fill="#78c6a3"/><text x="600" y="596" text-anchor="middle" fill="#0b100e" font-size="19" font-weight="700">SEED → TEST → IMPLEMENT → BROWSER VERIFY → DOCUMENT → CI</text>
+  </g>
+</svg>

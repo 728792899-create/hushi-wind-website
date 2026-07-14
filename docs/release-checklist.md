@@ -1,5 +1,7 @@
 # Release Checklist
 
+**简体中文** · [English](en/release-checklist.md)
+
 ## 代码与证据
 
 - [ ] PR 范围清晰，无 `.env`、数据库、备份、生产上传、私有图片或客户 PII。

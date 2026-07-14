@@ -1,5 +1,7 @@
 # API 使用指南
 
+**简体中文** · [English](en/api-reference.md)
+
 默认本地 API Base URL：`http://127.0.0.1:1337`。这份文档介绍稳定的端点类别、鉴权约定和安全边界；不替代以代码中 validation 为准的字段级 schema。
 
 ![官网、CMS、API 与数据层](images/system-overview.svg)

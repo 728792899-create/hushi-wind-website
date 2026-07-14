@@ -1,5 +1,7 @@
 # 运维 Runbook
 
+**简体中文** · [English](en/operations-runbook.md)
+
 这份 Runbook 面向 staging/production 值班、发布负责人和事故处理人。它不存放任何真实凭据；应在团队密钥管理和值班系统中补充平台特定地址、联系人和操作权限。
 
 ![错误、性能和转化的可观测性闭环](images/observability-loop.svg)

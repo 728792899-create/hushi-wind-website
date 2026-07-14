@@ -10,6 +10,7 @@
     "dev:website": "npm --prefix aural-website run dev -- --host 127.0.0.1 --port 3000",
     "dev:admin": "npm --prefix aural-admin run dev -- --host 127.0.0.1 --port 5175",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
     "lint": "eslint . --max-warnings=0",
     "check": "npm run test && npm run check:api",
     "test": "npm run test:api && npm run test:website && npm run test:admin",
@@ -22,7 +23,7 @@
     "check:api": "npm --prefix aural-api run check && npm --prefix aural-api run audit:prod && cd aural-api && DATABASE_URL=file:./dev.db npx prisma validate --schema prisma/schema.prisma && DATABASE_URL=postgresql://hushi:placeholder@127.0.0.1:5432/hushi npx prisma validate --schema prisma/postgresql/schema.prisma",
     "build:admin": "VITE_API_BASE=https://api.shangkong.xyz VITE_SITE_URL=https://www.shangkong.xyz npm --prefix aural-admin run build:prod",
     "build:website": "NUXT_PUBLIC_API_BASE=https://api.shangkong.xyz NUXT_PUBLIC_SITE_URL=https://www.shangkong.xyz npm --prefix aural-website run build",
-    "quality": "npm run lint && npm run test && npm run check:api && npm run backup:verify && npm run build:admin && npm run build:website"
+    "quality": "npm run docs:check && npm run lint && npm run test && npm run check:api && npm run backup:verify && npm run build:admin && npm run build:website"
   },
   "devDependencies": {
     "eslint": "^9.39.5",

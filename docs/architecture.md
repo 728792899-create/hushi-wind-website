@@ -1,5 +1,7 @@
 # 架构说明
 
+**简体中文** · [English](en/architecture.md)
+
 ![胡氏管乐三端系统架构](images/system-overview.svg)
 
 下文从系统、发布、公开线索、安全与生产五个视角说明边界。如果只需了解用户如何完成浏览到咨询，先阅读 [产品与用户旅程](product-tour.md)；如果需要调用 API，阅读 [API 使用指南](api-reference.md)。
@@ -59,6 +61,8 @@ flowchart TB
 
 前台只消费公开内容接口并提交公开表单；后台的写操作必须经过管理员会话、每会话 CSRF token 和权限点校验。API 是唯一数据边界，前端不直接连接数据库或读写上传目录。产品和询价域已分成 route → controller → service → repository，校验和 permission 为独立边界。
 
+![产品、内容、版本、咨询与管理员的核心领域关系](images/domain-model.svg)
+
 ## 2. CMS 内容发布与版本恢复
 
 ```mermaid
@@ -86,6 +90,8 @@ sequenceDiagram
 ```
 
 演示 seed 生成的是完整虚构品牌数据；产品、文章、FAQ 和页面内容不依赖历史线上服务器，便于本地复现三端闭环。
+
+![内容从草稿、发布、版本到恢复的生命周期](images/content-lifecycle.svg)
 
 ## 3. 公开咨询线索流
 
@@ -124,6 +130,8 @@ flowchart TB
 ```
 
 IP 匿名化只发生在持久日志写库处。限流键与管理员 IP 白名单继续使用原始 IP，否则会降低防刷和访问控制的准确性。应用内存限流是单实例兜底，`RATE_LIMIT_STORE=redis` 通过共享适配器支持多实例，边缘/WAF 仍应作为第一道防线。
+
+![管理员请求经过会话、CSRF、2FA 与 RBAC 的时序](images/auth-sequence.svg)
 
 ## 5. 生产部署与验收边界
 

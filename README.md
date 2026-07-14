@@ -1,5 +1,7 @@
 # 胡氏管乐官网
 
+**简体中文** · [English](README.en.md)
+
 ![胡氏管乐全栈官网项目封面](docs/images/project-cover.svg)
 
 [![CI](https://github.com/728792899-create/hushi-wind-website/actions/workflows/ci.yml/badge.svg)](https://github.com/728792899-create/hushi-wind-website/actions/workflows/ci.yml)
@@ -55,11 +57,35 @@
 
 对比弹窗支持键盘焦点限制、Escape 关闭和关闭后焦点返回；咨询成功以 API `201` 为准，不会把表单内容复制到分析平台。
 
+### 产品详情：桌面与手机
+
+| 桌面产品详情 | 手机产品详情与悬浮 CTA |
+| --- | --- |
+| ![桌面端产品详情页，展示产品主图、型号和咨询入口](docs/screenshots/11-product-detail-desktop.png) | ![手机端产品详情页，展示适配后的主图和底部咨询入口](docs/screenshots/12-product-detail-mobile.png) |
+
+详情页保持产品名、系列、主图、参数和下一步动作在同一决策上下文中；手机端保留可触达的固定 CTA，并避开系统安全区。
+
 ### CMS 运营与安全中心
 
 | 运营工作台 | 权限与审计中心 |
 | --- | --- |
 | ![CMS 运营工作台](docs/screenshots/03-admin-dashboard.jpg) | ![CMS 权限与审计中心](docs/screenshots/10-admin-security.png) |
+
+### CMS 内容、客户与恢复证据
+
+| 产品编辑 | 版本记录与恢复 |
+| --- | --- |
+| ![CMS 产品编辑对话框，包含产品字段和发布状态](docs/screenshots/13-cms-product-editor.png) | ![CMS 产品版本记录，提供历史版本恢复操作](docs/screenshots/14-cms-version-history.png) |
+
+| CRM 咨询队列 | 素材资源库 |
+| --- | --- |
+| ![CMS 客户与工单页面的咨询队列概览](docs/screenshots/15-cms-crm-inquiries.png) | ![CMS 素材资源库的统计、筛选与资源列表](docs/screenshots/16-cms-resource-library.png) |
+
+| 备份恢复演练 | 官网 404 状态 |
+| --- | --- |
+| ![CMS 备份记录中显示数据库备份已完成恢复演练](docs/screenshots/17-cms-backup-restore.png) | ![官网深色主题 404 页面，提供返回首页和联系支持入口](docs/screenshots/18-website-404.png) |
+
+截图只使用重新 seed 的虚构 Demo 数据；采集中的咨询、内容修改和备份记录不会作为仓库数据提交。
 
 ### 手机与平板
 
@@ -141,6 +167,7 @@ npm run seed:demo           # 重置为统一虚构数据
 
 | 层级 | 命令 | 当前覆盖 |
 | --- | --- | --- |
+| 文档 | `npm run docs:check` | 本地链接、锚点、图片、alt、真实 MIME、SVG 元数据和中英文配对 |
 | Lint | `npm run lint` | JS/Vue 解析与高风险语义规则 |
 | API 集成 | `npm run test:api` | 健康、鉴权、RBAC、CSRF、CRUD、上传、咨询、版本恢复、生产熔断 |
 | 官网单测 | `npm run test:website` | 组件、筛选、SEO、JSON-LD、分析脱敏 |
@@ -196,13 +223,19 @@ npm run seed:demo           # 重置为统一虚构数据
 | 读者 | 文档 | 解决的问题 |
 | --- | --- | --- |
 | 新访客 | [文档导航](docs/documentation-index.md) | 按角色找到最短阅读路径 |
+| 贡献者 | [开发者指南](docs/developer-guide.md) | 仓库结构、本地循环、分层边界与 PR 自检 |
 | 产品/业务 | [产品与用户旅程](docs/product-tour.md) | 官网如何完成从浏览到咨询的转化 |
 | 运营人员 | [CMS 运营手册](docs/admin-guide.md) | 内容发布、回滚、CRM、资源和安全巡检 |
 | 前后端开发 | [架构说明](docs/architecture.md) | 边界、时序、权限和数据流 |
+| 配置维护者 | [环境变量参考](docs/configuration-reference.md) | 三端变量、环境差异与生产约束 |
+| 数据维护者 | [数据模型与内容生命周期](docs/data-model.md) | 核心实体、状态、版本与恢复语义 |
+| 安全负责人 | [RBAC 与安全模型](docs/security-and-permissions.md) | 会话、权限、2FA、CSRF、审计和默认凭据保护 |
+| 设计/前端 | [设计系统与无障碍](docs/design-system-and-accessibility.md) | 令牌、状态组件、键盘和响应式验收 |
 | API 集成方 | [API 使用指南](docs/api-reference.md) | 端点分类、会话、CSRF、错误和上传合同 |
 | QA | [测试与验收](docs/testing-and-acceptance.md) | 自动化层级、视口和性能/可访问性口径 |
 | DevOps/SRE | [部署与回滚](docs/deployment.md) | 环境、迁移、备份、发布顺序 |
 | 值班人员 | [运维 Runbook](docs/operations-runbook.md) | 告警、故障分级、恢复与证据保留 |
+| 排障人员 | [常见故障排查](docs/troubleshooting.md) | 安装、端口、登录、构建、上传和恢复问题 |
 | 数据/产品 | [转化事件规范](docs/analytics.md) | 事件合同、隐私边界和 funnel |
 | 发布负责人 | [Release Checklist](docs/release-checklist.md) | 可勾选的上线与观察清单 |
 

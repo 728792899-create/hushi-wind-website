@@ -1,5 +1,9 @@
 # 测试、基线与验收
 
+**简体中文** · [English](en/testing-and-acceptance.md)
+
+![从文档校验到生产构建的测试策略](images/testing-strategy.svg)
+
 ## 本次基线
 
 2026-07-14 在 macOS / Node.js 22 环境执行了全新依赖安装、Demo seed、三端启动、现有检查和生产构建。改造前基线：
@@ -15,6 +19,7 @@
 
 | 层级 | 命令 | 覆盖 |
 | --- | --- | --- |
+| documentation | `npm run docs:check` | 本地链接与锚点、图片 alt/MIME、SVG 可访问元数据、中英文文档配对 |
 | lint | `npm run lint` | JS/Vue 解析与高风险语义规则 |
 | API integration | `npm run test:api` | health、公开状态、鉴权、RBAC、CSRF、CRUD、版本恢复、上传签名、询价、production fuse |
 | website unit | `npm run test:website` | SEO、canonical、Product/FAQ/breadcrumb schema、产品筛选、价格格式、ProductCard、分析 PII 过滤 |

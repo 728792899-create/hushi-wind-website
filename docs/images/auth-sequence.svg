@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">管理员请求鉴权与授权时序 / Authentication and authorization sequence</title><desc id="desc">展示 CMS 写请求依次经过来源、会话、CSRF、权限、校验、业务与审计。</desc>
+  <rect width="1200" height="675" rx="28" fill="#090b0d"/><g font-family="Arial,sans-serif"><text x="65" y="72" fill="#f2f5f4" font-size="34" font-weight="700">安全请求时序 / SECURE REQUEST</text><text x="65" y="108" fill="#8c9894" font-size="16">A hidden button is not an authorization boundary</text>
+    <g text-anchor="middle" font-size="17" font-weight="700"><text x="120" y="170" fill="#78c6a3">CMS</text><text x="280" y="170" fill="#78c6a3">CORS</text><text x="440" y="170" fill="#78c6a3">SESSION</text><text x="600" y="170" fill="#78c6a3">CSRF</text><text x="760" y="170" fill="#78c6a3">RBAC</text><text x="920" y="170" fill="#78c6a3">SERVICE</text><text x="1080" y="170" fill="#78c6a3">AUDIT</text></g>
+    <g stroke="#2f3a37" stroke-width="2" stroke-dasharray="7 7"><path d="M120 190 V555"/><path d="M280 190 V555"/><path d="M440 190 V555"/><path d="M600 190 V555"/><path d="M760 190 V555"/><path d="M920 190 V555"/><path d="M1080 190 V555"/></g>
+    <g stroke="#78c6a3" stroke-width="3" fill="none"><path d="M120 225 H275"/><path d="M280 275 H435"/><path d="M440 325 H595"/><path d="M600 375 H755"/><path d="M760 425 H915"/><path d="M920 475 H1075"/></g>
+    <g fill="#dfe4e1" font-size="15"><text x="145" y="216">Origin + Bearer + CSRF</text><text x="305" y="266">allowed origin</text><text x="465" y="316">active, unexpired token</text><text x="625" y="366">per-session match</text><text x="785" y="416">permission + validation</text><text x="945" y="466">before/after evidence</text></g>
+    <rect x="170" y="585" width="860" height="48" rx="24" fill="#17231f"/><text x="600" y="616" text-anchor="middle" fill="#a9dfc0" font-size="16">FAIL CLOSED · stable error code · no sensitive body in telemetry</text>
+  </g>
+</svg>

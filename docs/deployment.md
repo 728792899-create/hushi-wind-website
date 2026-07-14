@@ -1,5 +1,7 @@
 # 部署、迁移、备份与回滚
 
+**简体中文** · [English](en/deployment.md)
+
 ![从质量门禁到发布观察的流水线](images/release-pipeline.svg)
 
 命令、环境和顺序在本文维护；事故响应、备份恢复演练与事后复盘模板见 [运维 Runbook](operations-runbook.md)。
@@ -69,6 +71,8 @@ npm run db:deploy
 `npm --prefix aural-api run deploy:safe -- <stage-directory>` 可用于现有 rsync/PM2 单机部署，它会执行 guard、数据库检查、发布前备份、构建验证、重启和 post-deploy smoke，并写入发布历史。容器/Kubernetes 环境应将同等步骤编排到平台 pipeline。
 
 ## 备份与恢复
+
+![备份、应用回滚与数据恢复的决策路径](images/backup-recovery.svg)
 
 - SQLite：备份使用 `sqlite3 .backup` 获取一致快照，然后执行 `PRAGMA integrity_check`。
 - PostgreSQL：备份使用 `pg_dump --format=custom --no-owner`。生产还应启用数据库服务的 PITR/WAL 归档。

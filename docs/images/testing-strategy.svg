@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">测试策略与质量门禁 / Testing strategy and quality gate</title><desc id="desc">展示静态检查、单元测试、API 集成、浏览器端到端、构建与恢复演练如何汇聚到 CI。</desc>
+  <rect width="1200" height="675" rx="28" fill="#090c0e"/><g font-family="Arial,sans-serif"><text x="65" y="72" fill="#f2f5f4" font-size="34" font-weight="700">测试策略 / TEST STRATEGY</text><text x="65" y="108" fill="#8d9995" font-size="16">Fast feedback at the base, critical journeys at the top</text>
+    <path d="M600 155 L990 560 H210 Z" fill="#11171a" stroke="#33403c" stroke-width="2"/>
+    <path d="M325 440 H875" stroke="#2b3934" stroke-width="2"/><path d="M405 355 H795" stroke="#2b3934" stroke-width="2"/><path d="M490 270 H710" stroke="#2b3934" stroke-width="2"/>
+    <g text-anchor="middle"><text x="600" y="222" fill="#d9b76e" font-size="18" font-weight="700">BROWSER E2E</text><text x="600" y="305" fill="#78c6a3" font-size="18" font-weight="700">API INTEGRATION</text><text x="600" y="393" fill="#78c6a3" font-size="18" font-weight="700">VITEST · SEO · VIEW MODELS</text><text x="600" y="495" fill="#dfe4e1" font-size="18" font-weight="700">LINT · DOCS · PRISMA · SECURITY</text></g>
+    <rect x="235" y="585" width="730" height="52" rx="26" fill="#78c6a3"/><text x="600" y="618" text-anchor="middle" fill="#0b100e" font-size="18" font-weight="700">QUALITY = TESTS + BUILDS + BACKUP RESTORE + DOCS</text>
+    <g fill="#8c9894" font-size="14"><text x="90" y="250">desktop · mobile · axe</text><text x="955" y="320">auth · CRUD · upload</text><text x="80" y="410">components · composables</text><text x="930" y="500">deterministic contracts</text></g>
+  </g>
+</svg>

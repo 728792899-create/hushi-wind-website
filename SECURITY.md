@@ -1,5 +1,7 @@
 # Security Policy
 
+**English** · [简体中文](SECURITY.zh-CN.md)
+
 ## Supported versions
 
 Security fixes are applied to the latest commit on the default branch. Demo credentials, fixture data and local SQLite files are not production credentials or production data.
