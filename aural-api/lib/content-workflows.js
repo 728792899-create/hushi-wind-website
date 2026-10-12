@@ -1,6 +1,7 @@
 const { reconcileCatalogSnapshot, contentHistory } = require('./content-history');
 const crypto = require('node:crypto');
 const { validationError } = require('./security');
+const { updateWithVersion } = require('./record-version');
 const hash = (value) =>
   crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const defaults = [
@@ -284,10 +285,13 @@ function registerContentWorkflows({
         ...(module === 'config' ? {} : { status: 'published' }),
       });
       await saveContentVersion(req, module, current);
-      const data = await prisma[spec.model].update({
-        where: { id: recordId },
-        data: payload,
-      });
+      const data = await updateWithVersion(
+        prisma[spec.model],
+        current.revision !== undefined
+          ? { id: recordId, revision: current.revision }
+          : { id: recordId, updatedAt: current.updatedAt },
+        payload,
+      );
       await prisma.contentDraft.delete({ where: { id: draft.id } });
       await auditOperation(req, {
         action: 'PUBLISH',

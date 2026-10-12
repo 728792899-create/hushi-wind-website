@@ -749,6 +749,7 @@ import {
   adminUploadHeaders,
   api,
   extractErrorMessage,
+  isRecordConflict,
   listData,
   mediaSrc,
   openPreview,
@@ -782,6 +783,8 @@ const cDiag = ref(false)
 const saving = ref(false)
 const isEdit = ref(false)
 const curId = ref(null)
+// 打开时的记录版本；保存时用 If-Match 提交，记录已被他人改过则返回 409，表单保持不动
+const curRevision = ref(null)
 const contentFormRef = ref(null)
 const cForm = reactive({})
 const contentVersionDrawerOpen = ref(false)
@@ -1148,6 +1151,7 @@ const openAddContent = () => {
   if (!hasPermission('cms:write')) return
   isEdit.value = false
   curId.value = null
+  curRevision.value = null
   Object.keys(cForm).forEach((key) => delete cForm[key])
   Object.assign(cForm, { ...defaultForms[contentTab.value] })
   originalContentPayload.value = contentPayload()
@@ -1158,6 +1162,7 @@ const openEditContent = (row) => {
   if (!hasPermission('cms:write')) return
   isEdit.value = true
   curId.value = row.id
+  curRevision.value = row.revision ?? null
   Object.keys(cForm).forEach((key) => delete cForm[key])
   Object.assign(cForm, { ...defaultForms[contentTab.value], ...row })
   originalContentPayload.value = contentPayload()
@@ -1210,6 +1215,9 @@ const submitContent = async (targetStatus = '') => {
     await api[isEdit.value ? 'put' : 'post'](
       isEdit.value ? `/api/${ep}/${curId.value}` : `/api/${ep}`,
       payload,
+      isEdit.value
+        ? { headers: { 'If-Match': String(curRevision.value ?? '') } }
+        : {},
     )
     cDiag.value = false
     fetchContent(contentTab.value)
@@ -1229,6 +1237,8 @@ const submitContent = async (targetStatus = '') => {
       cForm.status = previousStatus
     if (error !== 'cancel' && error !== 'close')
       ElMessage.error(extractErrorMessage(error, '请检查内容表单'))
+    // 列表里的旧数据会让“重新打开”仍拿到旧版本；刷新列表，弹窗与输入保持不动
+    if (isRecordConflict(error)) fetchContent(contentTab.value)
   } finally {
     saving.value = false
   }

@@ -44,6 +44,7 @@ model Product {
 }
 
 model Article {
+  revision     Int      @default(0)
   id          Int      @id @default(autoincrement())
   title       String
   slug        String?
@@ -65,6 +66,7 @@ model Article {
 }
 
 model SystemConfig {
+  revision     Int      @default(0)
   id                 Int      @id @default(1)
   heroImageUrl       String?  
   aboutTitle         String?  
@@ -129,6 +131,7 @@ model ArtistApplication {
 }
 
 model Artist {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   name      String   
   role      String   
@@ -142,6 +145,7 @@ model Artist {
 }
 
 model SupportFaq {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   question  String
   answer    String
@@ -153,6 +157,7 @@ model SupportFaq {
 }
 
 model SupportDownload {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   name      String
   size      String
@@ -168,6 +173,7 @@ model SupportDownload {
 }
 
 model AudioSolution {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   en        String   
   title     String   
@@ -178,6 +184,7 @@ model AudioSolution {
 }
 
 model AudioStat {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   label     String   
   value     String   
@@ -187,6 +194,7 @@ model AudioStat {
 }
 
 model BrandTimeline {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   year      String   
   title     String   
@@ -197,6 +205,7 @@ model BrandTimeline {
 }
 
 model EcosystemService {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   icon      String   
   title     String
@@ -208,6 +217,7 @@ model EcosystemService {
 }
 
 model QuickGuide {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   title     String
   duration  String   
@@ -221,6 +231,7 @@ model QuickGuide {
 }
 
 model PageContent {
+  revision     Int      @default(0)
   id        Int      @id @default(autoincrement())
   slug      String   @unique 
   title     String   

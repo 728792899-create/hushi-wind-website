@@ -292,12 +292,13 @@ const uploads = useEditorUploads()
 const pendingUploads = uploads.pending
 const originalConfig = ref('')
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import ImageUpload from '../components/ImageUpload.vue'
 import {
   api,
   hasPermission,
   extractErrorMessage,
+  isRecordConflict,
   openPreview,
 } from '../lib/api'
 
@@ -365,14 +366,32 @@ const saveConfig = async () => {
   try {
     await configFormRef.value?.validate()
     const payload = JSON.parse(JSON.stringify(sysConfig.value))
-    await api.put('/api/config', payload)
+    const res = await api.put('/api/config', payload, {
+      headers: { 'If-Match': String(payload.revision ?? '') },
+    })
+    // 后续再次保存要用新版本；只同步版本号，不覆盖保存期间的新输入
+    sysConfig.value.revision = res.data.revision
+    payload.revision = res.data.revision
     originalConfig.value = JSON.stringify(payload)
     ElMessage.success('已全局同步至官网')
   } catch (error) {
-    if (error) ElMessage.error(extractErrorMessage(error, '请检查配置内容'))
+    if (isRecordConflict(error)) offerLatestConfig()
+    else if (error) ElMessage.error(extractErrorMessage(error, '请检查配置内容'))
   } finally {
     saving.value = false
   }
+}
+
+// 全局配置只有一份表单：不自动刷新以免冲掉输入，由使用者决定是否加载最新内容
+const offerLatestConfig = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '全局配置已被其他管理员更新，当前修改未保存。加载最新配置后需要重新填写本次修改；也可以先保留当前输入，记下要改的内容后再加载。',
+      '配置已被更新',
+      { confirmButtonText: '加载最新配置', cancelButtonText: '保留当前输入', type: 'warning' },
+    )
+    await fetchConfig()
+  } catch {}
 }
 
 useUnsavedChanges({

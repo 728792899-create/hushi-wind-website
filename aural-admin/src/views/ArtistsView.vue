@@ -306,6 +306,7 @@ import {
   api,
   hasPermission,
   extractErrorMessage,
+  isRecordConflict,
   listData,
   paginationMeta,
   mediaSrc,
@@ -324,6 +325,8 @@ const artistDiag = ref(false)
 const saving = ref(false)
 const isEdit = ref(false)
 const curId = ref(null)
+// 打开时的记录版本；保存时用 If-Match 提交，记录已被他人改过则返回 409，表单保持不动
+const curRevision = ref(null)
 const artistFormRef = ref(null)
 const artistForm = reactive({
   name: '',
@@ -375,6 +378,7 @@ const openAddArtist = () => {
   if (!hasPermission('artists:write')) return
   isEdit.value = false
   curId.value = null
+  curRevision.value = null
   Object.assign(artistForm, {
     name: '',
     role: '',
@@ -392,6 +396,7 @@ const openEditArtist = (row) => {
   if (!hasPermission('artists:write')) return
   isEdit.value = true
   curId.value = row.id
+  curRevision.value = row.attributes?.revision ?? null
   Object.assign(artistForm, {
     name: row.attributes.name,
     role: row.attributes.role,
@@ -429,6 +434,9 @@ const submitArtist = async () => {
     await api[isEdit.value ? 'put' : 'post'](
       isEdit.value ? `/api/artists/${curId.value}` : '/api/artists',
       artistForm,
+      isEdit.value
+        ? { headers: { 'If-Match': String(curRevision.value ?? '') } }
+        : {},
     )
     artistDiag.value = false
     ElMessage.success('艺术家内容已保存')
@@ -436,6 +444,8 @@ const submitArtist = async () => {
   } catch (error) {
     if (error !== 'cancel' && error !== 'close')
       ElMessage.error(extractErrorMessage(error, '请检查艺术家表单'))
+    // 列表里的旧数据会让“重新打开”仍拿到旧版本；刷新列表，弹窗与输入保持不动
+    if (isRecordConflict(error)) fetchArtists()
   } finally {
     saving.value = false
   }

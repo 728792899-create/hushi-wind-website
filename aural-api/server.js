@@ -1,4 +1,9 @@
-const { recordVersionWhere, nextUpdatedAt } = require('./lib/record-version');
+const {
+  recordVersionWhere,
+  nextUpdatedAt,
+  updateWithVersion,
+  withContentRevision,
+} = require('./lib/record-version');
 const { reconcileCatalogSnapshot, contentHistory } = require('./lib/content-history');
 require('./scripts/load-env').loadEnvFile();
 const { runMaintenance } = require('./lib/maintenance');
@@ -39,7 +44,7 @@ const { categories: mediaCategories, readMetadata, buildMediaReferences, describ
 
 const app = express();
 app.disable('x-powered-by');
-const database = new PrismaClient();
+const database = withContentRevision(new PrismaClient());
 const {
   prisma,
   handler: writeHandler,
@@ -5264,7 +5269,7 @@ app.put(
     if (data.status === 'published' && !data.publishedAt)
       data.publishedAt = before.publishedAt || new Date();
     if (data.status === 'hidden' && !data.hiddenAt) data.hiddenAt = new Date();
-    const updated = await prisma.product.update({ where: versionWhere, data: { ...data, updatedAt: nextUpdatedAt(before) } });
+    const updated = await updateWithVersion(prisma.product, versionWhere, { ...data, updatedAt: nextUpdatedAt(before) });
     await auditOperation(req, {
       action: 'UPDATE',
       module: 'products',
@@ -5467,6 +5472,7 @@ app.put(
     const id = toId(req.params.id);
     const before = await prisma.article.findUnique({ where: { id } });
     if (!before) throw createError(404, 'NOT_FOUND', '新闻不存在');
+    const versionWhere = recordVersionWhere(req, before);
     await saveContentVersion(req, 'article', before);
     const data = validateArticlePayload({
       ...before,
@@ -5476,7 +5482,7 @@ app.put(
     if (data.status === 'published' && !data.publishedAt)
       data.publishedAt = before.publishedAt || new Date();
     if (data.status === 'hidden' && !data.hiddenAt) data.hiddenAt = new Date();
-    const updated = await prisma.article.update({ where: { id }, data });
+    const updated = await updateWithVersion(prisma.article, versionWhere, data);
     await auditOperation(req, {
       action: 'UPDATE',
       module: 'articles',
@@ -5526,11 +5532,13 @@ app.put(
   requirePermission('config:write'),
   writeHandler(async (req, res) => {
     const before = await prisma.systemConfig.findUnique({ where: { id: 1 } });
+    const versionWhere = recordVersionWhere(req, before);
     await saveContentVersion(req, 'config', before);
-    const updated = await prisma.systemConfig.update({
-      where: { id: 1 },
-      data: validateConfigPayload(req.body),
-    });
+    const updated = await updateWithVersion(
+      prisma.systemConfig,
+      versionWhere,
+      validateConfigPayload(req.body),
+    );
     await auditOperation(req, {
       action: 'UPDATE',
       module: 'config',
@@ -5624,11 +5632,13 @@ app.put(
     const id = toId(req.params.id);
     const before = await prisma.artist.findUnique({ where: { id } });
     if (!before) throw createError(404, 'NOT_FOUND', '艺术家不存在');
+    const versionWhere = recordVersionWhere(req, before);
     await saveContentVersion(req, 'artist', before);
-    const updated = await prisma.artist.update({
-      where: { id },
-      data: validateArtistPayload({ ...before, ...req.body }),
-    });
+    const updated = await updateWithVersion(
+      prisma.artist,
+      versionWhere,
+      validateArtistPayload({ ...before, ...req.body }),
+    );
     await auditOperation(req, {
       action: 'UPDATE',
       module: 'artists',
@@ -5865,7 +5875,7 @@ app.put(
     )
       throw createError(400, 'INVALID_ASSIGNEE', '负责人账号不可用');
     const versionWhere = recordVersionWhere(req, before);
-    const data = await prisma.inquiry.update({ where: versionWhere, data: { ...patch, revision: { increment: 1 } } });
+    const data = await updateWithVersion(prisma.inquiry, versionWhere, { ...patch, revision: { increment: 1 } });
     const note =
       typeof req.body.followUpNote === 'string'
         ? req.body.followUpNote.trim()
@@ -6256,11 +6266,13 @@ cmsModels.forEach(({ route, model, noSort }) => {
       const id = toId(req.params.id);
       const before = await prisma[model].findUnique({ where: { id } });
       if (!before) throw createError(404, 'NOT_FOUND', 'CMS 内容不存在');
+      const versionWhere = recordVersionWhere(req, before);
       await saveContentVersion(req, model, before);
-      const updated = await prisma[model].update({
-        where: { id },
-        data: validateCmsPayload(model, { ...before, ...req.body }),
-      });
+      const updated = await updateWithVersion(
+        prisma[model],
+        versionWhere,
+        validateCmsPayload(model, { ...before, ...req.body }),
+      );
       await auditOperation(req, {
         action: 'UPDATE',
         module: 'cms',

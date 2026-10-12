@@ -729,6 +729,7 @@ import {
   adminUploadHeaders,
   api,
   extractErrorMessage,
+  isRecordConflict,
   listData,
   mediaSrc,
   openPreview,
@@ -1334,6 +1335,8 @@ const submitProduct = async (targetStatus = '') => {
       pForm.status = previousStatus
     if (error !== 'cancel' && error !== 'close')
       ElMessage.error(extractErrorMessage(error, '请检查产品表单'))
+    // 列表里的旧数据会让“重新打开”仍拿到旧版本；刷新列表，弹窗与输入保持不动
+    if (isRecordConflict(error)) fetchProducts()
   } finally {
     saving.value = false
   }

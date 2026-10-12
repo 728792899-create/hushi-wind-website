@@ -34,9 +34,12 @@ const request = async (
   { role = 'super_admin', method = 'GET', body, headers = {} } = {},
 ) => {
   const h = { ...headers };
-  const record = url.match(/^\/api\/(products|inquiries)\/(\d+)$/);
-  if (method === 'PUT' && record && h['If-Match'] === undefined && body?.updatedAt === undefined && body?.revision === undefined) {
-    const row = await db[record[1] === 'products' ? 'product' : 'inquiry'].findUnique({ where: { id: Number(record[2]) } });
+  // Plain PUTs in older tests read the current version first, as the admin forms do.
+  const versionedTables = { products: 'product', inquiries: 'inquiry', articles: 'article', artists: 'artist', 'support-faqs': 'supportFaq', 'support-downloads': 'supportDownload', 'audio-solutions': 'audioSolution', 'audio-stats': 'audioStat', 'brand-timelines': 'brandTimeline', 'ecosystem-services': 'ecosystemService', 'quick-guides': 'quickGuide', 'page-contents': 'pageContent' };
+  const record = url === '/api/config' ? ['', 'config', '1'] : url.match(/^\/api\/([a-z-]+)\/(\d+)$/);
+  const table = record && (record[1] === 'config' ? 'systemConfig' : versionedTables[record[1]]);
+  if (method === 'PUT' && table && h['If-Match'] === undefined && body?.updatedAt === undefined && body?.revision === undefined) {
+    const row = await db[table].findUnique({ where: { id: Number(record[2]) } });
     if (row) h['If-Match'] = row.revision !== undefined ? String(row.revision) : row.updatedAt.toISOString();
   }
   const match = url.match(/^\/api\/admin\/(?:content-drafts|preview-ticket)\/([^/]+)\/(\d+)(?:\/publish)?$/);

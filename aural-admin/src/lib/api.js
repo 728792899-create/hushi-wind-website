@@ -94,6 +94,11 @@ export const extractErrorMessage = (
   )
 }
 
+// 保存时记录已被他人修改（服务端 409 RECORD_CHANGED）：页面应刷新数据源，但保留表单输入
+export const isRecordConflict = (error) =>
+  error?.response?.status === 409 &&
+  error?.response?.data?.error?.code === 'RECORD_CHANGED'
+
 export const api = axios.create({
   baseURL: BASE,
   timeout: 20000,

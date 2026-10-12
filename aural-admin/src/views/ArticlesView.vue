@@ -565,6 +565,7 @@ import {
   adminUploadHeaders,
   api,
   extractErrorMessage,
+  isRecordConflict,
   listData,
   mediaSrc,
   openPreview,
@@ -591,6 +592,8 @@ const aDiag = ref(false)
 const saving = ref(false)
 const isEdit = ref(false)
 const curId = ref(null)
+// 打开时的记录版本；保存时用 If-Match 提交，记录已被他人改过则返回 409，表单保持不动
+const curRevision = ref(null)
 const articleFormRef = ref(null)
 const emptyArticleForm = () => ({
   title: '',
@@ -813,6 +816,7 @@ const openAddArticle = () => {
   if (!hasPermission('articles:write')) return
   isEdit.value = false
   curId.value = null
+  curRevision.value = null
   Object.assign(aForm, {
     ...emptyArticleForm(),
     date: new Date().toISOString().split('T')[0],
@@ -825,6 +829,7 @@ const openEditArticle = (row) => {
   if (!hasPermission('articles:write')) return
   isEdit.value = true
   curId.value = row.id
+  curRevision.value = row.attributes?.revision ?? null
   Object.assign(aForm, {
     ...emptyArticleForm(),
     ...row.attributes,
@@ -967,6 +972,9 @@ const submitArticle = async (targetStatus = '') => {
     const res = await api[isEdit.value ? 'put' : 'post'](
       isEdit.value ? `/api/articles/${curId.value}` : '/api/articles',
       payload,
+      isEdit.value
+        ? { headers: { 'If-Match': String(curRevision.value ?? '') } }
+        : {},
     )
     const savedArticle = res.data || {}
     aDiag.value = false
@@ -985,6 +993,8 @@ const submitArticle = async (targetStatus = '') => {
       aForm.status = previousStatus
     if (error !== 'cancel' && error !== 'close')
       ElMessage.error(extractErrorMessage(error, '请检查新闻表单'))
+    // 列表里的旧数据会让“重新打开”仍拿到旧版本；刷新列表，弹窗与输入保持不动
+    if (isRecordConflict(error)) fetchArticles()
   } finally {
     saving.value = false
   }
