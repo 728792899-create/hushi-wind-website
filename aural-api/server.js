@@ -23,11 +23,9 @@ const {
 const { createNotificationWorker } = require('./lib/notification-worker');
 const {
   resolveDatabaseFile,
-  verifyDatabase,
   createDatabaseBackup,
-  pruneBackups,
-  verifyBackupBundle,
 } = require('./lib/database-backup');
+const { restoreBackupDrill } = require('./lib/restore-drill');
 const {
   canonicalUploadUrl,
   uploadFilePath,
@@ -607,9 +605,6 @@ const coreTableHealth = async () =>
       }
     }),
   );
-
-const verifyBackupDatabaseIntegrity = (backupPath) =>
-  verifyDatabase(backupPath);
 
 const reportHealthFailure = async (details) => {
   if (Date.now() - lastHealthAlertAt < HEALTH_ALERT_INTERVAL_MS) return;
@@ -4704,6 +4699,14 @@ app.post(
   }),
 );
 
+// Reports contain only restoration evidence; no local paths or customer data.
+const serializeBackup = (record) => {
+  let verificationReport = null;
+  try { verificationReport = JSON.parse(record.verificationReport || 'null'); } catch {}
+  return { ...record, verificationReport };
+};
+const activeRestoreDrills = new Set();
+
 app.get(
   '/api/admin/backups',
   requireAdmin,
@@ -4724,7 +4727,7 @@ app.get(
         take,
       }),
     ]);
-    res.json(paginatedPayload(data, total, page, pageSize));
+    res.json(paginatedPayload(data.map(serializeBackup), total, page, pageSize));
   }),
 );
 
@@ -4738,62 +4741,68 @@ app.post(
     const backup = await prisma.backupRecord.findUnique({ where: { id } });
     if (!backup || backup.status !== 'success')
       throw createError(404, 'NOT_FOUND', '可验证的备份记录不存在');
-    const backupRoot = path.resolve(
-      process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
-    );
-    const backupPath = path.resolve(backupRoot, path.basename(backup.filename));
-    if (!fs.existsSync(backupPath))
-      throw createError(404, 'NOT_FOUND', '备份文件不存在');
-    const tmpDir = path.join(backupRoot, 'restore-checks');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    const target = path.join(
-      tmpDir,
-      `restore-check.${Date.now()}.${backup.filename}`,
-    );
-    fs.copyFileSync(backupPath, target);
-    let stat;
-    let tableChecks = [];
+    if (activeRestoreDrills.has(id))
+      throw createError(409, 'RESTORE_IN_PROGRESS', '该备份正在演练，请稍后刷新');
+    activeRestoreDrills.add(id);
+    const startedAt = new Date();
     try {
-      stat = fs.statSync(target);
-      const sizeOk = stat.size === backup.size && stat.size > 0;
-      if (!sizeOk)
-        throw createError(
-          500,
-          'RESTORE_VERIFY_FAILED',
-          '备份恢复演练失败，文件大小或完整性校验未通过',
-        );
-      tableChecks = await verifyBackupDatabaseIntegrity(target);
-      await verifyBackupBundle(backupPath);
+      // Persist an unfinished state first so interruption cannot leave an old pass visible.
+      await transaction(async () => {
+        await prisma.backupRecord.update({ where: { id }, data: {
+          verificationStatus: 'running', verifiedAt: startedAt,
+          verificationReport: JSON.stringify({ status: 'running', startedAt: startedAt.toISOString() }),
+        } });
+        await auditOperation(req, {
+          action: 'VERIFY_RESTORE_STARTED', module: 'system', target: backup.filename,
+          targetId: id, summary: '开始备份副本恢复演练',
+        });
+      });
+      const backupRoot = path.resolve(
+        process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
+      );
+      const backupPath = path.resolve(backupRoot, path.basename(backup.filename));
+      let report;
+      let failed = false;
+      try {
+        if (fs.statSync(backupPath).size !== backup.size)
+          throw new Error('BACKUP_SIZE_MISMATCH');
+        report = await restoreBackupDrill(backupPath, {
+          scratchRoot: path.join(backupRoot, 'restore-checks'),
+        });
+      } catch {
+        failed = true;
+        const completedAt = new Date().toISOString();
+        report = {
+          status: 'failed', startedAt: startedAt.toISOString(), completedAt,
+          durationMs: Date.now() - startedAt.getTime(), code: 'RESTORE_VERIFY_FAILED',
+          message: '恢复演练未通过，请检查备份、素材及审计完整性。当前数据库未被覆盖。',
+        };
+      }
+      const verifiedAt = new Date(report.completedAt);
+      const updatedBackup = await transaction(async () => {
+        const updated = await prisma.backupRecord.update({ where: { id }, data: {
+          verificationStatus: failed ? 'failed' : 'verified', verifiedAt,
+          verificationReport: JSON.stringify(report),
+        } });
+        await auditOperation(req, {
+          action: failed ? 'VERIFY_RESTORE_FAILED' : 'VERIFY_RESTORE',
+          module: 'system', target: backup.filename, targetId: id,
+          summary: failed ? '备份副本恢复演练失败' : '完成数据库、素材与审计恢复演练',
+          afterData: report,
+        });
+        return updated;
+      });
+      if (failed) return res.status(500).json({
+        success: false, error: { code: report.code, message: report.message },
+        data: { report, backup: serializeBackup(updatedBackup) },
+      });
+      res.json({ success: true, data: {
+        filename: backup.filename, size: backup.size, verifiedAt,
+        report, backup: serializeBackup(updatedBackup),
+      } });
     } finally {
-      if (fs.existsSync(target)) fs.unlinkSync(target);
+      activeRestoreDrills.delete(id);
     }
-    const verifiedAt = new Date().toISOString();
-    const message = `手动备份；恢复演练通过 ${verifiedAt}`;
-    const updatedBackup = await transaction(async () => {
-      const updatedBackup = await prisma.backupRecord.update({
-        where: { id },
-        data: { message: message.slice(0, 500) },
-      });
-      await auditOperation(req, {
-        action: 'VERIFY_RESTORE',
-        module: 'system',
-        target: backup.filename,
-        targetId: id,
-        summary: '完成数据库备份恢复演练',
-        afterData: { verifiedAt, size: stat.size, tableChecks },
-      });
-      return updatedBackup;
-    });
-    res.json({
-      success: true,
-      data: {
-        filename: backup.filename,
-        size: stat.size,
-        verifiedAt,
-        tableChecks,
-        backup: updatedBackup,
-      },
-    });
   }),
 );
 
@@ -6401,7 +6410,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
-if (require.main === module) {
+function startBackgroundTasks() {
   const backups = createBackupScheduler(prisma, {source:resolveSqliteDatabaseFile(), uploadsRoot:uploadDir, backupRoot:path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname,'backups')),isPaused:deploymentPaused});
   const backupTick = () => backups.run().catch(e=>console.warn('Scheduled backup:',e.code || 'BACKUP_FAILED'));
   const backupTimer = setInterval(backupTick,3600000); backupTimer.unref();
@@ -6440,11 +6449,12 @@ if (require.main === module) {
 if (require.main === module)
   initializeAuditIntegrity(database)
     .then(() => initializeCatalog(database))
-    .then(() =>
+    .then(() => {
+      startBackgroundTasks();
       app.listen(PORT, HOST, () =>
         console.log(`🚀 Backend running on http://${HOST}:${PORT}`),
-      ),
-    )
+      );
+    })
     .catch((error) => {
       console.error('Startup failed:', error.code || error.message);
       process.exitCode = 1;

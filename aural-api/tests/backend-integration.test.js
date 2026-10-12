@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { initializeAuditIntegrity } = require('../lib/audit-integrity');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'hushi-integration-'));
 const apiRoot = path.resolve(__dirname, '..');
 Object.assign(process.env, {
@@ -99,6 +100,7 @@ before(async () => {
   db = api.database;
   await db.$queryRawUnsafe('PRAGMA journal_mode=WAL');
   await db.$queryRawUnsafe('PRAGMA wal_autocheckpoint=0');
+  await initializeAuditIntegrity(db);
   for (const role of [
     'super_admin',
     'operations',

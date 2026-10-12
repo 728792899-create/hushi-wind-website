@@ -1,7 +1,17 @@
 const path = require('node:path');
-const { randomUUID, createHash } = require('node:crypto');
+const { createHash } = require('node:crypto');
+const { createReadStream } = require('node:fs');
 const fs = require('node:fs/promises');
 const { PrismaClient, Prisma } = require('@prisma/client');
+const { verifyAuditIntegrity } = require('./audit-integrity');
+const CHECKPOINT_FIELDS = ['version', 'baselineCount', 'baselineMaxId', 'entryCount', 'logCount', 'headHash', 'sealedAt'];
+const isHash = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+async function regularFile(file) {
+  const stat = await fs.lstat(file);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Expected a regular file; symbolic links are not supported');
+  return stat;
+}
 
 function resolveDatabaseFile(
   url = process.env.DATABASE_URL,
@@ -15,7 +25,7 @@ function resolveDatabaseFile(
   return path.isAbsolute(raw) ? raw : path.resolve(apiRoot, 'prisma', raw);
 }
 async function verifyDatabase(file, { requireCurrentSchema = true } = {}) {
-  const stat = await fs.stat(file);
+  const stat = await regularFile(file);
   if (!stat.isFile() || stat.size === 0)
     throw new Error('Database is empty or missing');
   const db = new PrismaClient({ datasourceUrl: `file:${file}` });
@@ -44,10 +54,6 @@ async function verifyDatabase(file, { requireCurrentSchema = true } = {}) {
           if (!present.has(field.dbName || field.name))
             throw new Error(`Missing field: ${name}.${field.name}`);
         }
-      const rows = await db.$queryRawUnsafe(
-        `SELECT COUNT(*) AS count FROM "${name}"`,
-      );
-      result.push({ name, count: Number(rows[0].count), status: 'ok' });
     }
     if (
       !names.has('Product') ||
@@ -55,17 +61,25 @@ async function verifyDatabase(file, { requireCurrentSchema = true } = {}) {
       !names.has('AdminUser')
     )
       throw new Error('Missing core business tables');
+    for (const name of [...names].sort()) {
+      const rows = await db.$queryRawUnsafe(`SELECT COUNT(*) AS count FROM "${name.replace(/"/g, '""')}"`);
+      result.push({ name, count: Number(rows[0].count), status: 'ok' });
+    }
     return result;
   } finally {
     await db.$disconnect();
   }
 }
 async function hashFile(file) {
-  return createHash('sha256')
-    .update(await fs.readFile(file))
-    .digest('hex');
+  await regularFile(file);
+  const digest = createHash('sha256');
+  for await (const chunk of createReadStream(file)) digest.update(chunk);
+  return digest.digest('hex');
 }
 async function assetManifest(root, prefix = '') {
+  const directory = await fs.lstat(path.join(root, prefix));
+  if (!directory.isDirectory() || directory.isSymbolicLink())
+    throw new Error('Asset directory must not be a symbolic link');
   const rows = [];
   for (const entry of await fs.readdir(path.join(root, prefix), {
     withFileTypes: true,
@@ -76,12 +90,63 @@ async function assetManifest(root, prefix = '') {
     if (entry.isDirectory()) rows.push(...(await assetManifest(root, name)));
     else if (entry.isFile())
       rows.push({
-        path: name,
+        path: name.split(path.sep).join('/'),
         bytes: (await fs.stat(path.join(root, name))).size,
         sha256: await hashFile(path.join(root, name)),
       });
+    else throw new Error('Unsupported asset file type');
   }
-  return rows;
+  return rows.sort((a, b) => a.path.localeCompare(b.path));
+}
+async function auditSnapshot(file, { requireCurrentSchema = true } = {}) {
+  const db = new PrismaClient({ datasourceUrl: `file:${file}` });
+  try {
+    const rows = await db.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table'");
+    const names = new Set(rows.map((row) => row.name));
+    const hasState = names.has('AuditIntegrityState'), hasEntries = names.has('AuditLogEntry');
+    if (!hasState && !hasEntries) {
+      if (requireCurrentSchema) throw new Error('Audit schema is missing');
+      return { status: 'legacy', reason: 'missing-audit-schema' };
+    }
+    if (!hasState || !hasEntries || !names.has('OperationLog'))
+      throw new Error('Incomplete audit schema');
+    const checked = await verifyAuditIntegrity(db);
+    return { status: 'verified', ...Object.fromEntries(CHECKPOINT_FIELDS.map((key) => [key, checked[key]])) };
+  } finally { await db.$disconnect(); }
+}
+function validateManifest(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
+      !isHash(manifest.sha256) || typeof manifest.createdAt !== 'string' ||
+      !Number.isFinite(Date.parse(manifest.createdAt))) throw new Error('Invalid backup manifest');
+  if (manifest.schemaVersion !== undefined && manifest.schemaVersion !== 2)
+    throw new Error('Unsupported backup manifest version');
+  if ((manifest.schemaVersion === 2 || manifest.databaseBytes !== undefined) &&
+      (!isCount(manifest.databaseBytes) || manifest.databaseBytes === 0))
+    throw new Error('Invalid database size in manifest');
+  if (!Array.isArray(manifest.tables)) throw new Error('Invalid manifest tables');
+  const tables = new Set();
+  for (const row of manifest.tables) {
+    if (!row || typeof row.name !== 'string' || !row.name || !isCount(row.count) || tables.has(row.name))
+      throw new Error('Invalid or duplicate table in manifest');
+    tables.add(row.name);
+  }
+  if (manifest.assets != null && !Array.isArray(manifest.assets)) throw new Error('Invalid manifest assets');
+  const assets = new Set();
+  for (const item of manifest.assets || []) {
+    if (!item || typeof item.path !== 'string' || !item.path || item.path.includes('\\') ||
+        item.path.includes('\0') || path.posix.isAbsolute(item.path) ||
+        item.path.split('/').some((part) => !part || part === '.' || part === '..') ||
+        /^[a-z]:/i.test(item.path) || !isCount(item.bytes) || !isHash(item.sha256) || assets.has(item.path))
+      throw new Error('Invalid or duplicate asset in manifest');
+    assets.add(item.path);
+  }
+  if (manifest.assetOrigins !== undefined && (!Array.isArray(manifest.assetOrigins) ||
+      manifest.assetOrigins.some((value) => {
+        try { return typeof value !== 'string' || !/^https?:\/\//.test(value) || new URL(value).origin !== value; }
+        catch { return true; }
+      })))
+    throw new Error('Invalid asset origins in manifest');
+  if (manifest.schemaVersion === 2 && !manifest.audit) throw new Error('Missing audit checkpoint');
 }
 async function verifyAssetReferences(file, assets, assetOrigins) {
   const { extractLocalUploadUrls } = require('./resource-references');
@@ -98,6 +163,7 @@ async function verifyAssetReferences(file, assets, assetOrigins) {
       ).map((row) => row.name),
     );
     for (const model of [
+      'MediaAsset',
       'Product',
       'Article',
       'Artist',
@@ -124,25 +190,51 @@ async function verifyAssetReferences(file, assets, assetOrigins) {
   }
 }
 async function verifyBackupBundle(file, options = {}) {
-  const tables = await verifyDatabase(file, options);
+  const stat = await regularFile(file);
+  for (const suffix of ['-wal', '-shm', '-journal']) {
+    try { await fs.lstat(file + suffix); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+    throw new Error('Standalone backup must not contain SQLite sidecar files');
+  }
+  await regularFile(file + '.manifest.json');
   const manifest = JSON.parse(
     await fs.readFile(file + '.manifest.json', 'utf8'),
   );
+  validateManifest(manifest);
+  if (manifest.databaseBytes !== undefined && manifest.databaseBytes !== stat.size)
+    throw new Error('Database size mismatch');
   if (manifest.sha256 !== (await hashFile(file)))
     throw new Error('Database checksum mismatch');
-  if (manifest.assets)
+  const tables = await verifyDatabase(file, options);
+  const actualTables = new Map(tables.map((row) => [row.name, row.count]));
+  if (manifest.tables.some((row) => actualTables.get(row.name) !== row.count) ||
+      (manifest.schemaVersion === 2 && manifest.tables.length !== tables.length))
+    throw new Error('Database table counts mismatch');
+  const audit = await auditSnapshot(file, options);
+  if (manifest.audit) {
+    if (manifest.audit.status !== audit.status || (audit.status === 'verified' &&
+        CHECKPOINT_FIELDS.some((key) => manifest.audit[key] !== audit[key])))
+      throw new Error('Audit checkpoint mismatch');
+  } else audit.metadata = 'legacy';
+  const includesAssets = Array.isArray(manifest.assets);
+  if (options.requireAssets && !includesAssets) throw new Error('Complete backup requires an asset manifest and directory');
+  if (includesAssets) {
+    const actual = await assetManifest(file + '.assets');
+    const byPath = new Map(actual.map((row) => [row.path, row]));
+    if (actual.length !== manifest.assets.length) throw new Error('Asset set mismatch');
     for (const item of manifest.assets) {
-      const target = path.resolve(file + '.assets', item.path);
-      if (!target.startsWith(path.resolve(file + '.assets') + path.sep))
-        throw new Error('Invalid asset manifest path');
-      if ((await hashFile(target)) !== item.sha256)
-        throw new Error(`Asset checksum mismatch: ${item.path}`);
+      const row = byPath.get(item.path);
+      if (!row || row.bytes !== item.bytes || row.sha256 !== item.sha256)
+        throw new Error('Asset checksum or size mismatch');
     }
-  if (manifest.assets) await verifyAssetReferences(file, manifest.assets, manifest.assetOrigins);
-  return { tables, assetCount: manifest.assets?.length || 0, includesAssets: Array.isArray(manifest.assets) };
+    await verifyAssetReferences(file, manifest.assets, manifest.assetOrigins);
+  }
+  return { tables, assetCount: manifest.assets?.length || 0, includesAssets, audit,
+    snapshotAt: manifest.createdAt, databaseSha256: manifest.sha256,
+    manifestSha256: await hashFile(file + '.manifest.json') };
 }
 async function createDatabaseBackup(source, destination, options = {}) {
-  await fs.stat(source);
+  await regularFile(source);
+  if (options.requireAssets && !options.uploadsRoot) throw new Error('Complete backup requires uploadsRoot');
   await fs.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
   const staging = await fs.mkdtemp(
     path.join(path.dirname(destination), '.backup-'),
@@ -160,14 +252,17 @@ async function createDatabaseBackup(source, destination, options = {}) {
     manifestPublished = false;
   try {
     try {
-      await fs.access(destination);
-      throw new Error('Backup destination already exists');
+      for (const target of [destination, destination + '.manifest.json', destination + '.assets']) {
+        try { await fs.lstat(target); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+        throw new Error('Backup destination already exists');
+      }
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
     }
     await db.$executeRawUnsafe('VACUUM INTO ?', temporary);
     await fs.chmod(temporary, 0o600);
     const tables = await verifyDatabase(temporary, options);
+    const audit = await auditSnapshot(temporary, options);
     let assets = null;
     if (options.uploadsRoot) {
       await fs.cp(options.uploadsRoot, temporary + '.assets', {
@@ -179,12 +274,17 @@ async function createDatabaseBackup(source, destination, options = {}) {
       await verifyAssetReferences(temporary, assets, options.assetOrigins);
     }
     const manifest = {
+      schemaVersion: 2,
       createdAt: new Date().toISOString(),
+      databaseBytes: (await fs.stat(temporary)).size,
       sha256: await hashFile(temporary),
+      audit,
       tables,
       assets,
       assetOrigins: options.assetOrigins || require('./resource-references').localAssetOrigins(),
     };
+    await fs.writeFile(temporary + '.manifest.json', JSON.stringify(manifest, null, 2), { mode: 0o600, flag: 'wx' });
+    await verifyBackupBundle(temporary, options);
     if (assets) {
       await fs.rename(temporary + '.assets', destination + '.assets');
       assetsPublished = true;
@@ -201,6 +301,7 @@ async function createDatabaseBackup(source, destination, options = {}) {
       size: (await fs.stat(destination)).size,
       tables,
       assetCount: assets?.length || 0,
+      audit,
     };
   } catch (error) {
     if (!published) {
@@ -230,10 +331,14 @@ async function pruneBackups(root, days = 14) {
   files.sort((a,b)=>b.mtime-a.mtime);
   const retained=new Set();
   for (const {file} of files) {
-    try { const verified = await verifyBackupBundle(file,{requireCurrentSchema:false}); if(verified.includesAssets) retained.add(file); } catch { /* Invalid bundles cannot replace a recovery point. */ }
+    try {
+      const checked=await verifyBackupBundle(file,{requireCurrentSchema:false,requireAssets:true});
+      if(checked.audit.status==='verified') retained.add(file);
+    } catch { /* Invalid bundles cannot replace a recovery point. */ }
     if(retained.size===2) break;
   }
-  // Without two verified recovery points, fail conservatively and retain all.
+  // Legacy backups cannot replace an audit-verifiable point. Without two
+  // verified recovery points, fail conservatively and retain all.
   if(retained.size<2) return;
   for(const {file,mtime} of files) if(mtime<cutoff && !retained.has(file)) {
     await fs.rm(file);

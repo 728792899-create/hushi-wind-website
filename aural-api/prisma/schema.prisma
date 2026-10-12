@@ -340,6 +340,9 @@ model BackupRecord {
   size        Int      @default(0)
   status      String   @default("success")
   message     String?
+  verificationStatus String @default("never")
+  verifiedAt DateTime?
+  verificationReport String?
   adminUserId Int?
   operator    String?
   createdAt   DateTime @default(now())

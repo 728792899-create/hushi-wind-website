@@ -66,16 +66,21 @@ test('scheduled backups honor pause and concurrency and replace a missing recent
 });
 test('retention keeps two verified database-and-asset bundles despite newer corruption',async()=>{
   const {PrismaClient}=require('@prisma/client');
+  const {spawnSync}=require('node:child_process');
+  const {initializeAuditIntegrity}=require('../lib/audit-integrity');
   const {createDatabaseBackup,pruneBackups}=require('../lib/database-backup');
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'hushi-retention-'));
   try {
     const source=path.join(root,'source.db');const db=new PrismaClient({datasourceUrl:'file:'+source});
-    try {for(const table of ['Product','Inquiry','AdminUser'])await db.$executeRawUnsafe(`CREATE TABLE "${table}" (id INTEGER PRIMARY KEY)`);}finally{await db.$disconnect()}
+    const apiRoot=path.resolve(__dirname,'..');
+    const migration=spawnSync(process.execPath,[path.join(apiRoot,'node_modules/prisma/build/index.js'),'migrate','deploy','--schema',path.join(apiRoot,'prisma/schema.prisma')],{cwd:apiRoot,env:{...process.env,DATABASE_URL:'file:'+source},encoding:'utf8'});
+    assert.equal(migration.status,0,migration.stdout+migration.stderr);
+    try {await initializeAuditIntegrity(db);}finally{await db.$disconnect()}
     const uploads=path.join(root,'uploads');await fs.mkdir(uploads);await fs.writeFile(path.join(uploads,'fixture.txt'),'preserve');
     const backups=path.join(root,'backups');
     for(let i=0;i<3;i++){
       const file=path.join(backups,`database.scheduled.${i}.db`);
-      await createDatabaseBackup(source,file,{requireCurrentSchema:false,uploadsRoot:uploads});
+      await createDatabaseBackup(source,file,{uploadsRoot:uploads});
       const date=new Date(Date.now()-(40-i)*86400000);await fs.utimes(file,date,date);
     }
     const bad=path.join(backups,'database.scheduled.corrupt.db');await fs.writeFile(bad,'corrupt');

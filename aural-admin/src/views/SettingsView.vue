@@ -148,59 +148,45 @@
           ></el-table
         ></template
       >
-      <template v-if="tab === 'backups'"
-        ><div class="panel-heading">
-          <div>
-            <h2>数据备份</h2>
-            <p>保存数据库与本地素材的完整副本，并检查文件完整性。</p>
+      <template v-if="tab === 'backups'">
+        <div class="panel-heading backup-heading">
+          <div><h2>数据备份</h2><p>保存数据库与本地素材，在独立副本中验证完整恢复和审计续写。</p></div>
+          <div class="backup-actions">
+            <el-button :loading="loading" :disabled="saving" @click="loadTab">刷新备份</el-button>
+            <el-button v-if="can('backups:create')" type="primary" :loading="saving" :disabled="loading" @click="createBackup">创建备份</el-button>
           </div>
-          <el-button
-            v-if="can('backups:create')"
-            type="primary"
-            :loading="saving"
-            @click="createBackup"
-            >创建备份</el-button
-          >
         </div>
-        <el-table :data="rows" class="wide-table"
-          ><el-table-column
-            prop="filename"
-            label="备份文件"
-            min-width="260"
-            show-overflow-tooltip
-          /><el-table-column label="时间" min-width="170"
-            ><template #default="{ row }">{{
-              formatTime(row.createdAt)
-            }}</template></el-table-column
-          ><el-table-column
-            prop="operator"
-            label="操作人"
-            width="120"
-          /><el-table-column label="结果" width="90"
-            ><template #default="{ row }"
-              ><el-tag
-                :type="row.status === 'success' ? 'success' : 'danger'"
-                >{{ row.status !== 'success' ? '失败' : /恢复演练通过|校验通过/.test(row.message || '') ? '已校验' : '已创建' }}</el-tag
-              ></template
-            ></el-table-column
-          ><el-table-column
-            v-if="can('backups:create')"
-            label="检查"
-            width="120"
-            ><template #default="{ row }"
-              ><el-button
-                text
-                :disabled="row.status !== 'success' || saving"
-                @click="verifyBackup(row)"
-                >校验副本</el-button
-              ></template
-            ></el-table-column
-          ></el-table
-        >
-        <p class="field-hint">
-          服务运行时每日自动备份数据库与素材，校验后清理过期副本，至少保留两个有效完整恢复点。校验不会覆盖当前数据库；异地备份与正式恢复仍需维护人员配置和验收。
-        </p></template
-      >
+        <el-table :data="rows" class="wide-table mobile-hidden-table" empty-text="暂无备份">
+          <el-table-column prop="filename" label="备份文件" min-width="160" show-overflow-tooltip />
+          <el-table-column label="创建时间" width="150"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column prop="operator" label="操作人" width="110" show-overflow-tooltip />
+          <el-table-column label="创建结果" width="90"><template #default="{ row }"><el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status === 'success' ? '已创建' : '创建失败' }}</el-tag></template></el-table-column>
+          <el-table-column label="最近恢复演练" min-width="260">
+            <template #default="{ row }">
+              <strong>{{ backupVerificationLabel(row) }}</strong>
+              <p v-if="row.verifiedAt" class="field-hint">{{ formatTime(row.verifiedAt) }}</p>
+              <div class="field-hint wrap-text">{{ backupVerificationSummary(row) }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="can('backups:create')" label="操作" fixed="right" width="120">
+            <template #default="{ row }"><el-button text :disabled="row.status !== 'success' || saving || loading" :aria-label="`演练恢复备份 ${row.filename}`" @click="verifyBackup(row)">演练恢复</el-button></template>
+          </el-table-column>
+        </el-table>
+        <div class="mobile-admin-list">
+          <article v-for="row in rows" :key="row.id" class="mobile-admin-card">
+            <div class="mobile-list-body">
+              <strong class="wrap-text">{{ row.filename }}</strong>
+              <div class="mobile-list-tags"><el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status === 'success' ? '已创建' : '创建失败' }}</el-tag><span>{{ backupVerificationLabel(row) }}</span></div>
+              <small>创建：{{ formatTime(row.createdAt) }} · {{ row.operator || '系统' }}</small>
+              <p v-if="row.verifiedAt" class="field-hint">最近演练：{{ formatTime(row.verifiedAt) }}</p>
+              <div class="field-hint wrap-text">{{ backupVerificationSummary(row) }}</div>
+              <div v-if="can('backups:create')" class="mobile-list-actions"><el-button :disabled="row.status !== 'success' || saving || loading" :aria-label="`演练恢复备份 ${row.filename}`" @click="verifyBackup(row)">演练恢复</el-button></div>
+            </div>
+          </article>
+          <div v-if="!rows.length && !loading" class="empty-panel">暂无备份</div>
+        </div>
+        <p class="field-hint">操作审计全量保留。服务运行时每日自动备份，默认保留 14 天，清理前至少保留两个有效完整恢复点。演练只覆盖所示快照时点，不会覆盖当前数据库；异地备份与正式恢复仍需单独配置和验收。</p>
+      </template>
       <template v-if="tab === 'activity'"
         ><div class="panel-heading">
           <div>
@@ -886,15 +872,40 @@ function createBackup() {
     ElMessage.success('备份已创建')
   })
 }
-function verifyBackup(row) {
-  return run(async () => {
-    const res = await api.post(
-      `/api/admin/backups/${row.id}/verify-restore`,
-      sensitiveConfirmation(),
-    )
-    ElMessage.success(res.data.message || '备份副本校验完成')
-    await loadTab()
-  })
+const backupVerificationLabel = row => ({
+  verified: '演练通过', failed: '演练失败', running: '演练进行中或未完成',
+})[row.verificationStatus] || '尚未演练'
+function backupVerificationSummary(row) {
+  const report = row.verificationReport
+  if (row.verificationStatus === 'verified' && report?.status === 'verified')
+    return `快照：${formatTime(report.snapshotAt)}；${report.database.tableCount} 张表、${report.assets.count} 个素材、${report.audit.logCount} 条审计；审计续写${report.audit.appendVerified ? '通过' : '未确认'}；耗时 ${report.durationMs} 毫秒。`
+  if (row.verificationStatus === 'failed') return '最近一次演练未通过，请检查备份、素材及审计完整性。'
+  if (row.verificationStatus === 'running') return '尚无本次完成结果，请刷新确认；如已中断，可重新演练。'
+  return '创建成功不代表已经通过完整恢复演练。'
+}
+async function verifyBackup(row) {
+  if (!can('backups:create') || row.status !== 'success' || tab.value !== 'backups' || saving.value) return
+  const currentRequest = requestId
+  saving.value = true
+  error.value = ''
+  row.verificationStatus = 'running'
+  row.verificationReport = null
+  let failure
+  try {
+    await api.post(`/api/admin/backups/${row.id}/verify-restore`, sensitiveConfirmation())
+    if (currentRequest === requestId && tab.value === 'backups')
+      ElMessage.success('数据库、素材与审计恢复演练通过')
+  } catch (e) {
+    failure = e
+  } finally {
+    if (currentRequest === requestId && tab.value === 'backups') {
+      const refreshRequest = requestId + 1
+      await loadTab()
+      if (failure && refreshRequest === requestId && tab.value === 'backups')
+        error.value = extractErrorMessage(failure, '恢复演练失败')
+    }
+    saving.value = false
+  }
 }
 onMounted(async () => {
   try {
@@ -903,3 +914,15 @@ onMounted(async () => {
   await loadTab()
 })
 </script>
+
+<style scoped>
+.backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .backup-heading { flex-direction: column; align-items: stretch; }
+}
+</style>
