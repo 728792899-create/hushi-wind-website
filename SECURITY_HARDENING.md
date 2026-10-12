@@ -149,7 +149,7 @@
 ### 测试和反向验证
 
 - 最终源码 `npm test`：API 70、后台 40、官网 9，共 **119 项通过，0 跳过**。
-- `npm run quality`、`npm --prefix aural-admin run check:admin-ui`、`npm run check:admin-colors`、`npm run check:bom` 全部退出 0；UI 守卫检查了真实构建产物。API/后台生产依赖审计 0；官网 6 项已登记的工具链例外未进入 24 个运行时包。
+- `npm run quality`、`npm --prefix aural-admin run check:admin-ui`、`npm run check:admin-colors`、`npm run check:bom` 全部退出 0；UI 守卫检查了真实构建产物。API/后台生产依赖审计 0；官网 6 项已登记的工具链例外未进入 24 个运行时包。该轮 BOM 检查覆盖 194 个已跟踪文件；当时尚未纳入版本管理的交接文档未被扫描，首次 CI 的补充发现与修复见下文。
 - 在本地浏览器临时恢复旧缺陷：配置工具栏禁用换行，检测到 `scrollWidth=447 > clientWidth=390`；素材计数恢复 `.7` 透明度，检测到 7 项对比度失败；去掉分页 aria-label，AX 树检测到无名称 combobox。每次均重新加载清除临时覆盖，复测归零；未把反向验证改动写入源码。
 - 键盘将产品、新闻、栏目每页条数改为 10，实际 GET 请求分别包含 `page=1&pageSize=10`，随后恢复 20。素材复选框空格键 `0→1→0`，标签保持 36×32px、卡片左上角位置不变。素材抽屉折叠摘要已用 Enter 展开，关闭按钮已用 Enter 关闭。
 - 两轮独立只读代码审查均完成，最终无可执行发现；`git diff --check` 通过。
@@ -182,3 +182,10 @@
 - 无生产部署、生产数据操作或真实通知发送；浏览器结果属于本地 Chromium 模拟，未声称完成真机触屏、VoiceOver 或完整 WCAG 认证。
 - 官网构建仍有不阻断的 `NUXT_B7027`（`tailwindcss/nesting` 入口不可加载）警告；官网工具链例外到期日仍为 2027-01-09。咨询状态颜色与管乐品牌真实资料继续待用户决定，均未改动。
 - 下一步为第 5 步「权限与审计增强」：先复核 RBAC 与审计实现，数据范围与审批规则涉及业务含义时先确认，再按同样门禁逐步交付。
+
+### 首次 CI 发现与追加修复
+
+- 主提交 `9d843dddc447f3de675317b9d75d123194aa9940` 已普通推送。[首次 Quality 运行](https://github.com/728792899-create/hushi-wind-website/actions/runs/38270373746) 在 `check:bom` 失败：新纳入版本管理的 `CODEX_HANDOFF.md` 第 62 行引用示例含一个真实 `U+FEFF` 字符，并非文件头 BOM。
+- 现场复现：`npm run check:bom` 返回 1，唯一违规文件同上。守卫用 `git ls-files` 枚举文件，因此之前 194 个已跟踪文件检查通过不能证明新增交接文档通过。
+- 最小修复：仅将交接文档示例中的不可见字符改成可见的 `\uFEFF` 字面文本，保留原意；补充本记录，不修改守卫范围、应用源码、数据或配置。采用追加提交，不改写已推送历史。
+- 应用源码与浏览器验收对象未变，复用上面的 390/1440 浏览器证据；追加修复后 `npm test` 再次 119 项通过、0 跳过，`quality`、`check:admin-ui`（含构建产物）、`check:admin-colors` 和 `check:bom` 全部退出 0，BOM 明确覆盖 195 个已跟踪文件。独立只读复核无可执行发现。日志为 `logs/step4-20261012/ci-fix-*.log`，首次 CI 失败日志为同目录 `ci-initial-failure.log`；最终仍须核对追加提交完整 SHA 的 CI 成功结果。

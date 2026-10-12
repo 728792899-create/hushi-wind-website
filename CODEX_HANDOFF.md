@@ -59,7 +59,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 - 新增内容表的任何更新路径都会自动递增 `revision`（`lib/record-version.js` 的 `withContentRevision`）。如需新增“非编辑类”写入（如浏览计数），不要写在这 11 张表上，否则会让编辑表单误报冲突。`Inquiry` 不在自动递增范围。
 - API 集成测试辅助函数会为普通 PUT 自动带当前版本；新增受保护资源要同步 `versionedTables`。
 - 改设计令牌前先 `grep` 用法：曾因把 `--admin-faint` 改为装饰色导致正文对比度跌到 2.1。
-- 写 shell 脚本注意 macOS：无 `timeout`，`sed -i ''`，BSD sed 不支持 `0,/re/`；Write 工具会把 `"﻿"` 存成真实字符，用 `String.fromCharCode(0xfeff)`。
+- 写 shell 脚本注意 macOS：无 `timeout`，`sed -i ''`，BSD sed 不支持 `0,/re/`；Write 工具会把 `"\uFEFF"` 存成真实字符，用 `String.fromCharCode(0xfeff)`。
 
 ## 6. 后续计划（每步先现场复核再动手）
 
