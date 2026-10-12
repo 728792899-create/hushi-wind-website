@@ -12,6 +12,7 @@
         />
         <el-select
           v-model="articleStatusFilter"
+          aria-label="发布状态"
           placeholder="发布状态"
           class="w-150"
           @change="handleArticleFilterChange"
@@ -213,13 +214,26 @@
       <el-pagination
         v-model:current-page="articlePage"
         v-model:page-size="articlePageSize"
-        :page-sizes="[10, 20, 50, 100]"
         :total="articleTotal"
-        layout="sizes, prev, pager, next"
+        layout="slot, prev, pager, next"
         background
-        @size-change="handleArticlePageSizeChange"
         @current-change="handleArticlePageChange"
-      />
+      >
+        <span class="el-pagination__sizes">
+          <el-select
+            v-model="articlePageSize"
+            aria-label="每页显示条数"
+            @change="handleArticlePageSizeChange"
+          >
+            <el-option
+              v-for="size in [10, 20, 50, 100]"
+              :key="size"
+              :value="size"
+              :label="`${size}条/页`"
+            />
+          </el-select>
+        </span>
+      </el-pagination>
     </div>
 
     <el-dialog

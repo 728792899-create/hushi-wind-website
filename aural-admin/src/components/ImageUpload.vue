@@ -5,7 +5,6 @@
       ref="uploadRef"
       class="up-box"
       :disabled="disabled || uploading"
-      :aria-label="disabled ? '图片预览' : '上传或替换图片'"
       :style="{ width: '100%', height }"
       :action="`${BASE}/api/upload`"
       :headers="adminUploadHeaders()"
@@ -39,7 +38,7 @@
 <script setup>
 import { uploadRequest } from '../lib/uploadRequest'
 import MediaPicker from './MediaPicker.vue'
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount, onMounted, onUpdated } from 'vue'
 import { useParentUploads } from '../lib/editorLifecycle'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -55,8 +54,10 @@ import {
   validateUploadFile,
 } from '../lib/uploadPolicy'
 
-defineProps({
+const props = defineProps({
   disabled: { type: Boolean, default: false },
+  // 读屏名称中的字段名；缺省时取所在 el-form-item 的标签
+  label: { type: String, default: '' },
   modelValue: { type: String, default: '' },
   width: { type: String, default: '100%' },
   height: { type: String, default: '150px' },
@@ -65,9 +66,26 @@ defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
 const scope = useParentUploads()
 const uploadRef = ref(null),
   uploading = ref(false)
+
+// Element Plus 只把 aria-label 放在外层容器，可聚焦的 .el-upload[role=button] 没有名称；
+// 同一表单常有多个上传框，名称需带字段名才能区分
+const applyAccessibleName = () => {
+  const root = uploadRef.value?.$el
+  const button = root?.querySelector?.('.el-upload')
+  if (!button) return
+  const field =
+    props.label ||
+    root.closest('.el-form-item')?.querySelector('.el-form-item__label')?.textContent?.trim() ||
+    ''
+  const action = props.disabled ? '图片预览' : '上传或替换图片'
+  button.setAttribute('aria-label', field ? `${field}：${action}` : action)
+}
+onMounted(applyAccessibleName)
+onUpdated(applyAccessibleName)
 let active = true
 const pendingFiles = new Map()
 const finish = (file) => {
