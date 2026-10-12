@@ -2,49 +2,104 @@
   color-scheme: light;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /*
+   * 设计令牌：后台唯一允许出现颜色字面量的位置（npm run check:admin-colors 校验）。
+   * 文字色在页面底、侧栏、各级浅底和状态浅底（*-light-9）上对比度均 ≥ 4.5:1（WCAG AA）。
+   * 状态色梯度按 Element Plus 算法生成：light-N = 白色占 N×10%，dark-2 = 黑色占 20%。
+   */
   --admin-bg: #fcfdfe;
   --admin-bg-soft: #f4f7fa;
   --admin-sidebar: #edf2f6;
   --admin-surface: #fff;
   --admin-surface-2: #eff4f7;
   --admin-surface-3: #dde7ef;
+  --admin-selected: #e5edf3;
   --admin-border: #dbe4ec;
   --admin-border-soft: #e3eaf0;
+  --admin-border-strong: #b4c6d4;
   --admin-text: #273441;
-  --admin-muted: #607181;
-  --admin-faint: #607181;
+  --admin-text-regular: #536475;
+  --admin-muted: #556677;
+  --admin-faint: var(--admin-muted);
+  /* 仅用于分隔符等装饰（元素应 aria-hidden），不得用于需要阅读的文字 */
+  --admin-decor: #9baabb;
   --admin-primary: #516f88;
   --admin-primary-strong: #3f5c73;
   --admin-primary-rgb: 81, 111, 136;
   --admin-button-text: #fff;
   --admin-gold: #8a7151;
-  --admin-gold-rgb: 155, 119, 72;
-  --admin-danger: #b84141;
-  --admin-warning: #a5752c;
+  --admin-gold-rgb: 138, 113, 81;
   --admin-success: #36714d;
+  --admin-warning: #8c6224;
+  --admin-danger: #b84141;
+  --admin-info: #5c6b79;
+  --admin-danger-soft: #f8ecec;
+  --admin-danger-border: #f1d9d9;
   --admin-hover-border: #829aaf;
+  --admin-scrim: rgba(0, 0, 0, 0.55);
+  --admin-on-scrim: #fff;
+  --admin-shadow-drawer: rgba(0, 0, 0, 0.13);
+  --admin-text-rgb: 39, 52, 65;
+  --admin-mask: rgba(var(--admin-text-rgb), 0.33);
+  --admin-shadow-dialog: rgba(var(--admin-text-rgb), 0.15);
   --admin-radius: 6px;
   --admin-serif: 'Songti SC', 'STSong', 'Noto Serif CJK SC', Georgia, serif;
-  --el-color-primary: #516f88;
-  --el-color-primary-light-3: #7d94a7;
-  --el-color-primary-light-5: #a8bbc9;
-  --el-color-primary-light-7: #c9d7e1;
-  --el-color-primary-light-8: #dee7ee;
-  --el-color-primary-light-9: #edf2f6;
-  --el-color-primary-dark-2: #3f5c73;
-  --el-color-success: #36714d;
-  --el-color-warning: #a5752c;
-  --el-color-danger: #b84141;
-  --el-text-color-primary: #273441;
-  --el-text-color-regular: #536475;
-  --el-text-color-secondary: #607181;
-  --el-border-color: #dbe4ec;
-  --el-border-color-light: #e3eaf0;
-  --el-border-color-lighter: #edf2f6;
-  --el-fill-color-light: #f0f4f8;
-  --el-fill-color-blank: #fff;
-  --el-bg-color: #fff;
-  --el-border-radius-base: 6px;
+
+  --el-color-white: #fff;
+  --el-color-primary: var(--admin-primary);
+  --el-color-primary-light-3: #859aac;
+  --el-color-primary-light-5: #a8b7c4;
+  --el-color-primary-light-7: #cbd4db;
+  --el-color-primary-light-8: #dce2e7;
+  --el-color-primary-light-9: #eef1f3;
+  --el-color-primary-dark-2: var(--admin-primary-strong);
+  --el-color-success: var(--admin-success);
+  --el-color-success-light-3: #729c82;
+  --el-color-success-light-5: #9ab8a6;
+  --el-color-success-light-7: #c3d4ca;
+  --el-color-success-light-8: #d7e3db;
+  --el-color-success-light-9: #ebf1ed;
+  --el-color-success-dark-2: #2b5a3e;
+  --el-color-warning: var(--admin-warning);
+  --el-color-warning-light-3: #ae9166;
+  --el-color-warning-light-5: #c6b092;
+  --el-color-warning-light-7: #dcd0bd;
+  --el-color-warning-light-8: #e8e0d3;
+  --el-color-warning-light-9: #f4efe9;
+  --el-color-warning-dark-2: #704e1d;
+  --el-color-danger: var(--admin-danger);
+  --el-color-danger-light-3: #cd7a7a;
+  --el-color-danger-light-5: #dca0a0;
+  --el-color-danger-light-7: #eac6c6;
+  --el-color-danger-light-8: var(--admin-danger-border);
+  --el-color-danger-light-9: var(--admin-danger-soft);
+  --el-color-danger-dark-2: #933434;
+  /* el-alert / el-message 的 error 类型读取 --el-color-error，与 danger 保持一致 */
+  --el-color-error: var(--el-color-danger);
+  --el-color-error-light-3: var(--el-color-danger-light-3);
+  --el-color-error-light-5: var(--el-color-danger-light-5);
+  --el-color-error-light-7: var(--el-color-danger-light-7);
+  --el-color-error-light-8: var(--el-color-danger-light-8);
+  --el-color-error-light-9: var(--el-color-danger-light-9);
+  --el-color-error-dark-2: var(--el-color-danger-dark-2);
+  --el-color-info: var(--admin-info);
+  --el-color-info-light-3: #8d97a1;
+  --el-color-info-light-5: #aeb5bc;
+  --el-color-info-light-7: #ced3d7;
+  --el-color-info-light-8: #dee1e4;
+  --el-color-info-light-9: #eff0f2;
+  --el-color-info-dark-2: #4a5661;
+  --el-text-color-primary: var(--admin-text);
+  --el-text-color-regular: var(--admin-text-regular);
+  --el-text-color-secondary: var(--admin-muted);
+  --el-text-color-placeholder: var(--admin-muted);
+  --el-border-color: var(--admin-border);
+  --el-border-color-light: var(--admin-border-soft);
+  --el-border-color-lighter: var(--admin-sidebar);
+  --el-fill-color-light: var(--admin-bg-soft);
+  --el-fill-color-blank: var(--admin-surface);
+  --el-bg-color: var(--admin-surface);
+  --el-border-radius-base: var(--admin-radius);
 }
 * {
   box-sizing: border-box;
@@ -116,7 +171,7 @@ button:disabled {
   grid-template-columns: 218px minmax(0, 1fr);
 }
 .studio-sidebar {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-right: 1px solid var(--admin-border);
   position: sticky;
   top: 0;
@@ -139,7 +194,7 @@ button:disabled {
   display: grid;
   place-items: center;
   background: var(--admin-primary);
-  color: #fff;
+  color: var(--admin-button-text);
   font:
     28px Georgia,
     serif;
@@ -183,12 +238,12 @@ button:disabled {
   font-size: 19px;
 }
 .studio-nav a:hover {
-  background: #e5edf3;
+  background: var(--admin-selected);
   color: var(--admin-primary);
 }
 .studio-nav a.active {
-  background: #dde7ef;
-  color: #3f5c73;
+  background: var(--admin-surface-3);
+  color: var(--admin-primary-strong);
   font-weight: 600;
 }
 .sidebar-bottom {
@@ -211,7 +266,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: #ffffff;
+  background: var(--admin-surface);
 }
 .header-left,
 .header-right {
@@ -226,7 +281,7 @@ button:disabled {
 }
 .header-breadcrumb span {
   padding: 0 12px;
-  color: #9baabb;
+  color: var(--admin-decor);
 }
 .icon-button {
   border: 0;
@@ -253,8 +308,8 @@ button:disabled {
   height: 29px;
   width: 29px;
   border-radius: 50%;
-  background: #e5edf3;
-  color: #516f88;
+  background: var(--admin-selected);
+  color: var(--admin-primary-strong);
   display: grid;
   place-items: center;
   font-weight: 600;
@@ -307,7 +362,7 @@ button:disabled {
   padding: 13px 10px;
 }
 .panel {
-  background: #fff;
+  background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   min-width: 0;
@@ -406,8 +461,8 @@ button:disabled {
 }
 .wide-table {
   width: 100%;
-  --el-table-header-bg-color: #eff4f7;
-  --el-table-row-hover-bg-color: #f4f7fa;
+  --el-table-header-bg-color: var(--admin-surface-2);
+  --el-table-row-hover-bg-color: var(--admin-bg-soft);
 }
 .el-table {
   font-size: 13px;
@@ -498,8 +553,8 @@ button:disabled {
 }
 .notice-error {
   padding: 13px 18px;
-  background: #fbefee;
-  border: 1px solid #efd1cc;
+  background: var(--admin-danger-soft);
+  border: 1px solid var(--admin-danger-border);
   border-radius: 8px;
   margin-bottom: 18px;
   color: var(--admin-danger);
@@ -617,7 +672,7 @@ button:disabled {
   cursor: pointer;
 }
 .form-disclosure > .form-section {
-  background: #fff;
+  background: var(--admin-surface);
   border: 0;
   padding: 12px 0 0;
 }
@@ -629,8 +684,8 @@ button:disabled {
 .up-box {
   display: block;
   width: 100%;
-  border: 1px dashed #b4c6d4;
-  background: #f4f7fa;
+  border: 1px dashed var(--admin-border-strong);
+  background: var(--admin-bg-soft);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -665,7 +720,7 @@ button:disabled {
   width: 100%;
 }
 .seo-preview strong {
-  color: #516f88;
+  color: var(--admin-primary);
 }
 .seo-preview span {
   font-size: 12px;
@@ -736,7 +791,7 @@ button:disabled {
 }
 .media-image {
   border: 0;
-  background: #edf2f6;
+  background: var(--admin-sidebar);
   width: 100%;
   aspect-ratio: 4/3;
   display: grid;
@@ -815,8 +870,8 @@ button:disabled {
   font-size: 13px;
 }
 .settings-nav button.active {
-  background: #dde7ef;
-  color: var(--admin-primary);
+  background: var(--admin-surface-3);
+  color: var(--admin-primary-strong);
   font-weight: 600;
 }
 .settings-panel {
@@ -927,11 +982,11 @@ button:disabled {
   min-height: 100dvh;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: #fcfdfe;
+  background: var(--admin-bg);
 }
 .login-brand {
-  background: #edf2f6;
-  color: #fff;
+  background: var(--admin-sidebar);
+  color: var(--admin-text);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -957,7 +1012,7 @@ button:disabled {
   letter-spacing: 2px;
 }
 .login-brand p {
-  color: #607181;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 .login-card {
@@ -1043,7 +1098,7 @@ button:disabled {
     top: 0;
     width: 230px;
     padding: 28px 18px !important;
-    box-shadow: 10px 0 35px #0002;
+    box-shadow: 10px 0 35px var(--admin-shadow-drawer);
   }
   .nav-collapsed .studio-sidebar {
     display: none;
@@ -1051,7 +1106,7 @@ button:disabled {
   .mobile-aside-mask {
     position: fixed;
     inset: 0;
-    background: #27344155;
+    background: var(--admin-mask);
     z-index: 29;
     border: 0;
     width: 100%;
@@ -1479,8 +1534,8 @@ button:disabled {
   min-width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.58);
-  color: #fff;
+  background: var(--admin-scrim);
+  color: var(--admin-on-scrim);
   font-size: 12px;
   display: inline-flex;
   align-items: center;
@@ -1492,8 +1547,8 @@ button:disabled {
   top: 8px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.52);
-  color: #fff;
+  background: var(--admin-scrim);
+  color: var(--admin-on-scrim);
   font-size: 11px;
   display: inline-flex;
   align-items: center;
@@ -1644,7 +1699,7 @@ button:disabled {
   font-size: 23px;
 }
 .studio-nav a.active {
-  border-left-color: #67859d;
+  border-left-color: var(--admin-primary);
 }
 .sidebar-bottom {
   margin: auto 30px 0;
@@ -1666,7 +1721,7 @@ button:disabled {
 .studio-header {
   height: 69px;
   padding: 0 34px;
-  background: #fff;
+  background: var(--admin-surface);
 }
 .header-breadcrumb,
 .user-chip {
@@ -1859,10 +1914,10 @@ button:disabled {
 .status-label {
   display: inline-block;
   padding: 4px 12px;
-  border: 1px solid #c8d4df;
+  border: 1px solid var(--admin-border-strong);
   border-radius: 4px;
   color: var(--admin-text);
-  background: #f5f8fa;
+  background: var(--admin-bg-soft);
   font-size: 12px;
   line-height: 1.6;
   white-space: nowrap;
@@ -1870,8 +1925,8 @@ button:disabled {
 .status-label[data-status='draft'],
 .status-label.waiting {
   border-color: transparent;
-  background: #e5edf3;
-  color: #49677f;
+  background: var(--admin-selected);
+  color: var(--admin-primary-strong);
 }
 .dashboard-inquiries {
   border-top: 1px solid var(--admin-border);
@@ -1933,7 +1988,7 @@ a:hover {
 }
 .el-dialog {
   border-radius: 8px;
-  box-shadow: 0 18px 70px #27344126;
+  box-shadow: 0 18px 70px var(--admin-shadow-dialog);
 }
 .el-overlay {
   backdrop-filter: blur(2px);

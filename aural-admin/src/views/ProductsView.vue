@@ -85,7 +85,7 @@
             row.attributes.series || row.attributes.slug || '未设置系列'
           }}</small>
           <div class="mobile-list-meta">
-            <span>¥ {{ (row.attributes.price || 0).toFixed(2) }}</span>
+            <span>{{ formatMoney(row.attributes.price || 0) }}</span>
           </div>
           <div class="mobile-list-actions">
             <el-button
@@ -172,7 +172,7 @@
       </el-table-column>
       <el-table-column label="零售价" width="120">
         <template #default="{ row }"
-          >¥ {{ (row.attributes.price || 0).toFixed(2) }}</template
+          >{{ formatMoney(row.attributes.price || 0) }}</template
         >
       </el-table-column>
       <el-table-column label="管理" fixed="right" width="210" align="center">
@@ -737,6 +737,7 @@ import {
 } from '../lib/api'
 import { publishStatusMeta, publishStatusOptions } from '../lib/meta'
 import {
+  formatMoney,
   formatTime,
   linesToArray,
   qualityResult,
@@ -855,7 +856,7 @@ const versionSummary = (version) => {
   const parts = [
     snapshot.status ? `状态：${publishStatusMeta(snapshot.status).label}` : '',
     snapshot.price != null
-      ? `价格：¥ ${Number(snapshot.price || 0).toFixed(2)}`
+      ? `价格：${formatMoney(snapshot.price || 0)}`
       : '',
     snapshot.quantity != null ? `库存：${snapshot.quantity}` : '',
     snapshot.series ? `系列：${snapshot.series}` : '',

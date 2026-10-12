@@ -71,8 +71,25 @@ export const toSlug = (value) => {
   return `product-${Date.now().toString(36)}`
 }
 
-export const formatTime = (value) =>
-  value ? new Date(value).toLocaleString() : '-'
+// 后台统一显示格式，不随浏览器语言变化：时间 2026-09-13 18:04（本地时区），空值 —
+const pad = (n) => String(n).padStart(2, '0')
+export const formatTime = (value) => {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return '—'
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const money = new Intl.NumberFormat('zh-CN', {
+  style: 'currency',
+  currency: 'CNY',
+  minimumFractionDigits: 2,
+})
+// ¥12,800.00；空值与非数字显示 —
+export const formatMoney = (value) => {
+  if (value === null || value === undefined || value === '') return '—'
+  const number = Number(value)
+  return Number.isFinite(number) ? money.format(number) : '—'
+}
 
 export const bytesFromSizeLabel = (size = '') => {
   const text = String(size || '')

@@ -115,7 +115,7 @@
                 ><Expand v-if="isCollapse" /><Fold v-else
               /></el-icon></button
             ><span class="header-breadcrumb"
-              >管理后台 <span>/</span>
+              >管理后台 <span aria-hidden="true">/</span>
               {{
                 route.meta.group === 'content' ? '官网内容' : pageTitle
               }}</span

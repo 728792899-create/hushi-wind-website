@@ -117,7 +117,7 @@ onBeforeUnmount(()=>{active=false;requestId++;clearTimeout(searchTimer);uploadRe
 @media(max-width:600px){.media-categories{gap:4px}.media-categories button{padding:8px 9px;font-size:13px}.media-batch-bar{gap:10px}}
 
 .media-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
-.media-image-transparent{background-color:#f4f6f8;background-image:conic-gradient(#e4e9ef 25%,transparent 0 50%,#e4e9ef 0 75%,transparent 0);background-size:16px 16px}
+.media-image-transparent{background-color:var(--admin-bg-soft);background-image:conic-gradient(var(--admin-border-soft) 25%,transparent 0 50%,var(--admin-border-soft) 0 75%,transparent 0);background-size:16px 16px}
 .media-image img{height:100%;max-height:none;min-height:0;object-fit:contain}
 @media(max-width:600px){.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
