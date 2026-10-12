@@ -871,6 +871,15 @@ button:disabled {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.detail-list .contact-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.detail-list .contact-reveal .el-alert {
+  flex-basis: 100%;
+}
 .message-body {
   white-space: pre-wrap;
   background: var(--admin-bg-soft);

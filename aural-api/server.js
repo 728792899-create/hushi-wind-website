@@ -1375,6 +1375,40 @@ const saveContentVersion = async (req, module, record) => {
 const maskContact = hideContact;
 const privateCrmRow = (req, row) =>
   canAdmin(req.admin, 'crm:private') ? row : redactPrivate(row);
+// 客户联系方式在列表与写入响应中一律隐藏；有 crm:private 的账号逐条调用
+// /contact 查看，每次查看先写审计记录，审计失败则不返回联系方式。
+const INQUIRY_CONTACT_FIELDS = ['contactInfo'];
+const APPLICATION_CONTACT_FIELDS = ['email', 'phone'];
+const withHiddenContact = (row, fields) => ({
+  ...row,
+  ...Object.fromEntries(fields.map((field) => [field, maskContact(row[field])])),
+});
+const revealContactHandler = (model, fields, nameField, label) => [
+  requireAdmin,
+  requirePermission('crm:private'),
+  asyncHandler(async (req, res) => {
+    const id = toId(req.params.id);
+    const row = await prisma[model].findUnique({
+      where: { id },
+      select: Object.fromEntries(
+        ['id', nameField, ...fields].map((field) => [field, true]),
+      ),
+    });
+    if (!row) throw createError(404, 'NOT_FOUND', `${label}不存在`);
+    await auditOperation(req, {
+      action: 'VIEW_CONTACT',
+      module: 'crm',
+      target: row[nameField],
+      targetId: id,
+      summary: `查看${label}联系方式`,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      data: Object.fromEntries(fields.map((field) => [field, row[field] || ''])),
+    });
+  }),
+];
 
 const normalizePagination = (req, fallbackSize = 20) => {
   const page = Math.max(1, Math.min(10000, toInt(req.query.page, 1)));
@@ -5776,7 +5810,7 @@ app.get(
       }),
     ]);
     const data = canAdmin(req.admin, 'crm:private')
-      ? rows
+      ? rows.map((row) => withHiddenContact(row, INQUIRY_CONTACT_FIELDS))
       : rows.map((row) => ({
           ...row,
           contactInfo: maskContact(row.contactInfo),
@@ -5784,6 +5818,14 @@ app.get(
         }));
     res.json(paginatedPayload(data, total, page, pageSize));
   }),
+);
+app.post(
+  '/api/inquiries/:id/contact',
+  ...revealContactHandler('inquiry', INQUIRY_CONTACT_FIELDS, 'customerName', '咨询'),
+);
+app.post(
+  '/api/artist-applications/:id/contact',
+  ...revealContactHandler('artistApplication', APPLICATION_CONTACT_FIELDS, 'name', '艺术家申请'),
 );
 app.put(
   '/api/inquiries/:id/read',
@@ -5848,7 +5890,10 @@ app.put(
       beforeData: before,
       afterData: data,
     });
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data: withHiddenContact(privateCrmRow(req, data), INQUIRY_CONTACT_FIELDS),
+    });
   }),
 );
 app.delete(
@@ -5957,7 +6002,9 @@ app.get(
     ]);
     res.json(
       paginatedPayload(
-        data.map((row) => privateCrmRow(req, row)),
+        data.map((row) =>
+          withHiddenContact(privateCrmRow(req, row), APPLICATION_CONTACT_FIELDS),
+        ),
         total,
         page,
         pageSize,

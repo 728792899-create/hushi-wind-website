@@ -208,14 +208,27 @@
         </div>
         <dl class="detail-list">
           <dt>联系方式</dt>
-          <dd>
-            {{
-              can('crm:private')
-                ? (tab === 'artistApps'
-                    ? [active.email, active.phone].filter(Boolean).join(' / ')
-                    : active.contactInfo) || '未填写'
-                : '当前账号无查看权限'
-            }}
+          <dd class="contact-reveal">
+            <template v-if="!can('crm:private')">当前账号无查看权限</template>
+            <template v-else-if="contact.value !== null">
+              <span>{{ contact.value || '未填写' }}</span>
+              <small class="field-hint">本次查看已记入操作记录</small>
+            </template>
+            <template v-else>
+              <span>已隐藏</span>
+              <el-button
+                size="small"
+                :loading="contact.loading"
+                @click="revealContact"
+                >查看联系方式</el-button
+              >
+              <el-alert
+                v-if="contact.error"
+                :title="contact.error"
+                type="error"
+                :closable="false"
+              />
+            </template>
           </dd>
           <dt>{{ tab === 'inquiries' ? '咨询产品' : '作品资料' }}</dt>
           <dd>
@@ -386,6 +399,33 @@ import {
   inquiryTypeLabel,
   inquiryPriorityOptions,
 } from '../lib/meta'
+// 联系方式默认隐藏，逐条查看，每次查看由服务端写入操作记录
+const contact = reactive({ value: null, loading: false, error: '' })
+let contactRequest = 0
+function resetContact() {
+  contactRequest++
+  Object.assign(contact, { value: null, loading: false, error: '' })
+}
+async function revealContact() {
+  if (!active.value || contact.loading) return
+  const request = ++contactRequest
+  const resource = tab.value === 'inquiries' ? 'inquiries' : 'artist-applications'
+  contact.loading = true
+  contact.error = ''
+  try {
+    const { data } = await api.post(`/api/${resource}/${active.value.id}/contact`)
+    if (request !== contactRequest) return
+    contact.value =
+      tab.value === 'inquiries'
+        ? data.data.contactInfo
+        : [data.data.email, data.data.phone].filter(Boolean).join(' / ')
+  } catch (e) {
+    if (request === contactRequest)
+      contact.error = extractErrorMessage(e, '暂时无法查看，请重试')
+  } finally {
+    if (request === contactRequest) contact.loading = false
+  }
+}
 const assignees = ref([]),
   history = ref([]),
   historyError = ref(''),
@@ -505,6 +545,7 @@ function changeTab(value) {
 }
 function open(row) {
   active.value = row
+  resetContact()
   if (tab.value === 'inquiries') loadHistory(row.id)
   Object.assign(form, {
     status: row.status || (tab.value === 'inquiries' ? 'new' : 'pending'),
@@ -525,7 +566,9 @@ const { confirmLeave } = useUnsavedChanges({
   busy: () => saving.value,
 })
 async function closeDrawer(done) {
-  if (await confirmLeave()) done()
+  if (!(await confirmLeave())) return
+  resetContact()
+  done()
 }
 
 async function save() {
