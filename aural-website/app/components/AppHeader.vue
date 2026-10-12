@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <header
     class="sticky top-0 z-[180] w-full transition-all duration-300 will-change-transform"
     :class="[

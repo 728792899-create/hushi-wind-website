@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <NuxtLayout>
     <div
       class="scroll-progress fixed left-0 top-0 z-[10000] h-[2px] bg-black/80 shadow-[0_0_18px_rgba(0,0,0,0.25)] transition-[width] duration-150 ease-out"

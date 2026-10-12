@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "preflight": "node scripts/preflight.js",
     "backup:db": "node scripts/backup-database.js",
     "check:db": "node scripts/check-database.js",

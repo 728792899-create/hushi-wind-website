@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white relative overflow-x-hidden" :class="{'overflow-hidden': showArtistModal}">
 
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] pointer-events-none">

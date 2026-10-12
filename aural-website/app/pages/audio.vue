@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="bg-[#fbfbfd] min-h-screen pb-32 overflow-x-hidden">
     
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">

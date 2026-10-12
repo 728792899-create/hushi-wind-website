@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="max-w-4xl mx-auto px-4 py-24 min-h-screen relative">
     
     <div v-if="pending" class="py-32 animate-pulse">

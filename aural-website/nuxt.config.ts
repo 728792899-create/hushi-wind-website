@@ -1,4 +1,4 @@
-﻿// https://nuxt.com/docs/api/configuration/nuxt-config
+// https://nuxt.com/docs/api/configuration/nuxt-config
 // Nuxt runs `prepare` during npm postinstall with production semantics. Allow that
 // install-time type generation to use local fallbacks; an actual production build
 // still requires explicit public URLs and keeps the deployment fuse intact.

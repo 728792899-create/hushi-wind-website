@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-4">
     <div class="max-w-2xl text-center">
       <p class="mb-5 text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">

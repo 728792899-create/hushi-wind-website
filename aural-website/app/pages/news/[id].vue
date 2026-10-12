@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="bg-white min-h-screen pb-32 relative">
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
       <button @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto">

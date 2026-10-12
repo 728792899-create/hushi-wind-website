@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="bg-white min-h-screen relative overflow-hidden">
     <Transition name="fade">
       <div v-if="pending" class="fixed inset-0 z-[300] bg-white flex flex-col items-center justify-center">
