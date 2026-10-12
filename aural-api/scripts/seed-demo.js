@@ -1,3 +1,4 @@
+require('../lib/demo-guard').assertDemoTarget();
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 
@@ -57,9 +58,10 @@ async function seedAdmin() {
 
 async function main() {
   console.log('Preparing fictional portfolio data...');
+  if(await prisma.adminUser.count() || await prisma.product.count()) throw new Error('Demo database already contains data; no reset was performed');
   await resetContent();
   await seedAdmin();
-  console.log(`Base seed complete. Admin: ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}`);
+  console.log(`Base seed complete. Admin: ${ADMIN_USERNAME}`);
 }
 
 main()

@@ -94,6 +94,7 @@ model SystemConfig {
 }
 
 model Inquiry {
+  revision     Int      @default(0)
   id           Int      @id @default(autoincrement())
   customerName String   
   contactInfo  String  
@@ -108,6 +109,9 @@ model Inquiry {
   priority     String   @default("normal")
   internalNote String?
   followedAt   DateTime?
+  assigneeId   Int?
+  nextFollowUpAt DateTime?
+  serialNumber String?
   isRead       Boolean  @default(false) 
   createdAt    DateTime @default(now()) 
 }
@@ -118,6 +122,7 @@ model ArtistApplication {
   email        String   
   phone        String?  
   portfolioUrl String   
+  artistId     Int?
   message      String?  
   status       String   @default("pending") 
   createdAt    DateTime @default(now())
@@ -130,6 +135,7 @@ model Artist {
   imageUrl  String?  
   bio       String?  
   equipment String?  
+  status    String   @default("published")
   sortOrder Int      @default(0) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -139,6 +145,8 @@ model SupportFaq {
   id        Int      @id @default(autoincrement())
   question  String
   answer    String
+  productIds String?
+  series    String?
   category  String   @default("general")
   sortOrder Int      @default(0)
   status    String   @default("published")
@@ -150,6 +158,11 @@ model SupportDownload {
   size      String
   type      String   
   fileUrl   String?  
+  productIds String?
+  series    String?
+  version   String?
+  language  String @default("zh-CN")
+  releasedAt DateTime?
   sortOrder Int      @default(0)
   status    String   @default("published")
 }
@@ -201,6 +214,8 @@ model QuickGuide {
   category  String   
   coverUrl  String?  
   videoUrl  String?  
+  productIds String?
+  series    String?
   sortOrder Int      @default(0)
   status    String   @default("published")
 }
@@ -346,4 +361,96 @@ model AlertRecord {
 
   @@index([type, createdAt])
   @@index([status, createdAt])
+}
+
+model ProductCategory {
+  id Int @id @default(autoincrement())
+  slug String @unique
+  name String
+  sortOrder Int @default(0)
+  specTemplate String @default("[]")
+}
+
+model ProductSeries {
+  id Int @id @default(autoincrement())
+  name String @unique
+  categorySlug String
+  sortOrder Int @default(0)
+}
+
+model ContentDraft {
+  id Int @id @default(autoincrement())
+  module String
+  recordId Int
+  payload String
+  baseHash String
+  operator String
+  updatedAt DateTime @updatedAt
+  @@unique([module, recordId])
+}
+
+model RecycleEntry {
+  id Int @id @default(autoincrement())
+  module String
+  recordId Int
+  payload String
+  title String
+  operator String
+  createdAt DateTime @default(now())
+  @@unique([module, recordId])
+}
+
+model InquiryFollowUp {
+  id Int @id @default(autoincrement())
+  inquiryId Int
+  note String
+  status String
+  operator String
+  createdAt DateTime @default(now())
+  @@index([inquiryId, createdAt])
+}
+
+model SubmissionReceipt {
+  id Int @id @default(autoincrement())
+  key String @unique
+  scope String
+  payloadHash String
+  recordId Int
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+
+model NotificationDelivery {
+  id Int @id @default(autoincrement())
+  type String
+  payload String
+  status String @default("pending")
+  attempts Int @default(0)
+  error String?
+  nextAttemptAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, nextAttemptAt])
+}
+
+model MaintenanceRun {
+  id Int @id @default(autoincrement())
+  task String
+  status String
+  details String?
+  createdAt DateTime @default(now())
+}
+
+model MediaAsset {
+  id Int @id @default(autoincrement())
+  url String @unique
+  name String
+  altText String @default("")
+  type String
+  bytes Int
+  width Int?
+  height Int?
+  metadata String
+  updatedAt DateTime @default(now())
+  @@index([type, updatedAt])
 }

@@ -44,6 +44,7 @@
       <div class="scroll-sweep"></div>
     </div>
 
+    <div v-if="route.query.previewToken" role="status" style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100000;background:#203440;color:white;padding:12px 24px;border-radius:10px;font-size:14px;box-shadow:0 4px 24px #0003">内容预览 · 修改草稿尚未发布 · 链接 15 分钟内有效</div>
     <NuxtPage />
 
     <Transition name="toast-slide">
@@ -74,6 +75,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { onMounted, onBeforeUnmount, nextTick, ref } from 'vue'
 
 const route = useRoute()
+useHead(() => route.query.previewToken ? {meta:[{name:'robots',content:'noindex,nofollow'},{name:'referrer',content:'no-referrer'}]} : {})
 const router = useRouter()
 const { track } = useAuralTrack()
 useGlobalBusinessSchema()

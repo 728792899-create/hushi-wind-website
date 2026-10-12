@@ -1,6 +1,6 @@
-﻿<template>
+<template>
   <div class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white overflow-x-hidden">
-    
+
     <section class="home-hero relative min-h-[calc(100dvh-4rem)] md:h-screen flex flex-col justify-center items-center text-center px-4 overflow-hidden bg-black" data-scroll-fx>
       <div class="home-hero-media absolute inset-0 z-0">
         <img v-if="sysConfig.heroImageUrl" :src="mediaUrl(sysConfig.heroImageUrl)" alt="胡氏管乐" loading="eager" fetchpriority="high" decoding="async" sizes="100vw" class="home-hero-image w-full h-full object-cover opacity-80 md:scale-105 md:animate-[slowZoom_20s_ease-in-out_infinite_alternate]" @error="heroFallback" />
@@ -8,22 +8,23 @@
         <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-transparent"></div>
         <div class="absolute inset-x-0 bottom-0 h-[22vh] bg-gradient-to-b from-transparent to-[#fbfbfd]"></div>
       </div>
-      
+
       <div class="home-hero-content relative z-10 w-full max-w-5xl mx-auto pt-6 md:pt-20">
-        <h1 class="gsap-hero home-hero-title text-[clamp(1.82rem,8.7vw,2.55rem)] md:text-8xl lg:text-[7rem] font-serif italic tracking-normal md:tracking-tighter mb-4 md:mb-8 text-white drop-shadow-2xl leading-[1.2] md:leading-none">
+        <h1 class="gsap-hero home-hero-title text-[clamp(1.82rem,8.7vw,2.55rem)] md:text-6xl lg:text-[5.5rem] font-serif italic tracking-normal md:tracking-tighter mb-4 md:mb-8 text-white drop-shadow-2xl leading-[1.2] md:leading-none">
           <span v-for="(line, index) in heroTitleLines" :key="`${line}-${index}`" class="home-hero-title-line block md:inline">{{ line }}</span>
         </h1>
         <p class="gsap-hero home-hero-copy text-sm md:text-xl text-zinc-300 mb-7 md:mb-14 max-w-2xl mx-auto font-light tracking-wide leading-relaxed drop-shadow-md">
           {{ sysConfig.aboutText || '探索融合百年工匠精神与现代声学科技的全新演奏体验。' }}
         </p>
-        <div class="gsap-hero">
+        <div class="gsap-hero flex flex-wrap items-center justify-center gap-4">
           <NuxtLink to="/products" class="inline-flex min-h-11 items-center gap-3 px-7 py-4 md:px-10 md:py-5 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold uppercase tracking-[0.16em] md:tracking-[0.2em] hover:bg-white hover:text-black transition-all duration-500 rounded-full group" @click="trackHomeCta('hero-products')">
-            <span>探索产品宇宙</span>
+            <span>查看乐器</span>
             <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
           </NuxtLink>
+          <NuxtLink to="/support?type=experience" class="inline-flex min-h-11 items-center rounded-full border border-white/60 px-7 py-4 text-sm font-medium text-white hover:bg-white/15" @click="trackHomeCta('hero-appointment')">预约试奏 →</NuxtLink>
         </div>
       </div>
-      
+
       <div class="gsap-hero absolute bottom-12 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center text-zinc-400">
         <span class="text-[10px] uppercase tracking-[0.3em] mb-3 font-bold">Scroll</span>
         <div class="w-[1px] h-12 bg-white/20 overflow-hidden"><div class="w-full h-1/2 bg-white animate-scroll-down"></div></div>
@@ -41,7 +42,7 @@
             View All Collection &rarr;
           </NuxtLink>
         </div>
-        
+
         <div v-if="productsPending && localProducts.length === 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-20">
           <div v-for="i in 4" :key="i" class="w-full flex flex-col animate-pulse">
             <div class="w-full aspect-[4/5] bg-zinc-200 mb-6 rounded-3xl"></div>
@@ -50,14 +51,14 @@
             <div class="h-6 bg-zinc-300 w-1/2"></div>
           </div>
         </div>
-        
+
         <div v-else class="gsap-card-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-8 md:gap-y-20 items-start">
           <NuxtLink v-for="product in localProducts" :key="product.id" :to="`/products/${product.attributes.slug || product.id}`" class="gsap-card product-card interactive-card scroll-lift group flex h-full w-full cursor-pointer flex-col items-start self-stretch rounded-2xl md:rounded-[1.75rem]" @click="trackHomeProduct(product)">
             <div class="scroll-media featured-product-media w-full aspect-[16/10] md:aspect-[4/5] overflow-hidden mb-5 md:mb-8 bg-zinc-100 rounded-2xl md:rounded-3xl relative shadow-[0_15px_30px_-5px_rgba(0,0,0,0.05)] transition-shadow duration-700 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)]">
               <img v-if="product.attributes.image" :src="mediaUrl(product.attributes.image.data.attributes.url)" :alt="product.attributes.title" loading="lazy" decoding="async" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105" @error="imageFallback" />
               <div class="absolute inset-0 border border-black/5 rounded-3xl pointer-events-none"></div>
             </div>
-            
+
             <div class="home-featured-body w-full flex flex-1 flex-col px-1 md:px-2 transform group-hover:-translate-y-1 transition-transform duration-500">
               <div class="w-6 h-[1px] bg-black/20 mb-3 md:mb-4 group-hover:w-12 group-hover:bg-black transition-all duration-700 ease-out"></div>
               <p class="text-[10px] text-zinc-400 tracking-[0.25em] uppercase mb-2 font-bold">{{ product.attributes.series || product.attributes.categoryName || product.attributes.type }}</p>
@@ -74,16 +75,16 @@
         <img :src="mediaUrl(sysConfig.coreTechBgImageUrl)" alt="Core Technology Background" loading="lazy" decoding="async" sizes="100vw" class="w-full h-full object-cover" @error="heroFallback" />
       </div>
       <div class="absolute inset-0 z-0 transition-colors duration-500" :style="{ backgroundColor: sysConfig.coreTechBgColor || '#0a0a0a', opacity: sysConfig.coreTechBgImageUrl ? 0.7 : 1 }"></div>
-      
+
       <div class="absolute inset-0 z-0 bg-gradient-to-r from-black/25 via-black/62 to-black/92 pointer-events-none"></div>
-      
+
       <div class="max-w-[76rem] mx-auto w-full flex flex-col lg:flex-row items-center gap-8 lg:gap-14 relative z-10">
         <div class="gsap-slide-right scroll-drift w-full max-w-[34rem] lg:w-[46%] aspect-[16/10] md:aspect-[4/3] relative bg-zinc-900/30 backdrop-blur-xl rounded-2xl md:rounded-[1.75rem] overflow-hidden shadow-[0_24px_50px_-18px_rgba(0,0,0,0.9)] border border-white/10 group">
           <img v-if="sysConfig.coreTechImageUrl" :src="mediaUrl(sysConfig.coreTechImageUrl)" alt="Core Technology Product" loading="lazy" decoding="async" sizes="(min-width: 1024px) 46vw, 100vw" class="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]" @error="imageFallback" />
           <div v-else class="w-full h-full flex flex-col items-center justify-center text-zinc-600"><span class="text-2xl font-bold tracking-widest">HUSHI WIND CORE</span></div>
           <div class="absolute inset-0 bg-gradient-to-tr from-black/30 via-transparent to-white/10 pointer-events-none"></div>
         </div>
-        
+
         <div class="gsap-slide-left scroll-lift w-full lg:w-[54%] flex flex-col justify-center">
           <span class="text-[10px] font-mono tracking-[0.24em] md:tracking-[0.28em] text-zinc-400 mb-4 md:mb-5 uppercase font-bold drop-shadow-md">Core Technology</span>
           <h2 class="text-3xl md:text-5xl lg:text-[3.6rem] font-serif text-white mb-5 md:mb-7 leading-[1.12] md:leading-[1.08] whitespace-pre-line drop-shadow-lg">{{ sysConfig.coreTechTitle || '声学与数字的\n完美共振。' }}</h2>
@@ -115,7 +116,7 @@
           <span class="text-[10px] font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-400 uppercase font-bold block mb-3 md:mb-4">Ecosystem</span>
           <h2 class="text-3xl md:text-6xl font-serif text-black">超越硬件的完整体验.</h2>
         </div>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 gsap-card-container-2">
           <article v-for="service in services" :key="service.title" class="gsap-service-card interactive-card scroll-lift bg-white rounded-2xl md:rounded-[2rem] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)] hover:shadow-[0_24px_70px_-18px_rgba(0,0,0,0.16)] transition-all duration-700 border border-zinc-100 flex flex-col overflow-hidden group">
             <div class="scroll-media relative w-full aspect-[16/10] overflow-hidden bg-zinc-100">
@@ -162,7 +163,7 @@
         <div v-if="newsPending && localNews.length === 0" class="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-16">
            <div v-for="i in 3" :key="i" class="animate-pulse w-full flex flex-col"><div class="w-full aspect-[4/3] bg-zinc-200 mb-8 rounded-3xl"></div><div class="h-px bg-zinc-200 w-8 mb-4"></div><div class="h-3 bg-zinc-200 w-1/4 mb-3"></div><div class="h-6 w-full bg-zinc-300"></div></div>
         </div>
-        
+
         <FrontState
           v-else-if="localNews.length === 0"
           eyebrow="Brand Vision"
@@ -177,7 +178,7 @@
               <img v-if="news.image" :src="news.image" :alt="news.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 100vw" class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105" @error="serviceFallback" />
               <div class="absolute inset-0 border border-black/5 rounded-3xl pointer-events-none"></div>
             </div>
-            
+
             <div class="home-news-body w-full flex flex-1 flex-col px-1 md:px-2 transform group-hover:-translate-y-1 transition-transform duration-500">
               <div class="w-6 h-[1px] bg-black/20 mb-3 md:mb-4 group-hover:w-16 group-hover:bg-black transition-all duration-700 ease-out"></div>
               <span class="text-[10px] font-mono text-zinc-400 uppercase tracking-[0.2em] block mb-3 font-bold">{{ news.date }}</span>
@@ -401,8 +402,8 @@ const initAnimations = async () => {
   })
 }
 
-onMounted(() => { 
-  if (!productsPending.value && !newsPending.value) void initAnimations() 
+onMounted(() => {
+  if (!productsPending.value && !newsPending.value) void initAnimations()
 })
 watch([productsPending, newsPending], ([p1, p2]) => {
   if (p1 || p2 || process.server) return

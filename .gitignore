@@ -29,6 +29,9 @@ frontend-dist/
 *.sqlite
 *.sqlite3
 *.db
+*.db-wal
+*.db-shm
+aural-api/backups/
 logs/
 uploads/
 !aural-api/uploads/

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="min-h-screen bg-white text-black font-sans relative"
     :class="selectedCompareProducts.length ? 'pb-52 md:pb-48' : 'pb-24 md:pb-32'"
@@ -12,13 +12,13 @@
       </button>
     </div>
 
-    <section class="bg-zinc-950 text-white pt-24 pb-11 md:pt-32 md:pb-24 relative overflow-hidden">
+    <section class="bg-zinc-950 text-white pt-24 pb-8 md:pt-28 md:pb-10 relative overflow-hidden">
       <div class="absolute inset-y-0 right-0 w-1/2 bg-white/5 blur-[120px] pointer-events-none"></div>
 
       <div class="max-w-7xl mx-auto px-4 relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-8 border-b border-white/10 pb-6 md:pb-8 mt-2 md:mt-4">
         <div>
           <span class="text-[9px] md:text-[10px] text-zinc-500 tracking-[0.28em] md:tracking-[0.35em] uppercase font-bold block mb-3 md:mb-4">The HUSHI WIND Collection</span>
-          <h1 class="text-3xl md:text-6xl font-black tracking-[0.04em] md:tracking-[0.06em] uppercase mb-3 md:mb-4">全线产品目录</h1>
+          <h1 class="text-3xl md:text-5xl font-black tracking-[0.04em] md:tracking-[0.06em] uppercase mb-3 md:mb-4">全线产品目录</h1>
           <p class="text-zinc-400 text-sm md:text-base leading-relaxed max-w-2xl">探索每一件声学作品，从原声钢琴到舞台设备，找到适合演奏、创作与现场扩声的方案。</p>
         </div>
         <div class="grid grid-cols-2 gap-5 md:gap-6 text-left md:text-right">
@@ -28,7 +28,7 @@
           </div>
           <div>
             <p class="text-2xl md:text-3xl font-serif italic text-white">{{ categories.length - 1 }}</p>
-            <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Series</p>
+            <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">品类</p>
           </div>
         </div>
       </div>
@@ -158,7 +158,7 @@
             class="product-tile group cursor-pointer flex h-full flex-col rounded-2xl md:rounded-[1.35rem] p-2 -m-2 transition-all duration-500 hover:bg-white hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,0.45)]"
             role="listitem"
           >
-            <div class="product-media relative aspect-[16/10] md:aspect-[4/5] overflow-hidden bg-[#f8f8f8] mb-4 md:mb-6 rounded-2xl md:rounded-[1.15rem]">
+            <div class="product-media relative aspect-[16/10] md:aspect-[4/3] overflow-hidden bg-[#f8f8f8] mb-4 md:mb-6 rounded-2xl md:rounded-[1.15rem]">
               <img
                 v-if="product.image"
                 :src="product.image"
@@ -364,7 +364,7 @@ const handleBack = () => {
   smartBack()
 }
 
-const { data: apiResponse, pending, error, refresh } = await useFetch(productsUrl, {
+const { data: apiResponse, pending, error, refresh } = await useCompleteApiList(productsUrl, {
   key: 'products-index',
   default: () => ({ data: [] })
 })
@@ -439,7 +439,7 @@ const categories = computed(() => {
   const dynamic = [...new Set(products.value.map((product) => product.type).filter(Boolean))]
     .map((type) => ({ label: labels[type] || type, value: type }))
   allowedValues.category = ['all', ...dynamic.map((item) => item.value)]
-  return [{ label: '全部系列', value: 'all' }, ...dynamic]
+  return [{ label: '全部品类', value: 'all' }, ...dynamic]
 })
 
 watch(categories, () => {
@@ -515,7 +515,7 @@ const filteredProducts = computed(() => {
 })
 
 const hasFilters = computed(() => activeCategory.value !== 'all' || searchQuery.value || priceFilter.value !== 'all' || stockFilter.value !== 'all' || sortMode.value !== 'featured')
-const selectedCategoryLabel = computed(() => categories.value.find((item) => item.value === activeCategory.value)?.label || '全部系列')
+const selectedCategoryLabel = computed(() => categories.value.find((item) => item.value === activeCategory.value)?.label || '全部品类')
 const priceLabels = { all: '全部价格', consult: '咨询报价', under10000: '1 万以内', '10000-50000': '1-5 万', over50000: '5 万以上' }
 const stockLabels = { all: '全部库存', inStock: '可咨询体验', outStock: '待补货' }
 const sortLabels = { featured: '推荐优先', latest: '最新更新', priceAsc: '价格从低到高', priceDesc: '价格从高到低' }

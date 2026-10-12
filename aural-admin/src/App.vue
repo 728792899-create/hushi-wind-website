@@ -1,138 +1,219 @@
-﻿<template>
-  <div v-if="!isLoggedIn" class="login-container">
-    <el-card class="login-card">
-      <div class="brand">
-        <h1>胡氏管乐</h1>
-        <p>Control Center</p>
-      </div>
-      <el-form @submit.prevent="handleLogin">
-        <el-form-item>
-          <el-input v-model="loginForm.username" placeholder="ADMIN USER" size="large" />
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="loginForm.password" type="password" placeholder="PASSWORD" size="large" show-password />
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="loginForm.totpCode" placeholder="2FA 动态码（已启用时填写）" size="large" maxlength="6" inputmode="numeric" clearable />
-        </el-form-item>
-        <el-button type="primary" class="login-btn" size="large" :loading="loginLoading" @click="handleLogin">系统验证登录</el-button>
-      </el-form>
-    </el-card>
-  </div>
-
-  <el-container v-else class="admin-layout" :class="{ 'is-mobile': isMobile, 'aside-open': isMobile && !isCollapse, 'is-compact': densityName === 'compact' }">
-    <div v-if="isMobile && !isCollapse" class="mobile-aside-mask" @click="isCollapse = true"></div>
-    <el-aside :width="asideWidth" class="admin-aside">
-      <div class="brand-sidebar">
-        <div class="brand-mark"><el-icon><Platform /></el-icon></div>
-        <div v-if="!isCollapse" class="brand-copy">
-          <h2>胡氏管乐</h2>
-          <span>企业运营后台</span>
-        </div>
-      </div>
-
-      <el-menu
-        :collapse="isCollapse"
-        :default-active="route.path"
-        router
-        active-text-color="#fff"
-        background-color="transparent"
-        text-color="var(--admin-muted)"
-        :unique-opened="true"
-        class="enterprise-menu"
+<template>
+  <el-config-provider :locale="zhCn">
+    <div v-if="!sessionReady" class="session-loading" role="status">
+      正在验证登录状态…
+    </div>
+    <main v-else-if="!isLoggedIn" class="login-container">
+      <section class="login-brand">
+        <span class="wordmark">HUSHI <small>INSTRUMENTS</small></span>
+        <h1>让好乐器，<br />被更多人听见。</h1>
+        <p>胡氏管乐 · 官网管理</p>
+      </section>
+      <section class="login-card">
+        <span class="eyebrow">WELCOME BACK</span>
+        <h2>登录管理后台</h2>
+        <p class="muted-text">{{ resumeEditor ? "原编辑内容已暂存；登录同一账号后可继续。请勿刷新页面。" : "维护产品、品牌内容与客户咨询。" }}</p>
+        <el-form label-position="top" @submit.prevent="handleLogin">
+          <el-form-item label="账号"
+            ><el-input
+              v-model="loginForm.username"
+              autocomplete="username"
+              placeholder="请输入账号"
+              size="large"
+          /></el-form-item>
+          <el-form-item label="密码"
+            ><el-input
+              v-model="loginForm.password"
+              autocomplete="current-password"
+              type="password"
+              placeholder="请输入密码"
+              size="large"
+              show-password
+          /></el-form-item>
+          <details class="login-extra">
+            <summary>已开启两步验证</summary>
+            <el-input
+              v-model="loginForm.totpCode"
+              aria-label="动态验证码"
+              placeholder="6 位动态验证码"
+              maxlength="6"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+            />
+          </details>
+          <el-button
+            type="primary"
+            native-type="submit"
+            class="login-btn"
+            size="large"
+            :loading="loginLoading"
+            >登录</el-button
+          >
+        </el-form>
+      </section>
+    </main>
+    <div
+      v-if="sessionReady && (isLoggedIn || resumeEditor)"
+      v-show="isLoggedIn"
+      :inert="!isLoggedIn ? true : undefined"
+      class="studio-layout"
+      :class="{ 'nav-collapsed': isCollapse, 'is-mobile': isMobile }"
+    >
+      <a class="skip-link" href="#main-content">跳到主要内容</a>
+      <button
+        v-if="isMobile && !isCollapse"
+        class="mobile-aside-mask"
+        aria-label="关闭导航"
+        @click="closeMobileNav"
+      ></button>
+      <aside
+        class="studio-sidebar"
+        aria-label="主导航"
+        ref="sidebarRef"
+        @keydown="handleNavKeys"
       >
-        <div v-if="!isCollapse" class="menu-section-label">运营中心</div>
-        <el-menu-item v-if="can('dashboard:read')" index="/dashboard"><el-icon><DataLine /></el-icon><span>运营工作台</span></el-menu-item>
-
-        <div v-if="!isCollapse" class="menu-section-label">官网内容</div>
-        <el-sub-menu v-if="canAny(['products:read', 'artists:read', 'config:read', 'articles:read', 'cms:read', 'resources:read'])" index="content">
-          <template #title><el-icon><Reading /></el-icon><span>内容运营</span></template>
-          <el-menu-item v-if="can('products:read')" index="/products">产品管理</el-menu-item>
-          <el-menu-item v-if="can('articles:read')" index="/articles">新闻管理</el-menu-item>
-          <el-menu-item v-if="can('cms:read')" index="/cms">页面内容</el-menu-item>
-          <el-menu-item v-if="can('resources:read')" index="/resources">资源库</el-menu-item>
-          <el-menu-item v-if="can('artists:read')" index="/artists">艺术家管理</el-menu-item>
-          <el-menu-item v-if="can('config:read')" index="/config">全局配置</el-menu-item>
-        </el-sub-menu>
-
-        <div v-if="!isCollapse" class="menu-section-label">客户线索</div>
-        <el-menu-item v-if="can('crm:read')" index="/crm">
-          <el-icon><ChatDotRound /></el-icon>
-          <template #title>
-            <span>客户与工单</span>
-            <el-badge v-if="statsBadge > 0" :value="statsBadge" class="menu-badge" />
-          </template>
-        </el-menu-item>
-
-        <div v-if="!isCollapse" class="menu-section-label">安全运维</div>
-        <el-menu-item v-if="can('logs:read')" index="/security"><el-icon><Lock /></el-icon><span>安全与审计</span></el-menu-item>
-        <el-menu-item index="/help"><el-icon><QuestionFilled /></el-icon><span>后台帮助</span></el-menu-item>
-      </el-menu>
-    </el-aside>
-
-    <el-container>
-      <el-header class="admin-header">
-        <div class="header-left">
-          <el-icon @click="toggleAside" class="cp"><Expand v-if="isCollapse" /><Fold v-else /></el-icon>
-          <div class="page-heading">
-            <span class="page-title">{{ pageTitle }}</span>
-            <small>{{ pageDescription }}</small>
-          </div>
-          <el-button v-if="isMobile" class="mobile-more-btn" text @click="toggleMobileTools">
-            <el-icon><MoreFilled /></el-icon>
-            <span>更多</span>
-          </el-button>
+        <RouterLink to="/dashboard" class="brand-sidebar"
+          ><span class="brand-monogram">胡</span
+          ><span class="brand-copy"
+            ><strong>胡氏管乐</strong><small>HUSHI INSTRUMENTS</small></span
+          ></RouterLink
+        >
+        <nav class="studio-nav">
+          <RouterLink
+            v-for="item in navigation"
+            :key="item.path"
+            :to="item.path"
+            :class="{
+              active: item.group
+                ? route.meta.group === item.group
+                : route.path === item.path,
+            }"
+            :title="item.label"
+            ><el-icon><component :is="icons[item.icon]" /></el-icon
+            ><span>{{ item.label }}</span></RouterLink
+          >
+        </nav>
+        <div class="sidebar-bottom">
+          <p>匠心造乐　声动世界</p>
+          <span class="sidebar-caption">HUSHI INSTRUMENTS</span>
         </div>
-        <div class="header-tools" :class="{ 'is-mobile-open': mobileToolsOpen }">
-          <div class="global-shortcuts">
-            <el-button v-if="can('crm:read')" text @click="goHeader('/crm')">处理客户</el-button>
-            <el-button v-if="can('products:read')" text @click="goHeader('/products')">产品运营</el-button>
-            <el-button v-if="can('articles:read')" text @click="goHeader('/articles')">内容发布</el-button>
-            <el-button v-if="can('logs:read')" text @click="goHeader('/security')">安全巡检</el-button>
+      </aside>
+      <div
+        class="studio-workspace"
+        :inert="isMobile && !isCollapse ? true : undefined"
+      >
+        <header class="studio-header">
+          <div class="header-left">
+            <button
+              class="icon-button"
+              ref="navToggleRef"
+              aria-label="切换导航"
+              :aria-expanded="!isCollapse"
+              @click="toggleAside"
+            >
+              <el-icon
+                ><Expand v-if="isCollapse" /><Fold v-else
+              /></el-icon></button
+            ><span class="header-breadcrumb"
+              >管理后台 <span>/</span>
+              {{
+                route.meta.group === 'content' ? '官网内容' : pageTitle
+              }}</span
+            >
           </div>
-          <el-button text @click="goHeader('/help')">帮助</el-button>
-          <el-button v-if="route.name === 'products' && can('products:write')" type="primary" class="light-btn" @click="emitPageAction('product:add')">+ 上架乐器</el-button>
-          <el-button v-if="route.name === 'articles' && can('articles:write')" type="primary" class="light-btn" @click="emitPageAction('article:add')">+ 发布新闻</el-button>
-          <el-button v-if="route.name === 'artists' && can('artists:write')" type="primary" class="light-btn" @click="emitPageAction('artist:add')">+ 新增艺术家</el-button>
-          <el-button v-if="route.name === 'cms' && can('cms:write')" type="primary" class="light-btn" @click="emitPageAction('cms:add')">+ 新增此页内容</el-button>
-          <el-button v-if="route.name === 'resources' && can('resources:read')" color="#222" class="dark-btn" @click="emitPageAction('resources:refresh')">刷新资源</el-button>
-          <el-select v-model="themeName" class="theme-select" size="small" @change="applyTheme">
-            <el-option v-for="theme in adminThemes" :key="theme.value" :label="theme.label" :value="theme.value">
-              <div class="theme-option">
-                <span class="theme-swatch" :style="{ background: theme.preview }"></span>
-                <span>{{ theme.label }}</span>
-              </div>
-            </el-option>
-          </el-select>
-          <el-select v-model="densityName" class="density-select" size="small" @change="applyDensity">
-            <el-option label="舒适" value="comfortable" />
-            <el-option label="紧凑" value="compact" />
-          </el-select>
-          <el-divider direction="vertical" />
-          <el-avatar :size="32" class="admin-avatar">{{ avatarInitial }}</el-avatar>
-          <span class="admin-user-label">{{ currentUser?.displayName || currentUser?.username || 'admin' }}</span>
-          <el-button type="info" text @click="handleLogout">安全退出</el-button>
-        </div>
-      </el-header>
-
-      <el-main class="admin-main">
-        <Suspense>
-          <RouterView @stats-change="setStatsBadge" />
-          <template #fallback>
-            <div class="module-loading">Loading Module...</div>
-          </template>
-        </Suspense>
-      </el-main>
-    </el-container>
-  </el-container>
+          <div class="header-right">
+            <el-button text :icon="TopRight" @click="openPreview('/')"
+              >查看官网</el-button
+            ><RouterLink to="/settings" class="user-chip"
+              ><span class="user-avatar">{{ avatarInitial }}</span
+              ><span>{{
+                currentUser?.displayName || currentUser?.username
+              }}</span></RouterLink
+            ><el-button
+              text
+              :icon="SwitchButton"
+              aria-label="退出登录"
+              @click="handleLogout"
+            />
+          </div>
+        </header>
+        <main id="main-content" class="admin-main" tabindex="-1">
+          <div v-if="route.name !== 'dashboard'" class="page-title-row">
+            <div>
+              <span class="eyebrow"
+                >HUSHI /
+                {{
+                  route.meta.group === 'content'
+                    ? 'CONTENT'
+                    : String(route.name || '').toUpperCase()
+                }}</span
+              >
+              <h1>
+                {{ route.meta.group === 'content' ? '官网内容' : pageTitle }}
+              </h1>
+              <p>{{ pageDescription }}</p>
+            </div>
+          </div>
+          <nav
+            v-if="route.meta.group === 'content'"
+            class="section-tabs"
+            aria-label="官网内容栏目"
+          >
+            <RouterLink
+              v-for="item in contentLinks"
+              :key="item.path"
+              :to="item.path"
+              >{{ item.label }}</RouterLink
+            >
+          </nav>
+          <RouterView v-if="allowed" :key="currentUser?.id" />
+          <section v-else class="empty-panel">
+            <h2>此页面需要相应权限</h2>
+            <p>请选择侧栏中可访问的栏目，或联系管理员调整账号权限。</p>
+          </section>
+        </main>
+      </div>
+    </div>
+  </el-config-provider>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { confirmPendingWork } from './lib/editorLifecycle'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ChatDotRound, DataLine, Expand, Fold, Lock, MoreFilled, Platform, QuestionFilled, Reading } from '@element-plus/icons-vue'
-import { clearToken, extractErrorMessage, getCurrentUser, hasPermission, hasToken, login, refreshSession, validateSession } from './lib/api'
+import { ElMessage, ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import {
+  House,
+  Collection,
+  Document,
+  ChatDotRound,
+  Picture,
+  Setting,
+  Fold,
+  Expand,
+  TopRight,
+  SwitchButton,
+} from '@element-plus/icons-vue'
+import { canAccess, navigationFor, visibleContentPages } from './lib/navigation'
+import {
+  clearToken,
+  extractErrorMessage,
+  getCurrentUser,
+  hasToken,
+  login,
+  openPreview,
+  refreshSession,
+  validateSession,
+} from './lib/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -140,137 +221,140 @@ const router = useRouter()
 const isLoggedIn = ref(hasToken())
 const isMobile = ref(window.innerWidth <= 900)
 const isCollapse = ref(isMobile.value)
-const mobileToolsOpen = ref(false)
 const loginLoading = ref(false)
-const statsBadge = ref(0)
 const currentUser = ref(getCurrentUser())
 const loginForm = reactive({ username: '', password: '', totpCode: '' })
 let sessionRefreshTimer = 0
-const THEME_KEY = 'aural-admin-theme'
-const DENSITY_KEY = 'hushi-admin-density'
-const adminThemes = [
-  { value: 'graphite', label: '石墨绿', preview: 'linear-gradient(135deg, #07080a, #78c6a3)' },
-  { value: 'midnight', label: '午夜蓝', preview: 'linear-gradient(135deg, #07111f, #7aa7ff)' },
-  { value: 'spruce', label: '云杉绿', preview: 'linear-gradient(135deg, #0b1512, #75b79b)' },
-  { value: 'slate', label: '冷灰蓝', preview: 'linear-gradient(135deg, #111827, #8fb3d9)' },
-  { value: 'walnut', label: '胡桃金', preview: 'linear-gradient(135deg, #120d08, #d9b76e)' },
-  { value: 'studio', label: '录音棚紫', preview: 'linear-gradient(135deg, #110d18, #b69cff)' },
-  { value: 'porcelain', label: '青瓷浅色', preview: 'linear-gradient(135deg, #eef6f2, #5b9d87)' },
-  { value: 'mist', label: '雾白灰', preview: 'linear-gradient(135deg, #f5f7f8, #607d8b)' },
-  { value: 'seasalt', label: '海盐蓝', preview: 'linear-gradient(135deg, #eef6f7, #4b8fa1)' },
-  { value: 'sandstone', label: '砂岩浅色', preview: 'linear-gradient(135deg, #f7f2ea, #a2764f)' },
-  { value: 'daylight', label: '日间绿', preview: 'linear-gradient(135deg, #f3f5f2, #4f8f71)' }
-]
-const themeName = ref(window.localStorage.getItem(THEME_KEY) || 'graphite')
-const densityName = ref(window.localStorage.getItem(DENSITY_KEY) || 'comfortable')
-
-const pageTitle = computed(() => route.meta?.label || route.matched?.[0]?.meta?.label || route.name || '胡氏管乐')
-const pageDescription = computed(() => route.meta?.desc || '管理官网内容、客户工单与系统安全。')
+const sessionReady = ref(!hasToken())
+const icons = { House, Collection, Document, ChatDotRound, Picture, Setting }
+const navigation = computed(() => navigationFor(currentUser.value))
+const contentLinks = computed(() => visibleContentPages(currentUser.value))
+const allowed = computed(() =>
+  canAccess(currentUser.value, route.meta.permission),
+)
+const ensureAccessibleRoute = () => {
+  if (!canAccess(currentUser.value, route.meta.permission))
+    router.replace(navigation.value[0]?.path || '/settings')
+}
+const pageTitle = computed(
+  () =>
+    route.meta?.label ||
+    route.matched?.[0]?.meta?.label ||
+    route.name ||
+    '胡氏管乐',
+)
+const pageDescription = computed(
+  () => route.meta?.desc || '管理官网内容、客户工单与系统安全。',
+)
 const avatarInitial = computed(() => {
-  const name = currentUser.value?.displayName || currentUser.value?.username || 'A'
+  const name =
+    currentUser.value?.displayName || currentUser.value?.username || 'A'
   return String(name).trim().slice(0, 1).toUpperCase() || 'A'
 })
-const asideWidth = computed(() => {
-  if (isMobile.value) return isCollapse.value ? '0px' : '246px'
-  return isCollapse.value ? '64px' : '246px'
-})
-
-const setStatsBadge = (value) => {
-  statsBadge.value = Number(value || 0)
+const sidebarRef = ref(null),
+  navToggleRef = ref(null)
+const closeMobileNav = async () => {
+  isCollapse.value = true
+  await nextTick()
+  navToggleRef.value?.focus()
 }
-
-const closeMobileTools = () => {
-  if (isMobile.value) mobileToolsOpen.value = false
-}
-
-const toggleAside = () => {
+const toggleAside = async () => {
   isCollapse.value = !isCollapse.value
-  closeMobileTools()
+  if (isMobile.value && !isCollapse.value) {
+    await nextTick()
+    sidebarRef.value?.querySelector('a')?.focus()
+  }
 }
-
-const toggleMobileTools = () => {
-  if (!isMobile.value) return
-  if (!isCollapse.value) isCollapse.value = true
-  mobileToolsOpen.value = !mobileToolsOpen.value
+const handleNavKeys = (event) => {
+  if (!isMobile.value || isCollapse.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeMobileNav()
+  }
+  if (event.key !== 'Tab') return
+  const links = Array.from(sidebarRef.value?.querySelectorAll('a,button') || [])
+  const first = links[0],
+    last = links[links.length - 1]
+  if (event.shiftKey && event.target === first) {
+    event.preventDefault()
+    last?.focus()
+  } else if (!event.shiftKey && event.target === last) {
+    event.preventDefault()
+    first?.focus()
+  }
 }
-
-const goHeader = (path) => {
-  router.push(path)
-  closeMobileTools()
-}
-
-const emitPageAction = (name) => {
-  window.dispatchEvent(new CustomEvent('admin-page-action', { detail: name }))
-  closeMobileTools()
-}
-
-const can = (permission) => hasPermission(permission)
-const canAny = (permissions) => permissions.some(can)
-
-const applyTheme = () => {
-  const nextTheme = adminThemes.some((theme) => theme.value === themeName.value) ? themeName.value : 'graphite'
-  themeName.value = nextTheme
-  document.documentElement.dataset.adminTheme = nextTheme
-  window.localStorage.setItem(THEME_KEY, nextTheme)
-}
-
-const applyDensity = () => {
-  const nextDensity = densityName.value === 'compact' ? 'compact' : 'comfortable'
-  densityName.value = nextDensity
-  document.documentElement.dataset.adminDensity = nextDensity
-  window.localStorage.setItem(DENSITY_KEY, nextDensity)
-}
-
 const syncViewport = () => {
   const nextIsMobile = window.innerWidth <= 900
   if (nextIsMobile && !isMobile.value) isCollapse.value = true
   if (!nextIsMobile && isMobile.value) isCollapse.value = false
   isMobile.value = nextIsMobile
-  if (!nextIsMobile) mobileToolsOpen.value = false
 }
 
+const resumeEditor = ref(false)
+watch(isLoggedIn, value => { if (typeof document !== 'undefined') document.body.classList.toggle('admin-session-locked', !value) }, {immediate:true})
 const handleLogin = async () => {
+  if (loginLoading.value) return
   loginLoading.value = true
   try {
-    const res = await login(loginForm.username, loginForm.password, loginForm.totpCode)
+    const res = await login(
+      loginForm.username,
+      loginForm.password,
+      loginForm.totpCode,
+    )
     currentUser.value = res.user
     isLoggedIn.value = true
+    resumeEditor.value = false
+    sessionReady.value = true
+    loginForm.password = ''
+    loginForm.totpCode = ''
+    ensureAccessibleRoute()
     scheduleSessionRefresh(res.expiresIn)
     if (route.path === '/') router.replace('/dashboard')
   } catch (error) {
     const code = error?.response?.data?.error?.code
-    const message = code === 'TOTP_REQUIRED'
-      ? '请输入正确的 2FA 动态验证码'
-      : extractErrorMessage(error, '登录失败，请检查账号、密码或 API 服务状态')
+    const message =
+      code === 'TOTP_REQUIRED'
+        ? '请输入正确的 2FA 动态验证码'
+        : extractErrorMessage(
+            error,
+            '登录失败，请检查账号、密码或 API 服务状态',
+          )
     ElMessage.error(message)
   } finally {
     loginLoading.value = false
   }
 }
 
-const handleLogout = () => {
+const handleLogout = async () => {
+  if (!(await confirmPendingWork())) return
   clearTimeout(sessionRefreshTimer)
   clearToken()
+  resumeEditor.value = false
   currentUser.value = null
   isLoggedIn.value = false
-  statsBadge.value = 0
-  mobileToolsOpen.value = false
 }
 
 const handleAuthExpired = (event) => {
+  if (!isLoggedIn.value) return
   clearTimeout(sessionRefreshTimer)
   isLoggedIn.value = false
-  currentUser.value = null
-  statsBadge.value = 0
+  resumeEditor.value = !!currentUser.value
+  clearToken()
   const code = event?.detail?.code
-  const message = code === 'TOKEN_EXPIRED'
-    ? '登录已过期，请重新登录'
-    : code === 'TOKEN_REVOKED'
-      ? '账号会话已被重置，请重新登录'
-      : code === 'ACCOUNT_LOCKED'
-        ? '账号已被临时锁定，请稍后再试'
-        : '登录状态已失效，请重新登录'
+  const message =
+    code === 'TOKEN_EXPIRED'
+      ? '登录已过期，请重新登录'
+      : code === 'TOKEN_REVOKED'
+        ? '账号会话已被重置，请重新登录'
+        : code === 'ACCOUNT_LOCKED'
+          ? '账号已被临时锁定，请稍后再试'
+          : '登录状态已失效，请重新登录'
   ElMessage.warning(message)
+}
+
+const handleSessionUpdated = (event) => {
+  currentUser.value = event.detail.user
+  scheduleSessionRefresh(event.detail.expiresIn)
 }
 
 const scheduleSessionRefresh = (expiresIn = 0) => {
@@ -283,39 +367,53 @@ const scheduleSessionRefresh = (expiresIn = 0) => {
       const res = await refreshSession()
       currentUser.value = res.data?.user || getCurrentUser()
       scheduleSessionRefresh(res.data?.expiresIn)
-    } catch {
-      handleAuthExpired()
+    } catch (error) {
+      if (error?.response?.status === 401) handleAuthExpired()
+      else {
+        ElMessage.warning('网络暂时不可用，编辑内容已保留，将自动重试连接')
+        scheduleSessionRefresh(360)
+      }
     }
   }, delay)
 }
 
 onMounted(async () => {
-  applyTheme()
-  applyDensity()
   syncViewport()
   window.addEventListener('resize', syncViewport)
   window.addEventListener('admin-auth-expired', handleAuthExpired)
+  window.addEventListener('admin-session-updated', handleSessionUpdated)
   if (!isLoggedIn.value) return
   try {
     const res = await validateSession()
     currentUser.value = res.data?.user || getCurrentUser()
     scheduleSessionRefresh(res.data?.expiresIn)
+    ensureAccessibleRoute()
     if (route.path === '/') router.replace('/dashboard')
-  } catch {
-    handleAuthExpired()
+  } catch (error) {
+    if (error?.response?.status === 401) handleAuthExpired()
+    else {
+      ElMessage.warning('连接暂时中断，已保留当前会话')
+      scheduleSessionRefresh(360)
+    }
+  } finally {
+    sessionReady.value = true
   }
 })
 
-watch(() => route.fullPath, () => {
-  if (isMobile.value) {
-    isCollapse.value = true
-    mobileToolsOpen.value = false
-  }
-})
+watch(
+  () => route.fullPath,
+  () => {
+    if (isMobile.value) {
+      closeMobileNav()
+    }
+  },
+)
 
 onBeforeUnmount(() => {
+  if (typeof document !== 'undefined') document.body.classList.remove('admin-session-locked')
   clearTimeout(sessionRefreshTimer)
   window.removeEventListener('resize', syncViewport)
   window.removeEventListener('admin-auth-expired', handleAuthExpired)
+  window.removeEventListener('admin-session-updated', handleSessionUpdated)
 })
 </script>

@@ -45,7 +45,7 @@ const apiEnv = {
   PUBLIC_SITE_URL: "http://127.0.0.1:3000",
   PUBLIC_ADMIN_URL: "http://127.0.0.1:5175",
   API_PUBLIC_URL: "http://127.0.0.1:1337",
-  UPLOAD_PUBLIC_BASE: "http://127.0.0.1:1337/uploads",
+  UPLOAD_PUBLIC_BASE: "http://127.0.0.1:1337",
   ALLOWED_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5175,http://localhost:5175",
 };
 

@@ -2,19 +2,92 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 export const adminRoutes = [
   { path: '/', redirect: '/dashboard' },
-  { path: '/dashboard', name: 'dashboard', meta: { label: '工作台', desc: '查看待处理事项、运营数据、异常提醒和最近操作。' }, component: () => import('./views/DashboardView.vue') },
-  { path: '/products', name: 'products', meta: { label: '产品管理', desc: '上架、编辑、发布和维护官网产品信息。' }, component: () => import('./views/ProductsView.vue') },
-  { path: '/artists', name: 'artists', meta: { label: '艺术家管理', desc: '维护艺术家资料、合作案例和展示排序。' }, component: () => import('./views/ArtistsView.vue') },
-  { path: '/config', name: 'config', meta: { label: '全局配置', desc: '维护首页、联系方式、品牌素材和全站基础图文。' }, component: () => import('./views/ConfigView.vue') },
-  { path: '/articles', name: 'articles', meta: { label: '新闻管理', desc: '发布品牌动态、新闻内容和历史版本。' }, component: () => import('./views/ArticlesView.vue') },
-  { path: '/cms', name: 'cms', meta: { label: '页面内容', desc: '维护 FAQ、下载资料、品牌故事、音频方案等内容。' }, component: () => import('./views/CmsView.vue') },
-  { path: '/resources', name: 'resources', meta: { label: '资源库', desc: '管理上传素材、引用关系、重复资源和未使用图片。' }, component: () => import('./views/ResourcesView.vue') },
-  { path: '/crm', name: 'crm', meta: { label: '客户工单', desc: '处理预约、咨询、售后和艺术家申请。' }, component: () => import('./views/CrmView.vue') },
-  { path: '/security', name: 'security', meta: { label: '安全与审计', desc: '管理账号权限、登录记录、操作日志、备份和异常告警。' }, component: () => import('./views/SecurityView.vue') },
-  { path: '/help', name: 'help', meta: { label: '后台帮助', desc: '查看常见操作流程、注意事项和上线后巡检建议。' }, component: () => import('./views/HelpView.vue') }
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    meta: { label: '工作台', desc: '从这里开始，维护产品与跟进客户。', permission: 'dashboard:read' },
+    component: () => import('./views/DashboardView.vue'),
+  },
+  {
+    path: '/products',
+    name: 'products',
+    meta: { label: '产品', desc: '维护乐器目录、产品资料与发布状态。', permission: 'products:read' },
+    component: () => import('./views/ProductsView.vue'),
+  },
+  {
+    path: '/artists',
+    name: 'artists',
+    meta: {
+      label: '艺术家',
+      desc: '展示合作艺术家与他们的音乐故事。',
+      permission: 'artists:read',
+      group: 'content',
+    },
+    component: () => import('./views/ArtistsView.vue'),
+  },
+  {
+    path: '/config',
+    name: 'config',
+    meta: {
+      label: '首页与品牌',
+      desc: '维护品牌形象、首页图文与联系信息。',
+      permission: 'config:read',
+      group: 'content',
+    },
+    component: () => import('./views/ConfigView.vue'),
+  },
+  {
+    path: '/articles',
+    name: 'articles',
+    meta: {
+      label: '新闻动态',
+      desc: '发布品牌新闻、活动与音乐故事。',
+      permission: 'articles:read',
+      group: 'content',
+    },
+    component: () => import('./views/ArticlesView.vue'),
+  },
+  {
+    path: '/cms',
+    name: 'cms',
+    meta: {
+      label: '服务与栏目',
+      desc: '维护使用指南、下载资料与官网栏目。',
+      permission: 'cms:read',
+      group: 'content',
+    },
+    component: () => import('./views/CmsView.vue'),
+  },
+  {
+    path: '/resources',
+    name: 'resources',
+    meta: { label: '素材', desc: '集中管理官网图片、视频与下载文件。', permission: 'resources:read' },
+    component: () => import('./views/ResourcesView.vue'),
+  },
+  {
+    path: '/crm',
+    name: 'crm',
+    meta: { label: '客户咨询', desc: '跟进产品咨询、试奏预约、售后与合作申请。', permission: 'crm:read' },
+    component: () => import('./views/CrmView.vue'),
+  },
+  {
+    path: '/settings',
+    alias: '/security',
+    name: 'settings',
+    meta: { label: '设置', desc: '管理账号安全、团队权限与数据备份。' },
+    component: () => import('./views/SettingsView.vue'),
+  },
+  {
+    path: '/help',
+    name: 'help',
+    meta: { label: '使用帮助', desc: '了解官网日常维护的基本流程。' },
+    component: () => import('./views/HelpView.vue'),
+  },
 ]
+
+adminRoutes.push({ path: '/:pathMatch(.*)*', redirect: '/dashboard' })
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes: adminRoutes
+  routes: adminRoutes,
 })

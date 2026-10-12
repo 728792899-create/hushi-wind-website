@@ -2,7 +2,10 @@ import { computed } from 'vue'
 
 const DEFAULT_DATE_LABEL = '2026-05-20'
 
-const normalizeText = (value = '') => String(value || '').replace(/\r/g, '').trim()
+const normalizeText = (value = '') =>
+  String(value || '')
+    .replace(/\r/g, '')
+    .trim()
 
 const isHeadingLine = (line = '') => /^(?:#{1,3}\s+|[一二三四五六七八九十0-9]+[、.．)]\s+|【.+】$)/.test(line)
 
@@ -20,10 +23,16 @@ const splitParagraphs = (value = '') => {
   const text = normalizeText(value)
   if (!text) return []
 
-  const blocks = text.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean)
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean)
   if (blocks.length > 1) return blocks
 
-  const lines = text.split('\n').map((item) => item.trim()).filter(Boolean)
+  const lines = text
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
   if (lines.length > 1) return lines
 
   const sentences = text.match(/[^。！？!?]+[。！？!?]?/g) || [text]
@@ -45,27 +54,33 @@ const splitParagraphs = (value = '') => {
   return merged.length ? merged : [text]
 }
 
-const normalizeSections = (sections = []) => sections
-  .map((section) => ({
-    title: normalizeText(section?.title || ''),
-    body: Array.isArray(section?.body)
-      ? section.body.map((paragraph) => normalizeText(paragraph)).filter(Boolean)
-      : []
-  }))
-  .filter((section) => section.title || section.body.length)
+const normalizeSections = (sections = []) =>
+  sections
+    .map((section) => ({
+      title: normalizeText(section?.title || ''),
+      body: Array.isArray(section?.body)
+        ? section.body.map((paragraph) => normalizeText(paragraph)).filter(Boolean)
+        : []
+    }))
+    .filter((section) => section.title || section.body.length)
 
 const parsePolicyContent = (content = '', fallbackTitle = '正文', fallbackSections = []) => {
   const text = normalizeText(content)
   if (!text) return normalizeSections(fallbackSections)
 
-  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
   const hasHeadings = lines.some((line) => isHeadingLine(line))
 
   if (!hasHeadings) {
-    return [{
-      title: fallbackTitle,
-      body: splitParagraphs(text)
-    }]
+    return [
+      {
+        title: fallbackTitle,
+        body: splitParagraphs(text)
+      }
+    ]
   }
 
   const sections = []
@@ -115,7 +130,12 @@ const formatDateLabel = (value = '', fallback = DEFAULT_DATE_LABEL) => {
 
 export const usePolicyContent = async (slug, fallback = {}) => {
   const pageUrl = useApiUrl(`/api/page-contents/${slug}`)
-  const { data: rawPage, pending, error, refresh } = await useFetch(pageUrl, {
+  const {
+    data: rawPage,
+    pending,
+    error,
+    refresh
+  } = await useFetch(pageUrl, {
     lazy: true,
     key: `policy-page-${slug}`
   })
@@ -125,7 +145,9 @@ export const usePolicyContent = async (slug, fallback = {}) => {
   const title = computed(() => pageData.value?.title || fallback.title || '页面内容')
   const summary = computed(() => extractSummary(content.value, fallback.summary || ''))
   const sections = computed(() => parsePolicyContent(content.value, title.value, fallback.sections || []))
-  const updatedAt = computed(() => formatDateLabel(pageData.value?.updatedAt || pageData.value?.createdAt, fallback.updatedAt || DEFAULT_DATE_LABEL))
+  const updatedAt = computed(() =>
+    formatDateLabel(pageData.value?.updatedAt || pageData.value?.createdAt, fallback.updatedAt || DEFAULT_DATE_LABEL)
+  )
   const eyebrow = computed(() => fallback.eyebrow || 'Policy')
 
   return {

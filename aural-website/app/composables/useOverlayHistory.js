@@ -61,14 +61,18 @@ export const useOverlayHistory = (key, source, closeHandler = null) => {
     isInternalPop = false
   }
 
-  watch(source, (active) => {
-    if (!process.client) return
-    if (active) {
-      pushMarker()
-      return
-    }
-    if (!isInternalPop) clearCurrentMarker()
-  }, { immediate: true })
+  watch(
+    source,
+    (active) => {
+      if (!process.client) return
+      if (active) {
+        pushMarker()
+        return
+      }
+      if (!isInternalPop) clearCurrentMarker()
+    },
+    { immediate: true }
+  )
 
   onMounted(() => {
     window.addEventListener('popstate', handlePopState)

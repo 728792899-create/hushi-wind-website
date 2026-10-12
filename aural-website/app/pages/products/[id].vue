@@ -349,9 +349,13 @@ const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.productPiano)
 const siteUrl = useSiteUrl()
 const productsUrl = useApiUrl('/api/products')
+const detailUrl = useApiUrl(() => `/api/products/by-key/${encodeURIComponent(route.params.id)}`)
+const configUrl = useApiUrl('/api/config')
+const {data: contactConfig} = await useFetch(configUrl)
+const {data: detailData, pending, error, refresh} = await useFetch(detailUrl)
 const inquiryUrl = useApiUrl('/api/inquiries')
-const faqsUrl = useApiUrl('/api/support-faqs')
-const downloadsUrl = useApiUrl('/api/support-downloads')
+const faqsUrl = useApiUrl(() => `/api/support-faqs?productId=${detailData.value?.data?.id || ""}&series=${encodeURIComponent(detailData.value?.data?.attributes?.series || '')}`)
+const downloadsUrl = useApiUrl(() => `/api/support-downloads?productId=${detailData.value?.data?.id || ""}&series=${encodeURIComponent(detailData.value?.data?.attributes?.series || '')}`)
 const toast = useState('global-toast')
 const { track, guardPayload: getTrackingPayload } = useAuralTrack()
 const smartBack = useSmartBack('/products')
@@ -375,7 +379,7 @@ const trackedProductKeys = new Set()
 let ctx
 let animationTimer = 0
 
-const { data: rawData, pending, error, refresh } = await useFetch(productsUrl, {
+const { data: rawData } = await useCompleteApiList(productsUrl, {
   lazy: true,
   key: 'products-detail-source',
   default: () => ({ data: [] })
@@ -483,22 +487,12 @@ const normalizeProduct = (targetProduct) => {
 }
 
 const product = computed(() => {
-  const dataList = rawData.value?.data
-  if (!dataList || dataList.length === 0) return null
-
-  const requestedKey = String(route.params.id || '')
-  const targetProduct = dataList.find((p) => {
-    const attrs = p.attributes || p
-    return p.id.toString() === requestedKey || attrs.slug === requestedKey
-  })
-  if (!targetProduct) return null
-
-  return normalizeProduct(targetProduct)
+  return detailData.value?.data ? normalizeProduct(detailData.value.data) : null
 })
 
 const heroImage = computed(() => product.value?.gallery?.[0] || product.value?.imageUrl || '')
 const modalTitle = computed(() => modalType.value === 'quote' ? '咨询报价' : '预约试奏')
-const phoneHref = computed(() => 'tel:4008887726')
+const phoneHref = computed(() => `tel:${String(contactConfig.value?.contactPhone || '').replace(/[^\d+]/g, '')}`)
 const relatedProducts = computed(() => {
   if (!product.value) return []
   const explicitIds = new Set(product.value.relatedProductIds.map(String))
@@ -516,37 +510,8 @@ const relatedProducts = computed(() => {
     .sort((a, b) => b.score - a.score || b.quantity - a.quantity)
     .slice(0, 3)
 })
-const relatedFaqs = computed(() => {
-  if (!product.value) return []
-  const keywords = [
-    product.value.title,
-    product.value.series,
-    product.value.typeLabel,
-    product.value.type,
-    product.value.model,
-    product.value.sku
-  ].filter(Boolean).map((item) => String(item).toLowerCase())
-  const rows = faqResponse.value?.data || []
-  return rows
-    .filter((item) => {
-      const haystack = `${item.question || ''} ${item.answer || ''} ${item.category || ''}`.toLowerCase()
-      return keywords.some((keyword) => keyword && haystack.includes(keyword))
-    })
-    .slice(0, 3)
-})
-const supportDownloads = computed(() => {
-  if (!product.value) return []
-  const keywords = [product.value.title, product.value.series, product.value.typeLabel, product.value.model, product.value.sku]
-    .filter(Boolean)
-    .map((item) => String(item).toLowerCase())
-  const rows = downloadResponse.value?.data || []
-  return rows
-    .filter((item) => {
-      const haystack = `${item.name || ''} ${item.type || ''}`.toLowerCase()
-      return keywords.some((keyword) => keyword && haystack.includes(keyword))
-    })
-    .slice(0, 3)
-})
+const relatedFaqs = computed(() => (faqResponse.value?.data || []).slice(0,3))
+const supportDownloads = computed(() => (downloadResponse.value?.data || []).slice(0,3))
 
 watch(product, (nextProduct) => {
   activeImage.value = nextProduct?.gallery?.[0] || nextProduct?.imageUrl || ''

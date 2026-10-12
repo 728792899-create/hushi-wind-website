@@ -1,3 +1,4 @@
+require('../lib/demo-guard').assertDemoTarget();
 ﻿const fs = require('fs');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');

@@ -89,7 +89,7 @@
 
       <div v-else class="animate-in duration-500">
         <div class="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <h4 class="search-section-title mb-0">为您找到 {{ searchResults.length }} 个结果</h4>
+          <h4 class="search-section-title mb-0">{{ searchPending && fullSearchRequested ? '正在查找…' : `为您找到 ${searchResults.length} 个结果` }}</h4>
           <div v-if="searchResults.length" class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:flex-wrap">
             <button
               v-for="tab in resultTabs"
@@ -104,6 +104,10 @@
           </div>
         </div>
 
+        <div v-if="searchError" role="alert" class="mb-6 rounded-lg border border-amber-700 p-4 text-sm text-amber-100">
+          部分内容加载失败，搜索结果可能不完整。
+          <button type="button" class="ml-3 underline" :disabled="searchPending" @click="ensureFullSearchData">重新加载</button>
+        </div>
         <div v-if="searchPending && fullSearchRequested && searchResults.length === 0" class="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div v-for="i in 6" :key="i" class="h-28 animate-pulse rounded-sm border border-zinc-800 bg-zinc-900/60"></div>
         </div>
@@ -128,7 +132,7 @@
           </NuxtLink>
         </div>
 
-        <div v-else class="py-16 text-center md:py-20">
+        <div v-else-if="!searchError" class="py-16 text-center md:py-20">
           <p class="mb-2 text-2xl font-bold text-zinc-400">未找到匹配内容</p>
           <p class="text-zinc-600">换个关键词，或从产品目录、支持中心继续浏览。</p>
           <div class="mt-8 flex flex-wrap justify-center gap-3">
@@ -187,42 +191,44 @@ const quickSearchLinks = [
   { label: '售后支持', kicker: 'Support', to: '/support' }
 ]
 
-const { data: productResponse, pending: productsPending, refresh: refreshProducts } = useFetch(productsUrl, {
+const { data: productResponse, pending: productsPending, refresh: refreshProducts, error: productError } = useCompleteApiList(productsUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
-const { data: articleResponse, pending: articlesPending, refresh: refreshArticles } = useFetch(articlesUrl, {
+const { data: articleResponse, pending: articlesPending, refresh: refreshArticles, error: articleError } = useCompleteApiList(articlesUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
-const { data: faqResponse, pending: faqsPending, refresh: refreshFaqs } = useFetch(faqsUrl, {
+const { data: faqResponse, pending: faqsPending, refresh: refreshFaqs, error: faqError } = useCompleteApiList(faqsUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
-const { data: downloadResponse, pending: downloadsPending, refresh: refreshDownloads } = useFetch(downloadsUrl, {
+const { data: downloadResponse, pending: downloadsPending, refresh: refreshDownloads, error: downloadError } = useCompleteApiList(downloadsUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
-const { data: guideResponse, pending: guidesPending, refresh: refreshGuides } = useFetch(guidesUrl, {
+const { data: guideResponse, pending: guidesPending, refresh: refreshGuides, error: guideError } = useCompleteApiList(guidesUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
-const { data: pageResponse, pending: pagesPending, refresh: refreshPages } = useFetch(pagesUrl, {
+const { data: pageResponse, pending: pagesPending, refresh: refreshPages, error: pageError } = useCompleteApiList(pagesUrl, {
   lazy: true,
   server: false,
   immediate: false,
   default: () => ({ data: [] })
 })
+
+const searchError = computed(() => [productError, articleError, faqError, downloadError, guideError, pageError].some(error => error.value))
 
 const searchPending = computed(() => (
   productsPending.value ||
@@ -297,6 +303,7 @@ const faqResultsSource = computed(() => normalizeRows(faqResponse).map((item) =>
   category: item.category || 'Support',
   description: item.answer || '',
   to: '/support',
+  targetQuery: { type: 'faq', item: String(item.id) },
   searchable: [item.question, item.answer, item.category]
 })))
 
@@ -309,6 +316,7 @@ const downloadResultsSource = computed(() => normalizeRows(downloadResponse).map
   category: item.type || 'Download',
   description: item.size ? `文件大小：${item.size}` : '产品说明、驱动或保养资料',
   to: '/support',
+  targetQuery: { type: 'download', item: String(item.id) },
   searchable: [item.name, item.type, item.size]
 })))
 
@@ -322,6 +330,7 @@ const guideResultsSource = computed(() => normalizeRows(guideResponse).map((item
   description: item.duration ? `视频时长：${item.duration}` : '产品上手和服务指南',
   image: mediaUrl(item.coverUrl, ''),
   to: '/support',
+  targetQuery: { type: 'quickstart', item: String(item.id) },
   searchable: [item.title, item.category, item.duration]
 })))
 
@@ -438,7 +447,7 @@ const trackSearchProductClick = (item, ctaName) => {
   closeSearch()
 }
 
-const searchResultTo = (item) => ({ path: item.to || '/', query: { fromSearch: query.value.trim() } })
+const searchResultTo = (item) => ({ path: item.to || '/', query: { ...item.targetQuery, fromSearch: query.value.trim() } })
 
 const trackSearchResultClick = (item, ctaName) => {
   const entityType = item.type === 'article' ? 'news' : item.type

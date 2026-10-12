@@ -3,23 +3,29 @@ const FORM_GUARD_COOLDOWN_MS = 12000
 
 export const useFormGuard = (key = 'default-form') => {
   const startedAt = ref(Date.now())
+  const submissionId = ref('')
+  const route = useRoute()
   const honeypot = ref('')
   const lastSubmitAt = useState(`form-guard:last:${key}`, () => 0)
 
   const resetGuard = () => {
     startedAt.value = Date.now()
+    submissionId.value = ''
     honeypot.value = ''
   }
 
   const getGuardPayload = () => ({
+    submissionId: submissionId.value || (submissionId.value = crypto.randomUUID()),
     website: honeypot.value,
     formStartedAt: startedAt.value
   })
 
   const canSubmit = () => {
+    if (route.query.previewToken) return { ok: false, message: '当前为预览页面，不能提交客户资料。' }
     const now = Date.now()
     if (honeypot.value) return { ok: false, message: '提交校验未通过，请刷新页面后重试。' }
-    if (now - startedAt.value < FORM_GUARD_MIN_ELAPSED_MS) return { ok: false, message: '提交过快，请确认信息后再提交。' }
+    if (now - startedAt.value < FORM_GUARD_MIN_ELAPSED_MS)
+      return { ok: false, message: '提交过快，请确认信息后再提交。' }
     if (now - lastSubmitAt.value < FORM_GUARD_COOLDOWN_MS) return { ok: false, message: '提交过于频繁，请稍后再试。' }
     lastSubmitAt.value = now
     return { ok: true }

@@ -1,3 +1,4 @@
+import {fetchSitemapCollection} from '../utils/fetchSitemapCollection'
 const escapeXml = (value = '') => String(value)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -34,22 +35,8 @@ const latestDate = (items = [], fallback = '') => {
   return formatDate(latest || fallback)
 }
 
-const fetchCollection = async (url) => {
-  try {
-    const result = await $fetch(url)
-    return Array.isArray(result?.data) ? result.data : []
-  } catch {
-    return []
-  }
-}
-
-const fetchSingle = async (url) => {
-  try {
-    return await $fetch(url)
-  } catch {
-    return null
-  }
-}
+const fetchCollection = url => fetchSitemapCollection(url,$fetch)
+const fetchSingle = url => $fetch(url)
 
 export default defineCachedEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -107,7 +94,7 @@ export default defineCachedEventHandler(async (event) => {
     ...products.map((item) => {
       const attrs = getAttrs(item)
       return {
-      loc: `/products/${attrs.slug || item.id}`,
+      loc: `/products/${encodeURIComponent(attrs.slug || item.id)}`,
       priority: '0.8',
       changefreq: 'weekly',
       lastmod: formatDate(itemDate(item))
@@ -124,7 +111,7 @@ export default defineCachedEventHandler(async (event) => {
     ...pages.filter((item) => getAttrs(item).slug).map((item) => {
       const attrs = getAttrs(item)
       return {
-      loc: `/info/${attrs.slug}`,
+      loc: `/info/${encodeURIComponent(attrs.slug)}`,
       priority: '0.6',
       changefreq: 'monthly',
       lastmod: formatDate(itemDate(item))

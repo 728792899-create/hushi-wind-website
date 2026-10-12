@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white relative overflow-x-hidden" :class="{'overflow-hidden': showArtistModal}">
-    
+
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] pointer-events-none">
       <button @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto mix-blend-difference">
         <div class="w-10 h-10 flex items-center justify-center rounded-full border border-white/50 group-hover:border-white transition-colors">
@@ -17,7 +17,7 @@
         <div class="absolute inset-0 bg-gradient-to-b from-black/45 via-black/10 to-transparent"></div>
         <div class="absolute inset-x-0 bottom-0 h-[18vh] bg-gradient-to-b from-transparent to-[#fbfbfd]"></div>
       </div>
-      
+
       <div class="relative z-10 text-center px-4 animate-in fade-in max-w-4xl mx-auto pt-12 md:pt-20">
         <h1 class="text-[clamp(2.8rem,14vw,4.5rem)] md:text-8xl lg:text-[7rem] font-serif italic tracking-tighter text-white mb-5 md:mb-8 drop-shadow-2xl leading-none">
           Master's Choice.
@@ -30,7 +30,7 @@
     </section>
 
     <div class="max-w-[72rem] mx-auto px-4 md:px-10 pb-20 md:pb-36 pt-9 md:pt-20 relative z-20" data-no-scroll-fx>
-      
+
       <div v-if="pending" class="artist-showcase-grid">
         <div v-for="i in 6" :key="i" class="artist-card-skeleton w-full overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 animate-pulse">
           <div class="artist-media-shell w-full bg-zinc-200"></div>
@@ -41,7 +41,7 @@
           </div>
         </div>
       </div>
-      
+
       <FrontState
         v-else-if="error"
         type="error"
@@ -61,9 +61,9 @@
       />
 
       <div v-else class="artist-showcase-grid gsap-gallery" data-no-scroll-fx>
-        <div 
-          v-for="artist in displayArtists" 
-          :key="artist.id" 
+        <div
+          v-for="artist in displayArtists"
+          :key="artist.id"
           @click="openArtistModal(artist)"
           role="button"
           tabindex="0"
@@ -73,21 +73,21 @@
           data-no-scroll-fx
         >
           <div class="artist-media artist-media-shell w-full overflow-hidden bg-zinc-100 relative">
-            <img 
-              :src="artist.image" 
-              :alt="artist.name" 
+            <img
+              :src="artist.image"
+              :alt="artist.name"
               loading="lazy"
               decoding="async"
               sizes="(min-width: 1024px) 33vw, 100vw"
-              class="artist-image w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-105" 
+              class="artist-image w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-105"
               @error="imageFallback"
             />
             <div class="absolute inset-0 border border-black/5 pointer-events-none"></div>
           </div>
-          
+
           <div class="artist-meta flex w-full flex-1 flex-col justify-end px-5 py-5 md:px-5 lg:px-6 md:py-6">
             <div class="w-6 h-[1px] bg-black/30 mb-3 md:mb-4 group-hover:w-16 group-hover:bg-black transition-all duration-700 ease-out"></div>
-            
+
             <p class="text-zinc-400 text-[10px] tracking-[0.25em] mb-2 uppercase font-semibold">{{ artist.role }}</p>
             <h2 class="text-xl md:text-2xl lg:text-3xl font-serif text-black group-hover:text-zinc-500 transition-colors duration-500">{{ artist.name }}</h2>
             <p class="mt-3 md:mt-4 text-xs leading-relaxed text-zinc-500 line-clamp-2">{{ artist.equipment || 'HUSHI WIND Artist Series' }}</p>
@@ -103,7 +103,7 @@
           我们始终在寻找那些对声音有极致追求的灵魂。如果您是专业演奏者并希望与胡氏管乐展开深度合作，请向我们提交您的履历与作品集。
         </p>
         <button @click="openApplyModal" class="apply-btn group relative overflow-hidden inline-flex items-center justify-center gap-4">
-          <span class="relative z-10 text-xs tracking-[0.2em] uppercase font-bold text-black">提交合作申请</span> 
+          <span class="relative z-10 text-xs tracking-[0.2em] uppercase font-bold text-black">提交合作申请</span>
           <svg class="w-4 h-4 relative z-10 transform group-hover:translate-x-1 transition-transform text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
         </button>
       </div>
@@ -112,24 +112,24 @@
     <Teleport to="body">
       <Transition name="apple-modal">
         <div v-if="showArtistModal && activeArtist" class="fixed inset-0 z-[200] flex items-center justify-center bg-white/80 backdrop-blur-3xl overflow-y-auto" @keydown.esc="closeArtistModal" tabindex="-1">
-          
+
           <button @click="closeArtistModal" class="absolute top-8 right-8 md:top-12 md:right-12 w-12 h-12 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors z-50">
             <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
 
           <div class="max-w-7xl mx-auto w-full min-h-screen md:min-h-0 px-6 py-24 md:p-12 flex flex-col md:flex-row items-center gap-12 md:gap-24 relative">
-            
+
             <div class="w-full md:w-1/2 aspect-square md:aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl relative">
               <img :src="activeArtist.image" :alt="activeArtist.name" loading="lazy" decoding="async" sizes="(min-width: 768px) 40vw, 100vw" class="w-full h-full object-cover" @error="imageFallback" />
               <div class="absolute inset-0 border border-black/10 rounded-2xl pointer-events-none"></div>
             </div>
-            
+
             <div class="w-full md:w-1/2 flex flex-col justify-center">
               <p class="text-zinc-500 text-sm tracking-[0.3em] uppercase font-bold mb-4">{{ activeArtist.role }}</p>
               <h2 class="text-5xl md:text-7xl font-serif text-black mb-10 leading-tight">{{ activeArtist.name }}</h2>
-              
+
               <div class="w-16 h-[2px] bg-black mb-10"></div>
-              
+
               <p class="text-lg md:text-xl text-zinc-600 leading-relaxed font-light mb-16 whitespace-pre-line">
                 {{ activeArtist.bio || '一位将对音乐的极致追求融入灵魂的杰出演奏家。通过与胡氏管乐的深度合作，不断探索声学与艺术表达的新边界。' }}
               </p>
@@ -153,7 +153,7 @@
             <button class="close-btn" @click="closeApplyModal">✕</button>
           </div>
           <p class="text-xs text-zinc-400 tracking-widest uppercase mb-8 border-b border-zinc-100 pb-4">HUSHI WIND Artist Program</p>
-          
+
           <form @submit.prevent="submitApplication" class="apply-form">
             <div class="form-group"><label>姓名 / 艺名 <span>*</span></label><input v-model="form.name" type="text" maxlength="30" required placeholder="请输入您的称呼" /></div>
             <div class="form-group"><label>联系邮箱 <span>*</span></label><input v-model="form.email" type="email" required placeholder="example@email.com" /></div>
@@ -215,7 +215,7 @@ useBreadcrumbSchema(() => [
   { name: '艺术家', path: '/artists' }
 ])
 
-const { data: rawArtists, pending, error, refresh: refreshA } = await useFetch(artistsUrl, { lazy: true, key: 'artists-list' })
+const { data: rawArtists, pending, error, refresh: refreshA } = await useCompleteApiList(artistsUrl, { lazy: true, key: 'artists-list' })
 
 watch([error, errC], (errs) => {
   isOffline.value = errs.some(Boolean)
@@ -224,11 +224,11 @@ watch([error, errC], (errs) => {
 const displayArtists = computed(() => {
   if (rawArtists.value?.data && rawArtists.value.data.length > 0) {
     return rawArtists.value.data.map(item => ({
-      id: item.id, 
-      name: item.attributes.name, 
+      id: item.id,
+      name: item.attributes.name,
       role: item.attributes.role,
-      bio: item.attributes.bio,           
-      equipment: item.attributes.equipment, 
+      bio: item.attributes.bio,
+      equipment: item.attributes.equipment,
       image: item.attributes.image?.data ? mediaUrl(item.attributes.image.data.attributes.url) : brandAssets.artistHero
     }))
   }
@@ -294,7 +294,7 @@ const submitApplication = async () => {
     triggerToast('申请已加密提交！专属运营专员将尽快审阅。', 'success')
     artistApplyHistory.closeDirect()
     resetGuard()
-    Object.keys(form).forEach(key => form[key] = '') 
+    Object.keys(form).forEach(key => form[key] = '')
   } catch (error) {
     const message = error?.data?.error?.message || '无法连接至服务器，请检查网络或后端状态。'
     track('form_submit_failed', {
@@ -331,7 +331,7 @@ const initAnimations = () => {
   useGsapCleanup(ctx, ScrollTrigger)
   ctx = gsap.context(() => {
     gsap.from('.animate-in', { y: 40, opacity: 0, duration: 1.5, ease: 'power3.out', delay: 0.2 })
-    
+
     gsap.from('.gsap-gallery .artist-media', {
       scrollTrigger: { trigger: '.gsap-gallery', start: 'top 88%', toggleActions: 'play none none none' },
       opacity: 0,

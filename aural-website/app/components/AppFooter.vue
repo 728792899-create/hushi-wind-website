@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <footer class="bg-zinc-950 pt-20 pb-10 text-zinc-400 border-t border-zinc-900">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-16">
@@ -47,7 +47,7 @@ const footerNav = {
     { name: '新品发布', url: '/news?source=footer' }
   ],
   '支持服务': [
-    { name: '经销商查询', url: '/support?type=dealer&source=footer' },
+    { name: '预约门店与试奏', url: '/support?type=experience&source=footer' },
     { name: '保修与维修', url: '/info/warranty?source=footer' },
     { name: '驱动下载', url: '/support?type=download&source=footer' }
   ],

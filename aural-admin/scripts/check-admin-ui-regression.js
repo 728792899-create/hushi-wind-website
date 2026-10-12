@@ -70,29 +70,11 @@ const walkStaticFiles = (dir, files = []) => {
   return files
 }
 
-readRequired('src/views/HelpView.vue')
-
-requireText('src/router.js', [
-  { text: "path: '/help'", label: 'help route' },
-  { text: 'HelpView.vue', label: 'HelpView lazy import' },
-  { text: '后台帮助', label: 'help menu label' }
-])
-
-requireText('src/App.vue', [
-  { text: '/help', label: 'top/help navigation link' },
-  { text: '后台帮助', label: 'sidebar help entry' },
-  { text: 'QuestionFilled', label: 'help icon import' }
-])
-
-requireText('src/style.css', [
-  { text: '.form-section', label: 'editor form sections' },
-  { text: '.cleanup-filter-summary', label: 'resource cleanup impact summary' },
-  { text: '.danger-confirm-checkbox', label: 'resource cleanup second confirmation' },
-  { text: '.mobile-list-actions', label: 'mobile list action layout' },
-  { text: '.dark-drawer', label: 'mobile drawer layout guard' },
-  { text: '.el-message-box', label: 'mobile message box width guard' },
-  { text: '.help-page', label: 'help center page styles' }
-])
+// Behavioral navigation and authentication regressions are covered by tests/admin-contracts.test.mjs.
+for (const view of ['Dashboard', 'Products', 'Config', 'Articles', 'Artists', 'Cms', 'Crm', 'Resources', 'Settings', 'Help']) {
+  readRequired(`src/views/${view}View.vue`)
+}
+requireText('src/router.js', [{ text: "alias: '/security'", label: 'legacy security bookmark compatibility' }])
 
 if (fs.existsSync(distDir)) {
   const files = walkStaticFiles(distDir)

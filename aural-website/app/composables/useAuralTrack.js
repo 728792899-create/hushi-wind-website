@@ -1,4 +1,4 @@
-﻿import { computed } from 'vue'
+import { computed } from 'vue'
 
 const VISITOR_KEY = 'hushi:visitor-id'
 const SESSION_KEY = 'hushi:session-id'

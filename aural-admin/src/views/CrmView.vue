@@ -1,417 +1,568 @@
-﻿<template>
-  <div>
-    <section class="business-command-panel crm-command-panel">
-      <div class="business-command-main">
-        <span class="business-kicker">客户线索</span>
-        <h2>每天优先处理未读、紧急和需要下一步动作的客户</h2>
-        <p>这里集中处理官网咨询、报价需求、售后服务和艺术家申请。先筛出未读与紧急，再在详情抽屉记录跟进结果。</p>
-        <div class="business-command-actions">
-          <el-button type="primary" color="#fff" class="light-btn" @click="showUnreadInquiries">处理未读工单</el-button>
-          <el-button color="#222" class="dark-btn" @click="showUrgentInquiries">查看紧急工单</el-button>
-        </div>
+<template>
+  <section class="panel crm-panel">
+    <nav class="section-tabs" aria-label="咨询类型">
+      <button
+        :class="{ active: tab === 'inquiries' }"
+        @click="changeTab('inquiries')"
+      >
+        客户咨询</button
+      ><button
+        :class="{ active: tab === 'artistApps' }"
+        @click="changeTab('artistApps')"
+      >
+        艺术家合作
+      </button>
+    </nav>
+    <div class="table-tools">
+      <div v-if="tab === 'inquiries'" class="filter-row wrap">
+        <el-input
+          v-model="filters.keyword"
+          class="w-320"
+          :prefix-icon="Search"
+          placeholder="搜索客户、乐器或需求"
+          clearable
+          @keyup.enter="applyFilters"
+          @clear="applyFilters"
+        /><el-select
+          v-model="filters.status"
+          class="w-140"
+          @change="applyFilters"
+          aria-label="跟进阶段"
+          ><el-option value="all" label="全部阶段" /><el-option
+            v-for="item in inquiryStatusOptions"
+            :key="item.value"
+            :value="item.value"
+            :label="item.label" /></el-select
+        ><el-select
+          v-model="filters.type"
+          class="w-140"
+          @change="applyFilters"
+          aria-label="咨询类型"
+          ><el-option value="all" label="全部类型" /><el-option
+            v-for="item in inquiryTypeOptions"
+            :key="item.value"
+            :value="item.value"
+            :label="item.label" /></el-select
+        ><el-button @click="applyFilters">搜索</el-button
+        ><el-button
+          v-if="
+            filters.keyword ||
+            filters.status !== 'all' ||
+            filters.type !== 'all'
+          "
+          text
+          @click="resetFilters"
+          >重置</el-button
+        >
       </div>
-      <div class="business-task-grid">
-        <article v-for="item in crmOpsCards" :key="item.label" class="business-task-card" :class="item.tone">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <small>{{ item.desc }}</small>
-        </article>
+      <div v-else class="filter-row">
+        <el-input
+          v-model="appFilters.keyword"
+          placeholder="搜索申请人"
+          clearable
+          @keyup.enter="applyFilters"
+          @clear="applyFilters"
+        /><el-select v-model="appFilters.status" @change="applyFilters"
+          ><el-option label="全部状态" value="all" /><el-option
+            v-for="(label, value) in artistStatuses"
+            :key="value"
+            :label="label"
+            :value="value"
+        /></el-select>
       </div>
-    </section>
-
-    <el-tabs v-model="crmTab" class="dark-tabs enterprise-crm-tabs">
-      <el-tab-pane name="inquiries">
-        <template #label>
-          客户工单
-          <el-badge v-if="unreadCount > 0" :value="unreadCount" type="danger" class="tab-badge" />
-        </template>
-
-        <div class="crm-summary">
-          <div v-for="item in summaryCards" :key="item.label" class="crm-summary-card" :class="item.tone">
-            <strong>{{ item.value }}</strong>
-            <span>{{ item.label }}</span>
+      <el-button :loading="loading" @click="load">刷新</el-button>
+    </div>
+    <el-alert
+      v-if="error"
+      :title="error"
+      type="error"
+      show-icon
+      :closable="false"
+      class="mb-16"
+    />
+    <el-table
+      v-if="tab === 'inquiries'"
+      :data="rows"
+      v-loading="loading"
+      class="wide-table mobile-hidden-table"
+      empty-text="暂无符合条件的咨询"
+      ><el-table-column label="客户" min-width="140"
+        ><template #default="{ row }"
+          ><strong>{{ row.customerName || '访客' }}</strong
+          ><span v-if="!row.isRead" class="unread-dot" title="未读"></span
+          ><small class="cell-subtitle">{{
+            row.city || '未填写城市'
+          }}</small></template
+        ></el-table-column
+      ><el-table-column label="咨询内容" min-width="240"
+        ><template #default="{ row }"
+          >{{ row.productTitle || inquiryTypeLabel(row.inquiryType)
+          }}<small class="cell-subtitle text-ellipsis">{{
+            row.message || '未填写详情'
+          }}</small></template
+        ></el-table-column
+      ><el-table-column label="类型" width="120"
+        ><template #default="{ row }">{{
+          inquiryTypeLabel(row.inquiryType)
+        }}</template></el-table-column
+      ><el-table-column label="阶段" width="110"
+        ><template #default="{ row }"
+          ><el-tag :type="inquiryStatusMeta(row.status).type">{{
+            inquiryStatusMeta(row.status).label
+          }}</el-tag></template
+        ></el-table-column
+      ><el-table-column label="提交时间" width="170"
+        ><template #default="{ row }">{{
+          formatTime(row.createdAt)
+        }}</template></el-table-column
+      ><el-table-column fixed="right" label="操作" width="110"
+        ><template #default="{ row }"
+          ><el-button text type="primary" @click="open(row)">{{
+            can('crm:write') ? '查看 / 跟进' : '查看详情'
+          }}</el-button></template
+        ></el-table-column
+      ></el-table
+    >
+    <el-table
+      v-else
+      :data="rows"
+      v-loading="loading"
+      class="wide-table mobile-hidden-table"
+      empty-text="暂无合作申请"
+      ><el-table-column
+        prop="name"
+        label="申请人"
+        min-width="140"
+      /><el-table-column
+        prop="portfolioUrl"
+        label="作品资料"
+        min-width="160"
+      /><el-table-column label="状态" width="120"
+        ><template #default="{ row }"
+          ><el-tag :type="row.status === 'pending' ? 'warning' : 'info'">{{
+            artistStatus(row.status)
+          }}</el-tag></template
+        ></el-table-column
+      ><el-table-column label="申请时间" min-width="170"
+        ><template #default="{ row }">{{
+          formatTime(row.createdAt)
+        }}</template></el-table-column
+      ><el-table-column fixed="right" label="操作" width="110"
+        ><template #default="{ row }"
+          ><el-button text type="primary" @click="open(row)"
+            >查看申请</el-button
+          ></template
+        ></el-table-column
+      ></el-table
+    >
+    <div class="mobile-admin-list" v-loading="loading">
+      <article v-for="row in rows" :key="row.id" class="mobile-admin-card">
+        <div class="mobile-list-body">
+          <strong>{{ row.customerName || row.name || '访客' }}</strong>
+          <p>
+            {{
+              row.productTitle ||
+              row.portfolioUrl ||
+              inquiryTypeLabel(row.inquiryType)
+            }}
+          </p>
+          <small
+            >{{
+              tab === 'inquiries'
+                ? inquiryStatusMeta(row.status).label
+                : artistStatus(row.status)
+            }}
+            · {{ formatTime(row.createdAt) }}</small
+          ><el-button @click="open(row)">查看详情</el-button>
+        </div>
+      </article>
+      <div v-if="!rows.length && !loading" class="empty-panel">
+        暂无符合条件的记录
+      </div>
+    </div>
+    <div class="table-pagination">
+      <span>共 {{ total }} 条{{ tab === 'inquiries' ? '咨询' : '申请' }}</span
+      ><el-pagination
+        v-model:current-page="page"
+        :page-size="20"
+        :total="total"
+        layout="prev, pager, next"
+        :pager-count="5"
+        @current-change="load"
+      />
+    </div>
+    <el-drawer
+      v-model="drawer"
+      :title="tab === 'inquiries' ? '咨询详情与跟进' : '艺术家合作申请'"
+      size="560px"
+      :before-close="closeDrawer"
+      ><template v-if="active"
+        ><div class="customer-heading">
+          <span class="customer-initial">{{
+            (active.customerName || active.name || '客').slice(0, 1)
+          }}</span>
+          <div>
+            <h2>{{ active.customerName || active.name }}</h2>
+            <p>{{ formatTime(active.createdAt) }}</p>
           </div>
         </div>
-
-        <div class="table-tools stacked">
-          <div class="filter-row wrap">
-            <el-input v-model="inquiryFilters.keyword" placeholder="搜索客户、联系方式、产品或备注" :prefix-icon="Search" class="w-320" clearable @keyup.enter="fetchInquiries" />
-            <el-select v-model="inquiryFilters.status" class="w-130" @change="fetchInquiries"><el-option label="全部阶段" value="all" /><el-option v-for="item in inquiryStatusOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select>
-            <el-select v-model="inquiryFilters.priority" class="w-130" @change="fetchInquiries"><el-option label="全部优先级" value="all" /><el-option v-for="item in inquiryPriorityOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select>
-            <el-select v-model="inquiryFilters.type" class="w-130" @change="fetchInquiries"><el-option label="全部类型" value="all" /><el-option v-for="item in inquiryTypeOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select>
-            <el-input v-model="inquiryFilters.city" placeholder="城市" class="w-130" clearable @keyup.enter="fetchInquiries" />
-            <el-input v-model="inquiryFilters.product" placeholder="产品" class="w-160" clearable @keyup.enter="fetchInquiries" />
-            <el-date-picker v-model="inquiryDateRange" type="daterange" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" class="date-range" @change="fetchInquiries" />
-          </div>
-          <div class="filter-row">
-            <el-button color="#222" class="dark-btn" @click="fetchInquiries">筛选</el-button>
-            <el-button @click="resetInquiryFilters">重置</el-button>
-            <el-button type="success" plain @click="exportInquiries">导出 CSV</el-button>
-            <el-button type="warning" plain :disabled="!selectedInquiryIds.length" @click="bulkMarkRead">批量已读</el-button>
-          </div>
-        </div>
-
-        <el-alert v-if="crmError" :title="crmError" type="error" show-icon :closable="false" class="mb-16" />
-
-        <div class="mobile-admin-list crm-mobile-list" v-loading="inquiriesLoading">
-          <article v-for="row in inquiries" :key="row.id" class="mobile-admin-card crm-mobile-card">
-            <div class="mobile-list-body">
-              <div class="mobile-list-tags">
-                <el-tag size="small" :type="inquiryStatusMeta(row.status).type" effect="dark">{{ inquiryStatusMeta(row.status).label }}</el-tag>
-                <el-tag size="small" :type="inquiryPriorityMeta(row.priority).type" effect="dark">{{ inquiryPriorityMeta(row.priority).label }}</el-tag>
-                <el-tag size="small" effect="dark">{{ inquiryTypeLabel(row.inquiryType) }}</el-tag>
-              </div>
-              <strong>{{ row.customerName }}</strong>
-              <small>{{ row.contactInfo }}</small>
-              <p>{{ row.productTitle || '未关联产品' }} · {{ row.city || '未填城市' }}</p>
-              <div class="mobile-list-meta">
-                <span>{{ nextActionLabel(row) }}</span>
-                <span>{{ formatTime(row.createdAt) }}</span>
-              </div>
-              <div class="mobile-list-actions">
-                <el-button size="small" color="#222" class="dark-btn" @click="openInquiryDrawer(row)">详情</el-button>
-                <el-button v-if="!row.isRead" size="small" type="success" plain @click="readInquiry(row.id)">已读</el-button>
-                <el-button size="small" type="danger" @click="deleteInquiry(row.id)">删除</el-button>
-              </div>
+        <dl class="detail-list">
+          <dt>联系方式</dt>
+          <dd>
+            {{
+              can('crm:private')
+                ? (tab === 'artistApps'
+                    ? [active.email, active.phone].filter(Boolean).join(' / ')
+                    : active.contactInfo) || '未填写'
+                : '当前账号无查看权限'
+            }}
+          </dd>
+          <dt>{{ tab === 'inquiries' ? '咨询产品' : '作品资料' }}</dt>
+          <dd>
+            <a
+              v-if="
+                tab === 'artistApps' &&
+                /^https?:\/\//i.test(active.portfolioUrl || '')
+              "
+              :href="active.portfolioUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              >查看作品集 ↗</a
+            ><span v-else>{{
+              active.productTitle || active.portfolioUrl || '未填写'
+            }}</span>
+          </dd>
+          <dt>城市</dt>
+          <dd>{{ active.city || '未填写' }}</dd>
+          <template v-if="tab === 'inquiries'"
+            ><dt>预算 / 时间</dt>
+            <dd>
+              {{ active.budget || '未填写' }} /
+              {{ active.preferredTime || '未填写' }}
+            </dd></template
+          >
+        </dl>
+        <h3>{{ tab === 'inquiries' ? '客户需求' : '合作资料' }}</h3>
+        <p class="message-body">
+          {{
+            active.message || active.bio || active.experience || '未填写详情'
+          }}
+        </p>
+        <el-divider />
+        <el-form label-position="top" :disabled="!can('crm:write') || saving"
+          ><template v-if="tab === 'inquiries'"
+            ><div class="form-two-columns">
+              <el-form-item label="跟进阶段"
+                ><el-select v-model="form.status" class="full"
+                  ><el-option
+                    v-for="item in inquiryStatusOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value" /></el-select></el-form-item
+              ><el-form-item label="优先级"
+                ><el-select v-model="form.priority" class="full"
+                  ><el-option
+                    v-for="item in inquiryPriorityOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value" /></el-select
+              ></el-form-item>
             </div>
-          </article>
-          <div v-if="!inquiriesLoading && !inquiries.length" class="empty-panel compact-empty">暂无客户工单</div>
-        </div>
-
-        <el-table :data="inquiries" border class="wide-table mobile-hidden-table" row-key="id" v-loading="inquiriesLoading" empty-text="暂无客户工单" @selection-change="selectedInquiryIds = $event.map(row => row.id)" :row-class-name="rowClassName">
-          <el-table-column type="selection" width="45" />
-          <el-table-column label="阶段" width="100" align="center">
-            <template #default="{ row }"><el-tag :type="inquiryStatusMeta(row.status).type" effect="dark">{{ inquiryStatusMeta(row.status).label }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="优先级" width="90" align="center">
-            <template #default="{ row }"><el-tag :type="inquiryPriorityMeta(row.priority).type" effect="dark">{{ inquiryPriorityMeta(row.priority).label }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="类型" width="110"><template #default="{ row }">{{ inquiryTypeLabel(row.inquiryType) }}</template></el-table-column>
-          <el-table-column prop="customerName" label="客户" width="120" />
-          <el-table-column prop="contactInfo" label="联系方式" width="150" />
-          <el-table-column prop="productTitle" label="产品" width="170" show-overflow-tooltip />
-          <el-table-column prop="city" label="城市" width="100" />
-          <el-table-column prop="message" label="需求描述" min-width="260" show-overflow-tooltip />
-          <el-table-column label="下一步" width="150">
-            <template #default="{ row }">{{ nextActionLabel(row) }}</template>
-          </el-table-column>
-          <el-table-column label="提交时间" width="170"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="180" align="center">
-            <template #default="{ row }">
-              <el-button-group>
-                <el-button size="small" color="#222" class="dark-btn" @click="openInquiryDrawer(row)">详情</el-button>
-                <el-button v-if="!row.isRead" size="small" type="success" plain @click="readInquiry(row.id)">已读</el-button>
-                <el-button size="small" :icon="Delete" type="danger" @click="deleteInquiry(row.id)" />
-              </el-button-group>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-
-        <el-tab-pane name="artistApps">
-        <template #label>
-          艺术家招募审批
-          <el-badge v-if="pendingArtists > 0" :value="pendingArtists" type="warning" class="tab-badge" />
-        </template>
-        <div class="mobile-admin-list crm-mobile-list" v-loading="artistAppsLoading">
-          <article v-for="row in artistApps" :key="row.id" class="mobile-admin-card crm-mobile-card">
-            <div class="mobile-list-body">
-              <div class="mobile-list-tags">
-                <el-tag size="small" :type="row.status === 'pending' ? 'warning' : 'success'" effect="dark">{{ row.status === 'pending' ? '待审阅' : '已跟进' }}</el-tag>
-                <el-tag size="small" effect="dark">{{ row.name || '未命名申请' }}</el-tag>
-              </div>
-              <strong>{{ row.name }}</strong>
-              <small>{{ row.email }}</small>
-              <p>{{ row.message || '暂无简介' }}</p>
-              <div class="mobile-list-meta">
-                <span>{{ formatTime(row.createdAt) }}</span>
-              </div>
-              <div class="mobile-list-actions">
-                <el-button v-if="row.status === 'pending'" size="small" type="success" plain @click="reviewArtist(row.id)">标记跟进</el-button>
-                <el-button size="small" type="danger" @click="deleteArtistApp(row.id)">删除</el-button>
-              </div>
+            <div class="form-two-columns">
+              <el-form-item label="负责人"
+                ><el-select v-model="form.assigneeId" clearable
+                  ><el-option
+                    v-for="person in assignees"
+                    :key="person.id"
+                    :label="person.displayName || person.username"
+                    :value="person.id" /></el-select></el-form-item
+              ><el-form-item label="下次跟进时间"
+                ><el-date-picker
+                  v-model="form.nextFollowUpAt"
+                  type="datetime"
+                  value-format="YYYY-MM-DDTHH:mm:ssZ"
+                  placeholder="安排回访"
+              /></el-form-item>
             </div>
-          </article>
-          <div v-if="!artistAppsLoading && !artistApps.length" class="empty-panel compact-empty">暂无艺术家申请</div>
-        </div>
-
-        <el-table :data="artistApps" border class="wide-table mobile-hidden-table" v-loading="artistAppsLoading" empty-text="暂无艺术家申请">
-          <el-table-column label="状态" width="100" align="center">
-            <template #default="{ row }"><el-tag :type="row.status === 'pending' ? 'warning' : 'success'" effect="dark">{{ row.status === 'pending' ? '待审阅' : '已跟进' }}</el-tag></template>
-          </el-table-column>
-          <el-table-column prop="name" label="姓名/艺名" width="120" />
-          <el-table-column prop="email" label="联系邮箱" width="180" />
-          <el-table-column label="作品集" width="120"><template #default="{ row }"><a :href="row.portfolioUrl" target="_blank" class="link">查看链接</a></template></el-table-column>
-          <el-table-column prop="message" label="个人简介/意向" min-width="260" show-overflow-tooltip />
-          <el-table-column label="提交时间" width="170"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="190" align="center">
-            <template #default="{ row }">
-              <el-button v-if="row.status === 'pending'" size="small" type="success" plain @click="reviewArtist(row.id)">标记跟进</el-button>
-              <el-button size="small" :icon="Delete" type="danger" @click="deleteArtistApp(row.id)" />
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-    </el-tabs>
-
-    <el-drawer v-model="drawerOpen" title="工单详情与跟进" size="520px" class="dark-drawer">
-      <template v-if="activeInquiry">
-        <el-descriptions :column="1" border size="small" class="mb-18">
-          <el-descriptions-item label="客户">{{ inquiryForm.customerName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="联系方式">{{ inquiryForm.contactInfo || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="产品">{{ inquiryForm.productTitle || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="城市">{{ inquiryForm.city || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ formatTime(activeInquiry.createdAt) }}</el-descriptions-item>
-        </el-descriptions>
-
-        <div class="timeline-block">
+            <el-form-item label="乐器序列号"
+              ><el-input v-model="form.serialNumber" maxlength="100"
+            /></el-form-item>
+            <el-form-item label="本次跟进记录"
+              ><el-input
+                v-model="form.followUpNote"
+                type="textarea"
+                :rows="3"
+                maxlength="4000"
+                show-word-limit
+                placeholder="每次保存追加到时间线"
+            /></el-form-item>
+            <el-form-item label="内部汇总备注"
+              ><el-input
+                v-model="form.internalNote"
+                type="textarea"
+                :rows="6"
+                placeholder="记录沟通结果与下一步安排" /></el-form-item></template
+          ><el-form-item v-else label="申请状态"
+            ><el-select v-model="form.status" class="full"
+              ><el-option
+                v-for="(label, value) in artistStatuses"
+                :key="value"
+                :label="label"
+                :value="value" /></el-select></el-form-item
+        ></el-form>
+        <section v-if="tab === 'inquiries'">
           <h3>跟进时间线</h3>
-          <el-timeline>
-            <el-timeline-item :timestamp="formatTime(activeInquiry.createdAt)" type="primary">客户提交 {{ inquiryTypeLabel(activeInquiry.inquiryType) }}</el-timeline-item>
-            <el-timeline-item v-if="activeInquiry.followedAt" :timestamp="formatTime(activeInquiry.followedAt)" type="success">最近一次跟进：{{ inquiryStatusMeta(activeInquiry.status).label }}</el-timeline-item>
-            <el-timeline-item v-if="activeInquiry.internalNote" type="warning">{{ activeInquiry.internalNote }}</el-timeline-item>
-          </el-timeline>
-        </div>
-
-        <el-form :model="inquiryForm" label-width="90px">
-          <el-row :gutter="16">
-            <el-col :span="12"><el-form-item label="跟进阶段"><el-select v-model="inquiryForm.status" class="full"><el-option v-for="item in inquiryStatusOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item></el-col>
-            <el-col :span="12"><el-form-item label="优先级"><el-select v-model="inquiryForm.priority" class="full"><el-option v-for="item in inquiryPriorityOptions" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item></el-col>
-          </el-row>
-          <el-form-item label="下次动作"><el-input v-model="inquiryForm.nextAction" placeholder="例如：明天下午回电确认试奏时间" /></el-form-item>
-          <el-form-item label="客户需求"><el-input :model-value="inquiryForm.message" type="textarea" :rows="5" readonly /></el-form-item>
-          <el-form-item label="内部备注"><el-input v-model="inquiryForm.internalNote" type="textarea" :rows="5" placeholder="记录联系结果、报价、上门安排或下一步动作" /></el-form-item>
-        </el-form>
-
-        <div class="drawer-footer">
-          <el-button @click="drawerOpen = false">取消</el-button>
-          <el-button type="primary" @click="submitInquiryFollowup">保存跟进</el-button>
-        </div>
-      </template>
-    </el-drawer>
-  </div>
+          <el-alert
+            v-if="historyError"
+            :title="historyError"
+            type="error"
+            :closable="false"
+          /><el-timeline
+            ><el-timeline-item
+              v-for="item in history"
+              :key="item.id"
+              :timestamp="formatTime(item.createdAt)"
+              >{{ item.operator }} · {{ inquiryStatusMeta(item.status).label }}
+              <p class="message-body">{{ item.note }}</p></el-timeline-item
+            ></el-timeline
+          >
+          <p v-if="!history.length" class="field-hint">暂无跟进记录</p>
+        </section>
+        <el-button
+          v-if="
+            tab === 'artistApps' &&
+            active.status === 'approved' &&
+            !active.artistId &&
+            can('artists:write') &&
+            can('crm:write')
+          "
+          :loading="saving"
+          @click="convertArtist"
+          >建立艺术家草稿</el-button
+        >
+        <p v-if="active.artistId" class="field-hint">
+          已建立艺术家档案 #{{ active.artistId }}，请在艺术家栏目完善后发布。
+        </p>
+        <p v-if="!can('crm:write')" class="field-hint">
+          当前账号为只读，无法修改跟进记录。
+        </p>
+        <el-alert
+          v-if="saveError"
+          :title="saveError"
+          type="error"
+          :closable="false"
+          show-icon /></template
+      ><template #footer
+        ><el-button @click="closeDrawer(() => (drawer = false))">关闭</el-button
+        ><el-button
+          v-if="can('crm:write')"
+          type="primary"
+          :loading="saving"
+          @click="save"
+          >保存跟进</el-button
+        ></template
+      ></el-drawer
+    >
+  </section>
 </template>
-
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '../lib/editorLifecycle'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Search } from '@element-plus/icons-vue'
-import { api, extractErrorMessage, listData, recordExport, sensitiveConfirmation } from '../lib/api'
-import { csvEscape, downloadTextFile, formatTime } from '../lib/format'
-import { inquiryPriorityMeta, inquiryPriorityOptions, inquiryStatusMeta, inquiryStatusOptions, inquiryTypeLabel, inquiryTypeOptions } from '../lib/meta'
-
-const emit = defineEmits(['stats-change'])
-
-const crmTab = ref('inquiries')
-const inquiries = ref([])
-const artistApps = ref([])
-const inquiriesLoading = ref(false)
-const artistAppsLoading = ref(false)
-const crmError = ref('')
-const selectedInquiryIds = ref([])
-const drawerOpen = ref(false)
-const activeInquiry = ref(null)
-const inquiryDateRange = ref([])
-const inquiryFilters = reactive({ keyword: '', status: 'all', priority: 'all', type: 'all', city: '', product: '' })
-const inquiryForm = reactive({ id: null, status: 'new', priority: 'normal', internalNote: '', nextAction: '', customerName: '', contactInfo: '', productTitle: '', city: '', message: '' })
-const crmStateKey = 'hushi-admin-crm-state'
-
-const unreadCount = computed(() => inquiries.value.filter((row) => !row.isRead).length)
-const urgentCount = computed(() => inquiries.value.filter((row) => row.priority === 'urgent').length)
-const pendingArtists = computed(() => artistApps.value.filter((row) => row.status === 'pending').length)
-
-const summaryCards = computed(() => [
-  { label: '未读工单', value: unreadCount.value, tone: 'urgent' },
-  { label: '紧急工单', value: urgentCount.value, tone: 'danger' },
-  { label: '今日新增', value: todayCount.value, tone: '' },
-  { label: '待审艺术家', value: pendingArtists.value, tone: 'warning' }
-])
-
-const activePipelineCount = computed(() => inquiries.value.filter((row) => !['done', 'closed'].includes(row.status)).length)
-const crmOpsCards = computed(() => [
-  { label: '未读工单', value: unreadCount.value, desc: '需要先确认客户需求', tone: unreadCount.value ? 'danger' : 'success' },
-  { label: '紧急工单', value: urgentCount.value, desc: '建议当天处理', tone: urgentCount.value ? 'danger' : 'success' },
-  { label: '进行中', value: activePipelineCount.value, desc: '报价/服务/待跟进', tone: activePipelineCount.value ? 'primary' : 'success' },
-  { label: '艺术家申请', value: pendingArtists.value, desc: '待审阅合作线索', tone: pendingArtists.value ? 'warning' : 'success' }
-])
-
-const todayCount = computed(() => {
-  const today = new Date().toDateString()
-  return inquiries.value.filter((item) => item.createdAt && new Date(item.createdAt).toDateString() === today).length
+import {
+  api,
+  hasPermission as can,
+  listData,
+  paginationMeta,
+  extractErrorMessage,
+} from '../lib/api'
+import { formatTime } from '../lib/format'
+import {
+  inquiryStatusOptions,
+  inquiryStatusMeta,
+  inquiryTypeOptions,
+  inquiryTypeLabel,
+  inquiryPriorityOptions,
+} from '../lib/meta'
+const assignees = ref([]),
+  history = ref([]),
+  historyError = ref(''),
+  appFilters = reactive({ keyword: '', status: 'all' })
+let historyRequest = 0
+async function loadHistory(id) {
+  const request = ++historyRequest
+  history.value = []
+  historyError.value = ''
+  try {
+    const r = await api.get(`/api/inquiries/${id}/follow-ups`)
+    if (request === historyRequest) history.value = r.data.data
+  } catch (e) {
+    if (request === historyRequest) historyError.value = extractErrorMessage(e)
+  }
+}
+async function convertArtist() {
+  if (saving.value) return
+  saving.value = true
+  try {
+    await ElMessageBox.confirm(
+      '将通过的申请建立为艺术家草稿？私人联系方式不会公开。',
+      '建立档案',
+    )
+    const r = await api.post(
+      `/api/artist-applications/${active.value.id}/create-artist`,
+    )
+    active.value.artistId = r.data.data.id
+    ElMessage.success('艺术家草稿已建立')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close')
+      saveError.value = extractErrorMessage(e)
+  } finally {
+    saving.value = false
+  }
+}
+onMounted(async () => {
+  try {
+    assignees.value = (await api.get('/api/admin/crm/assignees')).data.data
+  } catch {}
 })
-
-const syncBadge = () => emit('stats-change', unreadCount.value + pendingArtists.value)
-
-const fetchInquiries = async () => {
-  inquiriesLoading.value = true
-  crmError.value = ''
-  const [startDate, endDate] = inquiryDateRange.value || []
-  const params = { ...inquiryFilters, startDate, endDate }
-  saveCrmState()
+const route = useRoute(),
+  tab = ref('inquiries'),
+  rows = ref([]),
+  page = ref(1),
+  total = ref(0),
+  loading = ref(false),
+  error = ref(''),
+  drawer = ref(false),
+  active = ref(null),
+  saving = ref(false),
+  saveError = ref('')
+const filters = reactive({ keyword: '', status: 'all', type: 'all' }),
+  form = reactive({ status: 'new', priority: 'normal', internalNote: '' })
+const artistStatuses = {
+    pending: '待审阅',
+    reviewed: '已跟进',
+    approved: '已通过',
+    rejected: '未通过',
+  },
+  artistStatus = (value) => artistStatuses[value] || value
+let requestId = 0,
+  savedForm = '',
+  openedInquiry = ''
+async function load() {
+  const id = ++requestId
+  loading.value = true
+  error.value = ''
   try {
-    const res = await api.get('/api/inquiries', { params })
-    inquiries.value = listData(res)
-    syncBadge()
-  } catch (error) {
-    crmError.value = extractErrorMessage(error, '工单列表加载失败')
-    inquiries.value = []
+    const res = await api.get(
+      tab.value === 'inquiries' ? '/api/inquiries' : '/api/artist-applications',
+      {
+        params: {
+          ...(tab.value === 'inquiries' ? filters : appFilters),
+          page: page.value,
+          pageSize: 20,
+        },
+      },
+    )
+    if (id !== requestId) return
+    rows.value = listData(res)
+    total.value = paginationMeta(res).total
+    if (page.value > 1 && !rows.value.length) {
+      page.value--
+      return load()
+    }
+    const selected = rows.value.find(
+      (row) => String(row.id) === route.query.inquiry,
+    )
+    if (selected && openedInquiry !== String(selected.id)) {
+      openedInquiry = String(selected.id)
+      open(selected)
+    }
+  } catch (e) {
+    if (id === requestId) {
+      error.value = extractErrorMessage(e, '咨询加载失败')
+      rows.value = []
+      total.value = 0
+    }
   } finally {
-    inquiriesLoading.value = false
+    if (id === requestId) loading.value = false
   }
 }
-
-const fetchArtistApps = async () => {
-  artistAppsLoading.value = true
-  try {
-    const res = await api.get('/api/artist-applications')
-    artistApps.value = listData(res)
-    syncBadge()
-  } catch (error) {
-    crmError.value = extractErrorMessage(error, '艺术家申请加载失败')
-    artistApps.value = []
-  } finally {
-    artistAppsLoading.value = false
-  }
+function applyFilters() {
+  page.value = 1
+  load()
 }
-
-const saveCrmState = () => {
-  try {
-    window.localStorage.setItem(crmStateKey, JSON.stringify({
-      tab: crmTab.value,
-      filters: { ...inquiryFilters },
-      dateRange: inquiryDateRange.value
-    }))
-  } catch {}
+function resetFilters() {
+  Object.assign(filters, { keyword: '', status: 'all', type: 'all' })
+  applyFilters()
 }
-
-const restoreCrmState = () => {
-  try {
-    const state = JSON.parse(window.localStorage.getItem(crmStateKey) || '{}')
-    if (state.tab) crmTab.value = state.tab
-    if (state.filters) Object.assign(inquiryFilters, state.filters)
-    if (Array.isArray(state.dateRange)) inquiryDateRange.value = state.dateRange
-  } catch {}
+function changeTab(value) {
+  tab.value = value
+  page.value = 1
+  load()
 }
-
-const resetInquiryFilters = () => {
-  Object.assign(inquiryFilters, { keyword: '', status: 'all', priority: 'all', type: 'all', city: '', product: '' })
-  inquiryDateRange.value = []
-  fetchInquiries()
-}
-
-const showUnreadInquiries = () => {
-  crmTab.value = 'inquiries'
-  Object.assign(inquiryFilters, { keyword: '', status: 'all', priority: 'all', type: 'all', city: '', product: '' })
-  inquiryDateRange.value = []
-  fetchInquiries()
-}
-
-const showUrgentInquiries = () => {
-  crmTab.value = 'inquiries'
-  inquiryFilters.priority = 'urgent'
-  fetchInquiries()
-}
-
-const exportInquiries = async () => {
-  await ElMessageBox.confirm(
-    `即将导出当前筛选结果中的 ${inquiries.value.length} 条客户工单，包含联系方式、需求描述和内部备注，并会写入导出审计记录。确认继续？`,
-    '客户资料导出确认',
-    { type: 'warning', confirmButtonText: '确认导出', cancelButtonText: '取消' }
-  )
-  const headers = ['阶段', '优先级', '类型', '客户', '联系方式', '产品', '城市', '预算', '期望时间', '需求描述', '内部备注', '提交时间']
-  const rows = inquiries.value.map((row) => [
-    inquiryStatusMeta(row.status).label,
-    inquiryPriorityMeta(row.priority).label,
-    inquiryTypeLabel(row.inquiryType),
-    row.customerName,
-    row.contactInfo,
-    row.productTitle,
-    row.city,
-    row.budget,
-    row.preferredTime,
-    row.message,
-    row.internalNote,
-    row.createdAt ? new Date(row.createdAt).toLocaleString() : ''
-  ])
-  const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n')
-  const filename = `hushi-inquiries-${new Date().toISOString().slice(0, 10)}.csv`
-  await recordExport({ module: 'crm', rowCount: rows.length, filename, filters: inquiryFilters, ...sensitiveConfirmation() })
-  downloadTextFile(filename, csv)
-  ElMessage.success(`已导出 ${rows.length} 条工单`)
-}
-
-const rowClassName = ({ row }) => row.priority === 'urgent' ? 'urgent-row' : ''
-
-const nextActionLabel = (row) => {
-  if (row.status === 'new') return '首次联系'
-  if (row.status === 'contacted') return '确认需求'
-  if (row.status === 'quoted') return '跟进报价'
-  if (row.status === 'processing') return '服务执行'
-  return row.status === 'done' ? '归档复盘' : '-'
-}
-
-const readInquiry = async (id) => {
-  await api.put(`/api/inquiries/${id}/read`)
-  await fetchInquiries()
-}
-
-const bulkMarkRead = async () => {
-  await Promise.all(selectedInquiryIds.value.map((id) => api.put(`/api/inquiries/${id}/read`)))
-  selectedInquiryIds.value = []
-  ElMessage.success('已批量标记已读')
-  fetchInquiries()
-}
-
-const openInquiryDrawer = (row) => {
-  activeInquiry.value = row
-  Object.assign(inquiryForm, {
-    id: row.id,
-    status: row.status || 'new',
+function open(row) {
+  active.value = row
+  if (tab.value === 'inquiries') loadHistory(row.id)
+  Object.assign(form, {
+    status: row.status || (tab.value === 'inquiries' ? 'new' : 'pending'),
     priority: row.priority || 'normal',
     internalNote: row.internalNote || '',
-    nextAction: nextActionLabel(row),
-    customerName: row.customerName || '',
-    contactInfo: row.contactInfo || '',
-    productTitle: row.productTitle || '',
-    city: row.city || '',
-    message: row.message || ''
+    assigneeId: row.assigneeId || null,
+    nextFollowUpAt: row.nextFollowUpAt || null,
+    serialNumber: row.serialNumber || '',
+    followUpNote: '',
   })
-  drawerOpen.value = true
+  savedForm = JSON.stringify(form)
+  saveError.value = ''
+  drawer.value = true
 }
-
-const submitInquiryFollowup = async () => {
-  const note = [inquiryForm.internalNote, inquiryForm.nextAction ? `下一步：${inquiryForm.nextAction}` : ''].filter(Boolean).join('\n')
-  await api.put(`/api/inquiries/${inquiryForm.id}`, { status: inquiryForm.status, priority: inquiryForm.priority, internalNote: note, isRead: true })
-  drawerOpen.value = false
-  ElMessage.success('工单跟进已保存')
-  fetchInquiries()
-}
-
-const deleteInquiry = async (id) => {
-  await ElMessageBox.confirm('确定删除该工单？', '敏感操作确认', { type: 'warning' })
-  await api.delete(`/api/inquiries/${id}`)
-  ElMessage.success('已删除')
-  fetchInquiries()
-}
-
-const reviewArtist = async (id) => {
-  await api.put(`/api/artist-applications/${id}/status`, { status: 'reviewed' })
-  ElMessage.success('已标记跟进')
-  fetchArtistApps()
-}
-
-const deleteArtistApp = async (id) => {
-  await ElMessageBox.confirm('确定删除该申请？', '敏感操作确认', { type: 'warning' })
-  await api.delete(`/api/artist-applications/${id}`)
-  ElMessage.success('已删除')
-  fetchArtistApps()
-}
-
-onMounted(() => {
-  restoreCrmState()
-  fetchInquiries()
-  fetchArtistApps()
+const { confirmLeave } = useUnsavedChanges({
+  dirty: () =>
+    drawer.value && can('crm:write') && JSON.stringify(form) !== savedForm,
+  busy: () => saving.value,
 })
+async function closeDrawer(done) {
+  if (await confirmLeave()) done()
+}
 
-watch(crmTab, saveCrmState)
+async function save() {
+  if (saving.value || !active.value || !can('crm:write')) return
+  saving.value = true
+  saveError.value = ''
+  try {
+    if (tab.value === 'inquiries')
+      await api.put(`/api/inquiries/${active.value.id}`, {
+        ...form,
+        assigneeId: form.assigneeId || null,
+        nextFollowUpAt: form.nextFollowUpAt || null,
+        isRead: true,
+      }, { headers: { 'If-Match': String(active.value.revision) } })
+    else
+      await api.put(`/api/artist-applications/${active.value.id}/status`, {
+        status: form.status,
+      })
+    savedForm = JSON.stringify(form)
+    drawer.value = false
+    ElMessage.success('跟进已保存')
+    await load()
+  } catch (e) {
+    saveError.value = extractErrorMessage(e, '保存失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
+function readRoute() {
+  tab.value = route.query.tab === 'artistApps' ? 'artistApps' : 'inquiries'
+  filters.due = route.query.due === '1' ? '1' : ''
+  const status = route.query.status
+  filters.status = inquiryStatusOptions.some((item) => item.value === status)
+    ? status
+    : 'all'
+  applyFilters()
+}
+watch(() => route.query, readRoute)
+onMounted(readRoute)
 </script>

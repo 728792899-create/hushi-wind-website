@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('../lib/demo-guard').assertDemoTarget();
 
 const fs = require('fs')
 const path = require('path')

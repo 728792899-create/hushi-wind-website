@@ -30,6 +30,7 @@ import {
   ElMenu,
   ElMenuItem,
   ElOption,
+  ElPagination,
   ElRow,
   ElSelect,
   ElSubMenu,
@@ -41,10 +42,10 @@ import {
   ElTag,
   ElTimeline,
   ElTimelineItem,
-  ElUpload
+  ElUpload,
 } from 'element-plus'
 import 'element-plus/dist/index.css'
-import 'element-plus/theme-chalk/dark/css-vars.css' // 开启暗黑模式
+import { ElLoading } from 'element-plus'
 import App from './App.vue'
 import { router } from './router'
 import './style.css'
@@ -81,6 +82,7 @@ const app = createApp(App)
   ElMenu,
   ElMenuItem,
   ElOption,
+  ElPagination,
   ElRow,
   ElSelect,
   ElSubMenu,
@@ -92,7 +94,9 @@ const app = createApp(App)
   ElTag,
   ElTimeline,
   ElTimelineItem,
-  ElUpload
+  ElUpload,
 ].forEach((component) => app.component(component.name, component))
+app.use(ElLoading)
 app.use(router)
-app.mount('#app')
+// Resolve deep links before App validates the session and chooses a landing route.
+router.isReady().then(() => app.mount('#app'))

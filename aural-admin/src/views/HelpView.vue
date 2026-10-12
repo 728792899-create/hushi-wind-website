@@ -1,183 +1,43 @@
 <template>
-  <div class="help-page page-shell">
-    <section class="business-command-panel help-command-panel">
-      <div class="business-command-main">
-        <span class="business-kicker">后台使用手册</span>
-        <h2>新管理员先按这条路线完成日常运营</h2>
-        <p>帮助页用于交付、培训和日常自查。先从产品、内容、资源和客户四个高频任务进入，再按下方流程检查风险动作。</p>
-        <div class="business-command-actions">
-          <el-button color="#222" class="dark-btn" @click="openFrontend">打开官网</el-button>
-          <el-button type="primary" color="#fff" class="light-btn" @click="go('/dashboard')">返回工作台</el-button>
+  <section class="help-center" aria-label="后台使用指南">
+    <div class="panel help-search-panel">
+      <div class="help-intro"><div><span class="eyebrow">日常操作指南</span><h2>今天需要完成什么？</h2><p>查找操作步骤，或直接前往对应栏目。</p></div><RouterLink to="/settings" class="help-back">返回设置 <span aria-hidden="true">→</span></RouterLink></div>
+      <label class="help-search-label" for="help-search">搜索使用帮助</label>
+      <div class="help-search"><Search aria-hidden="true"/><input id="help-search" v-model="query" type="search" placeholder="试试：上架产品、修改草稿、素材命名" autocomplete="off"/><button v-if="query" type="button" @click="query=''">清空</button></div>
+      <div class="help-shortcuts"><span>常用入口</span><RouterLink v-for="link in shortcuts" :key="link.link" :to="link.link">{{ link.action }} <span aria-hidden="true">↗</span></RouterLink></div>
+    </div>
+    <div class="help-layout">
+      <aside class="help-sidebar"><nav aria-label="帮助主题"><button v-for="topic in helpTopics" :key="topic.id" :aria-pressed="activeTopic===topic.id" :class="{active:activeTopic===topic.id}" @click="activeTopic=topic.id">{{ topic.label }}<span aria-hidden="true">→</span></button></nav><p>操作入口按账号权限显示。没有编辑权限时，仍可查阅指南。</p></aside>
+      <div class="help-results">
+        <div class="help-results-heading"><h2>{{ activeLabel }}</h2><span role="status" aria-live="polite">{{ guides.length }} 篇指南 · {{ faqs.length }} 个常见问题</span></div>
+        <div v-if="!guides.length && !faqs.length" class="panel help-empty"><Search aria-hidden="true"/><h3>没有找到相关帮助</h3><p>试试更短的关键词，或查看全部主题。</p><button class="help-reset" @click="reset">清除筛选，查看全部</button></div>
+        <div v-if="guides.length" class="help-guide-list">
+          <details v-for="(guide,index) in guides" :key="`${activeTopic}:${query}:${guide.id}`" class="panel help-guide" :open="index===0">
+            <summary><span class="help-guide-number" aria-hidden="true">{{ String(index+1).padStart(2,'0') }}</span><span class="help-guide-heading"><span class="help-guide-title">{{ guide.title }}</span><span class="help-guide-description">{{ guide.description }}</span></span><Plus class="help-expand" aria-hidden="true"/></summary>
+            <div class="help-guide-body"><ol><li v-for="step in guide.steps" :key="step">{{ step }}</li></ol><p v-if="guide.note" class="help-note">{{ guide.note }}</p><div class="help-actions"><template v-for="link in guideLinks(guide)" :key="link.link"><RouterLink v-if="can(link.permission)" :to="link.link">{{ link.action }} <span aria-hidden="true">→</span></RouterLink><span v-else class="help-no-access">该栏目需要相应访问权限</span></template></div></div>
+          </details>
         </div>
+        <section v-if="faqs.length" class="panel help-faq" aria-labelledby="help-faq-title"><h2 id="help-faq-title">常见问题</h2><details v-for="faq in faqs" :key="`${activeTopic}:${query}:${faq.id}`"><summary>{{ faq.title }}<Plus class="help-expand" aria-hidden="true"/></summary><p>{{ faq.answer }}</p></details></section>
+        <p class="help-footer">遇到操作异常？记录所在页面、操作步骤和错误提示，交给管理员排查。请勿提供账号密码。</p>
       </div>
-      <div class="business-task-grid">
-        <article v-for="item in helpOpsCards" :key="item.label" class="business-task-card" :class="item.tone">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <small>{{ item.desc }}</small>
-        </article>
-      </div>
-    </section>
-
-    <section class="help-quick-grid">
-      <button v-for="item in quickLinks" :key="item.path" type="button" class="help-quick-card" @click="go(item.path)">
-        <strong>{{ item.title }}</strong>
-        <span>{{ item.desc }}</span>
-      </button>
-    </section>
-
-    <section class="help-section">
-      <div class="help-section-title">
-        <strong>常见操作流程</strong>
-        <span>建议按顺序操作，保存后再打开前台确认展示效果。</span>
-      </div>
-      <div class="help-guide-grid">
-        <article v-for="guide in guides" :key="guide.title" class="help-guide-card">
-          <div class="help-guide-head">
-            <strong>{{ guide.title }}</strong>
-            <span>{{ guide.module }}</span>
-          </div>
-          <ol>
-            <li v-for="step in guide.steps" :key="step">{{ step }}</li>
-          </ol>
-          <div class="help-guide-actions">
-            <el-button size="small" color="#222" class="dark-btn" @click="go(guide.path)">进入模块</el-button>
-            <el-button v-if="guide.preview" size="small" @click="openPreview(guide.preview)">前台查看</el-button>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="help-section">
-      <div class="help-section-title">
-        <strong>容易误操作的地方</strong>
-        <span>这些动作会影响官网展示或线上素材，操作前建议多确认一次。</span>
-      </div>
-      <div class="help-warning-list">
-        <article v-for="item in warnings" :key="item.title" class="help-warning-card">
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.desc }}</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="help-section">
-      <div class="help-section-title">
-        <strong>每次更新后的检查</strong>
-        <span>后台内容调整后，做一次简单巡检可以提前发现隐藏问题。</span>
-      </div>
-      <div class="help-checklist">
-        <label v-for="item in checklist" :key="item">
-          <input type="checkbox" />
-          <span>{{ item }}</span>
-        </label>
-      </div>
-    </section>
-  </div>
+    </div>
+  </section>
 </template>
-
 <script setup>
-import { useRouter } from 'vue-router'
-import { SITE, openPreview } from '../lib/api'
-
-const router = useRouter()
-
-const helpOpsCards = [
-  { label: '快速入口', value: '4 个', desc: '产品、新闻、资源、客户', tone: 'primary' },
-  { label: '操作流程', value: '5 条', desc: '覆盖发布、替换和回滚', tone: 'success' },
-  { label: '风险提醒', value: '5 项', desc: '删除、替换、隐藏前先确认', tone: 'warning' },
-  { label: '上线检查', value: '5 步', desc: '每次更新后都能自查', tone: 'success' }
-]
-
-const quickLinks = [
-  { title: '上架产品', desc: '新增乐器、补主图、详情图、价格库存。', path: '/products' },
-  { title: '发布新闻', desc: '维护品牌动态、活动和新闻摘要。', path: '/articles' },
-  { title: '管理素材', desc: '上传图片、复制 URL、替换引用和清理未使用资源。', path: '/resources' },
-  { title: '处理工单', desc: '查看预约、咨询、售后和艺术家申请。', path: '/crm' }
-]
-
-const guides = [
-  {
-    title: '新增一款产品',
-    module: '产品管理',
-    path: '/products',
-    preview: '/products',
-    steps: [
-      '进入产品管理，点击上架乐器。',
-      '先填写基础信息、主图、分类和 URL 后缀。',
-      '补充价格库存、发布状态和详情图集。',
-      '保存草稿后预览，确认无误再保存并发布。'
-    ]
-  },
-  {
-    title: '发布一条新闻',
-    module: '新闻管理',
-    path: '/articles',
-    preview: '/news',
-    steps: [
-      '进入新闻管理，点击发布新闻。',
-      '填写标题、栏目分类、发布日期和封面。',
-      '正文可以直接写段落，也可以用格式助手插入小标题、引用、图片或视频。',
-      '确认标题、封面和摘要无误后发布。'
-    ]
-  },
-  {
-    title: '新闻正文插入图片或视频',
-    module: '新闻管理',
-    path: '/articles',
-    preview: '/news',
-    steps: [
-      '编辑新闻时，在“正文详情”下方使用“上传图片插入”或“上传视频插入”。',
-      '上传成功后，系统会自动把图片或视频标记插入正文，不需要手动复制地址。',
-      '每个小标题、引用、图片或视频建议单独占一行，前台会自动排版。',
-      '保存草稿后先点击预览，确认图片、视频、标题层级正常再发布。'
-    ]
-  },
-  {
-    title: '替换官网图片',
-    module: '资源库',
-    path: '/resources',
-    preview: '/',
-    steps: [
-      '先在资源库上传新图片，复制新图片 URL。',
-      '点击替换引用，填入旧 URL 和新 URL。',
-      '查看命中位置和影响范围。',
-      '确认后执行替换，再打开前台检查图片显示。'
-    ]
-  },
-  {
-    title: '恢复历史版本',
-    module: '版本历史',
-    path: '/products',
-    preview: '/',
-    steps: [
-      '在产品、新闻或页面内容列表中点击更多/版本。',
-      '查看版本时间、操作人和摘要。',
-      '确认要恢复的历史记录后点击回滚。',
-      '回滚后重新打开前台页面确认内容。'
-    ]
-  }
-]
-
-const warnings = [
-  { title: '清理未使用资源', desc: '只清理确认未被官网内容引用的上传文件。清理前务必查看筛选条件、数量和清理列表。' },
-  { title: '替换资源引用', desc: '批量替换会影响产品、新闻、CMS、艺术家和全局配置中匹配到的图片或文件地址。' },
-  { title: '隐藏或删除内容', desc: '隐藏会让前台不再公开展示，删除则会移除内容。重要内容建议优先隐藏或保存草稿。' },
-  { title: '修改 URL 后缀', desc: '产品和页面的 URL 后缀会影响前台访问地址。已有页面不要随意变更，避免旧链接失效。' },
-  { title: '新闻正文媒体', desc: '新闻正文中的图片和视频来自上传资源。删除或替换资源前，需要先确认它是否被新闻详情页引用。' }
-]
-
-const checklist = [
-  '前台首页能正常打开，首屏图片和核心入口显示正常。',
-  '产品目录、产品详情、新闻列表、支持页可以正常访问。',
-  '新发布或修改的内容在前台展示正确。',
-  '表单提交、资源预览、图片加载没有明显错误。',
-  '后台工作台、资源库、安全与审计页面没有红色错误提示。'
-]
-
-const go = (path) => router.push(path)
-
-const openFrontend = () => {
-  window.open(SITE || '/', '_blank', 'noopener,noreferrer')
-}
+import { computed, ref } from 'vue'
+import { Search, Plus } from '@element-plus/icons-vue'
+import { hasPermission } from '../lib/api'
+import { helpTopics, helpGuides, helpFaqs, filterHelp, guideLinks } from '../lib/helpContent'
+const query=ref(''), activeTopic=ref('all')
+const can=permission=>!permission || hasPermission(permission)
+const guides=computed(()=>filterHelp(helpGuides,activeTopic.value,query.value))
+const faqs=computed(()=>filterHelp(helpFaqs,activeTopic.value,query.value))
+const activeLabel=computed(()=>query.value.trim()?'搜索结果':helpTopics.find(t=>t.id===activeTopic.value)?.label)
+const shortcuts=computed(()=>['new-product','media','inquiry'].flatMap(id=>guideLinks(helpGuides.find(g=>g.id===id))).filter(link=>can(link.permission)))
+function reset(){query.value='';activeTopic.value='all'}
 </script>
+<style scoped>
+.help-center{display:grid;gap:28px;max-width:1280px;margin:0 auto}.help-search-panel{padding:28px 32px}.help-intro{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}.help-intro h2{font-size:26px;margin:10px 0}.help-intro p{color:var(--el-text-color-secondary);margin:0}.help-back{white-space:nowrap;font-size:13px}.help-search-label{display:block;font-size:13px;font-weight:600;margin:26px 0 8px}.help-search{display:flex;align-items:center;gap:12px;border:1px solid var(--el-border-color);border-radius:8px;padding:0 15px;background:var(--el-fill-color-blank);max-width:750px;min-height:50px}.help-search:focus-within{outline:2px solid var(--el-color-primary);outline-offset:2px}.help-search svg{width:19px;flex-shrink:0;color:var(--el-text-color-secondary)}.help-search input{border:0;background:transparent;outline:none;min-width:0;width:100%;font:inherit;color:var(--el-text-color-primary);padding:14px 0}.help-search button{flex-shrink:0;border:0;background:none;color:var(--el-color-primary);font:inherit;cursor:pointer}.help-shortcuts{display:flex;flex-wrap:wrap;gap:12px 22px;margin-top:18px;font-size:13px}.help-shortcuts>span{color:var(--el-text-color-secondary)}.help-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:30px;align-items:start}.help-sidebar{position:sticky;top:88px}.help-sidebar nav{display:grid;gap:6px}.help-sidebar button{display:flex;justify-content:space-between;align-items:center;text-align:left;border:1px solid transparent;padding:13px 16px;border-radius:7px;font:inherit;background:transparent;color:var(--el-text-color-regular);cursor:pointer}.help-sidebar button span{opacity:0}.help-sidebar button.active{background:var(--el-color-primary-light-9);color:var(--el-color-primary);border-color:var(--el-color-primary-light-7);font-weight:600}.help-sidebar button.active span{opacity:1}.help-sidebar p{font-size:12px;line-height:1.9;color:var(--el-text-color-secondary);padding:10px 16px}.help-results{min-width:0}.help-results-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 18px}.help-results h2{font-size:19px;margin:0}.help-results-heading>span{font-size:12px;color:var(--el-text-color-secondary)}.help-guide-list{display:grid;gap:12px}.help-guide{padding:0;overflow:hidden}.help-guide summary{display:flex;align-items:center;gap:17px;padding:22px 24px;cursor:pointer;list-style:none}.help-guide summary::-webkit-details-marker,.help-faq summary::-webkit-details-marker{display:none}.help-guide-number{font-size:12px;letter-spacing:.08em;color:var(--el-color-primary);align-self:flex-start;padding-top:4px}.help-guide-heading{display:grid;gap:7px;flex:1}.help-guide-title{font-size:16px;font-weight:600}.help-guide-description{font-size:13px;color:var(--el-text-color-secondary);line-height:1.65}.help-expand{width:17px;height:17px;flex-shrink:0;color:var(--el-text-color-secondary)}details[open]>summary .help-expand{transform:rotate(45deg)}.help-guide-body{padding:0 24px 24px 60px}.help-guide ol{margin:0;padding-left:20px;display:grid;gap:13px;font-size:14px;line-height:1.9}.help-guide li{padding-left:6px}.help-guide li::marker{color:var(--el-color-primary);font-weight:600}.help-note{border-left:3px solid var(--el-color-primary-light-5);background:var(--el-fill-color-light);padding:12px 16px;font-size:13px;line-height:1.8;margin:20px 0;color:var(--el-text-color-regular)}.help-actions{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:20px}.help-no-access{color:var(--el-text-color-secondary)}.help-faq{padding:24px;margin-top:26px}.help-faq h2{margin-bottom:12px}.help-faq details+details{border-top:1px solid var(--el-border-color-lighter)}.help-faq summary{display:flex;justify-content:space-between;align-items:center;gap:20px;list-style:none;padding:17px 0;cursor:pointer;font-size:14px;font-weight:500;line-height:1.65}.help-faq p{margin:0 0 20px;color:var(--el-text-color-regular);line-height:1.9;font-size:14px}.help-empty{text-align:center;padding:42px 24px}.help-empty>svg{width:30px;color:var(--el-text-color-secondary)}.help-empty p,.help-footer{color:var(--el-text-color-secondary);font-size:13px;line-height:1.9}.help-reset{padding:10px 16px;border:1px solid var(--el-border-color);border-radius:6px;background:var(--el-fill-color-blank);color:var(--el-color-primary);font:inherit;cursor:pointer}.help-footer{margin:22px 0 0}.help-center a{color:var(--el-color-primary);text-decoration:none}.help-center a:hover{text-decoration:underline}.help-center button:focus-visible,.help-center summary:focus-visible,.help-center a:focus-visible{outline:2px solid var(--el-color-primary);outline-offset:3px}
+@media(max-width:900px){.help-layout{grid-template-columns:1fr;gap:18px}.help-sidebar{position:static}.help-sidebar nav{display:flex;flex-wrap:wrap;gap:6px}.help-sidebar button{padding:9px 12px;font-size:13px}.help-sidebar button span,.help-sidebar p{display:none}.help-search-panel{padding:24px}.help-guide-body{padding-left:24px}}
+@media(max-width:560px){.help-center{gap:20px}.help-search-panel{padding:20px}.help-intro{gap:14px;flex-direction:column}.help-intro h2{font-size:23px}.help-guide summary{padding:18px 16px;gap:12px}.help-guide-number{display:none}.help-guide-body{padding:0 18px 20px}.help-results-heading{align-items:flex-start;flex-direction:column}.help-faq{padding:20px}.help-search input{font-size:14px}}
+</style>

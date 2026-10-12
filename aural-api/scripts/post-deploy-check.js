@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const {checkAuthBoundary}=require('../lib/deployment-auth-check')
 const fs = require('fs')
 const path = require('path')
 const { loadEnvFile } = require('./load-env')
@@ -55,6 +56,12 @@ const checkHealth = async () => {
 }
 
 const checkLogin = async () => {
+  const boundary=await checkAuthBoundary(request,apiUrl)
+  pushResult('Admin authentication boundary',boundary.ok,boundary.detail)
+  if(process.env.POST_DEPLOY_CHECK_LOGIN !== '1') {
+    console.log('INFO Human login/MFA acceptance is separate; unattended checks do not log in as an administrator.')
+    return
+  }
   if (!adminUsername || !adminPassword) {
     pushResult('Admin login API', false, 'ADMIN_USERNAME and ADMIN_PASSWORD are required for login check')
     return
@@ -62,7 +69,7 @@ const checkLogin = async () => {
   const res = await request(`${apiUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: adminUsername, password: adminPassword })
+    body: JSON.stringify({ username: adminUsername, password: adminPassword, totpCode: process.env.POST_DEPLOY_TOTP_CODE })
   })
   const json = await res.json().catch(() => null)
   pushResult('Admin login API', res.ok && json?.success === true && Boolean(json?.token), `status=${res.status}, success=${json?.success}`)

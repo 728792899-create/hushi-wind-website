@@ -297,7 +297,7 @@ const checkProductWriteFlow = async (imageUrl) => {
   const updatePayload = { ...createPayload, title: `[ACCEPTANCE] ${stamp} edited`, quantity: 2, price: 2 }
   const updatedRes = await requestJson(`${apiBase}/api/products/${productId}`, {
     method: 'PUT',
-    headers: adminHeaders({ 'Content-Type': 'application/json' }),
+    headers: adminHeaders({ 'Content-Type': 'application/json', 'If-Match': createdRes.json.updatedAt }),
     body: JSON.stringify(updatePayload)
   })
   assert(updatedRes.res.ok && updatedRes.json?.title?.includes('edited'), `edit product failed: status=${updatedRes.res.status}`)

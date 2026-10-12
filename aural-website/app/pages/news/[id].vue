@@ -157,14 +157,15 @@ const { data: strapiNews, pending: listPending, error: listError, refresh: refre
   default: () => ({ data: [] })
 })
 
+const articleDetailUrl = useApiUrl(() => `/api/articles/${requestedKey.value}`)
 const { data: articleDetailResponse, pending: detailPending, error: detailError, refresh: refreshDetail } = await useAsyncData(
-  () => `news-detail-direct-${requestedKey.value || 'empty'}`,
+  () => `news-detail-direct-${requestedKey.value || 'empty'}-${route.query.previewToken || ''}`,
   async () => {
     if (!isNumericArticleId.value) return { data: null }
-    return await $fetch(`${apiBase.value}/api/articles/${requestedKey.value}`)
+    return await $fetch(articleDetailUrl.value)
   },
   {
-    watch: [requestedKey],
+    watch: [requestedKey, articleDetailUrl],
     default: () => ({ data: null })
   }
 )

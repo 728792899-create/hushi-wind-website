@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="bg-white min-h-screen pb-32 relative">
-    
+
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
       <button @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto">
         <div class="w-10 h-10 flex items-center justify-center rounded-full border border-white/50 group-hover:border-white transition-colors">
@@ -86,7 +86,7 @@
           </div>
         </div>
       </div>
-      
+
       <div v-if="displayFeatured" class="mb-24 group gsap-fade-up">
         <NuxtLink
           v-if="!route.query.id"
@@ -153,7 +153,7 @@ const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.brandCraft)
 const articlesUrl = useApiUrl('/api/articles?populate=*')
 const { track } = useAuralTrack()
-const { data: strapiNews, pending, error, refresh } = await useFetch(articlesUrl, { lazy: true, key: 'news-index' })
+const { data: strapiNews, pending, error, refresh } = await useCompleteApiList(articlesUrl, { lazy: true, key: 'news-index' })
 
 const searchKeyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const activeCategory = ref(typeof route.query.category === 'string' ? route.query.category : 'all')

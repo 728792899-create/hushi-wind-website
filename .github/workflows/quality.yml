@@ -1,0 +1,29 @@
+name: Quality
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            aural-api/package-lock.json
+            aural-admin/package-lock.json
+            aural-website/package-lock.json
+      - run: npm ci --prefix aural-api
+      - run: npm ci --prefix aural-admin
+      - run: npm ci --prefix aural-website
+      - run: npm test
+      - run: npm run quality
+        env:
+          DATABASE_URL: file:./dev.db
+          VITE_API_BASE: https://api.example.invalid
+          VITE_SITE_URL: https://www.example.invalid
+          NUXT_PUBLIC_API_BASE: https://api.example.invalid
+          NUXT_PUBLIC_SITE_URL: https://www.example.invalid
