@@ -209,6 +209,15 @@
           </div>
           <el-button @click="loadTab">刷新</el-button>
         </div>
+        <div class="inline-note mb-16">
+          <el-button v-if="can('logs:read')" :loading="integrityLoading" @click="verifyIntegrity">校验记录完整性</el-button>
+          <p class="field-hint">校验接手后的一致性。</p>
+          <div v-if="integrityResult" role="status" aria-live="polite">
+            <p>校验通过，共 {{ integrityResult.logCount }} 条记录。</p>
+            <p class="field-hint">历史基线 {{ integrityResult.baselineCount }} 条，新记录 {{ integrityResult.entryCount }} 条；校验时间：{{ formatTime(integrityCheckedAt) }}。</p>
+          </div>
+          <el-alert v-if="integrityError" :title="integrityError" type="error" show-icon :closable="false" />
+        </div>
         <div class="filter-row wrap mb-16">
           <el-input
             v-model="logFilters.operator"
@@ -219,6 +228,7 @@
             @clear="logSearch"
           /><el-select
             v-model="logFilters.module"
+            aria-label="操作记录栏目"
             class="w-140"
             @change="logSearch"
             ><el-option label="全部栏目" value="all" /><el-option
@@ -294,6 +304,38 @@
           ></el-table
         ></template
       >
+      <template v-if="tab === 'alerts'">
+        <div class="panel-heading">
+          <div>
+            <h2>安全告警</h2>
+            <p>查看异常访问与运行告警，核查后标记处理结果。</p>
+          </div>
+          <el-button :loading="loading" :disabled="saving" @click="loadTab">刷新告警</el-button>
+        </div>
+        <p v-if="!can('alerts:write')" class="field-hint">当前账号可查看告警，处理结果由有权限的管理员更新。</p>
+        <el-table :data="rows" class="wide-table mobile-hidden-table" empty-text="暂无安全告警">
+          <el-table-column label="时间" width="170"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="级别" width="90"><template #default="{ row }"><el-tag :type="alertLevel(row.level).type">{{ alertLevel(row.level).label }}</el-tag></template></el-table-column>
+          <el-table-column prop="title" label="标题" min-width="200" />
+          <el-table-column prop="message" label="说明" min-width="260" />
+          <el-table-column label="状态" width="100"><template #default="{ row }">{{ alertStatus(row.status) }}</template></el-table-column>
+          <el-table-column v-if="can('alerts:write')" label="处理" fixed="right" width="140">
+            <template #default="{ row }"><el-button text type="primary" :disabled="saving || loading || row.status !== 'new'" :aria-label="`标记告警“${row.title}”为已处理`" @click="resolveAlert(row)">标记已处理</el-button></template>
+          </el-table-column>
+        </el-table>
+        <div class="mobile-admin-list">
+          <article v-for="row in rows" :key="row.id" class="mobile-admin-card">
+            <div class="mobile-list-body">
+              <strong class="wrap-text">{{ row.title }}</strong>
+              <div class="mobile-list-tags"><el-tag :type="alertLevel(row.level).type">{{ alertLevel(row.level).label }}</el-tag><span>{{ alertStatus(row.status) }}</span></div>
+              <div class="field-hint wrap-text">{{ row.message || '暂无补充说明' }}</div>
+              <small>{{ formatTime(row.createdAt) }}</small>
+              <div v-if="can('alerts:write')" class="mobile-list-actions"><el-button :disabled="saving || loading || row.status !== 'new'" :aria-label="`标记告警“${row.title}”为已处理`" @click="resolveAlert(row)">标记已处理</el-button></div>
+            </div>
+          </article>
+          <div v-if="!rows.length && !loading" class="empty-panel">暂无安全告警</div>
+        </div>
+      </template>
       <template v-if="tab === 'notifications'"
         ><h2>通知投递</h2>
         <p class="field-hint">
@@ -348,6 +390,7 @@
             'backups',
             'activity',
             'recycle',
+            'alerts',
             'notifications',
             'maintenance',
           ].includes(tab)
@@ -491,6 +534,38 @@ const user = ref(getCurrentUser() || {}),
   secret = ref(''),
   code = ref(''),
   memberOpen = ref(false)
+const integrityResult = ref(null),
+  integrityLoading = ref(false),
+  integrityError = ref(''),
+  integrityCheckedAt = ref('')
+let integrityRequest = 0
+function clearIntegrity() {
+  integrityRequest++
+  integrityResult.value = null
+  integrityLoading.value = false
+  integrityError.value = ''
+  integrityCheckedAt.value = ''
+}
+async function verifyIntegrity() {
+  if (!can('logs:read') || tab.value !== 'activity' || integrityLoading.value) return
+  const id = ++integrityRequest
+  integrityResult.value = null
+  integrityError.value = ''
+  integrityCheckedAt.value = ''
+  integrityLoading.value = true
+  try {
+    const res = await api.get('/api/admin/audit-integrity')
+    if (id !== integrityRequest || tab.value !== 'activity') return
+    if (!res.data.data?.ok) throw new Error('记录完整性尚未确认，请重试')
+    integrityResult.value = res.data.data
+    integrityCheckedAt.value = new Date().toISOString()
+  } catch (e) {
+    if (id === integrityRequest && tab.value === 'activity')
+      integrityError.value = extractErrorMessage(e, '记录完整性校验失败')
+  } finally {
+    if (id === integrityRequest) integrityLoading.value = false
+  }
+}
 const logFilters = reactive({
   operator: '',
   module: 'all',
@@ -520,6 +595,7 @@ const tabs = computed(() => [
     ? [
         { id: 'backups', label: '数据备份' },
         { id: 'activity', label: '操作记录' },
+        { id: 'alerts', label: '安全告警' },
         { id: 'notifications', label: '通知投递' },
         { id: 'maintenance', label: '维护记录' },
       ]
@@ -535,11 +611,19 @@ const moduleLabel = (m) =>
     artists: '艺术家',
     resources: '素材',
     security: '账号安全',
+    monitoring: '安全告警',
     system: '系统',
     auth: '登录',
   })[m] ||
   m ||
   '—'
+const alertLevel = (level) => ({
+  critical: { label: '严重', type: 'danger' },
+  error: { label: '错误', type: 'danger' },
+  warning: { label: '警告', type: 'warning' },
+  info: { label: '提醒', type: 'info' },
+})[level] || { label: level || '提醒', type: 'info' }
+const alertStatus = (status) => ({ new: '待处理', resolved: '已处理' })[status] || status || '—'
 let requestId = 0
 async function loadTab() {
   const id = ++requestId
@@ -558,6 +642,7 @@ async function loadTab() {
         'backups',
         'activity',
         'recycle',
+        'alerts',
         'notifications',
         'maintenance',
       ].includes(tab.value)
@@ -567,6 +652,7 @@ async function loadTab() {
           backups: '/api/admin/backups',
           activity: '/api/admin/operation-logs',
           recycle: '/api/admin/recycle-bin',
+          alerts: '/api/admin/alerts',
           notifications: '/api/admin/notifications',
           maintenance: '/api/admin/maintenance',
         }[tab.value],
@@ -686,6 +772,7 @@ async function closeMember(done) {
 }
 async function changeTab(next) {
   if (next === tab.value || !(await confirmLeave())) return
+  clearIntegrity()
   Object.assign(password, { oldPassword: '', newPassword: '', confirm: '' })
   code.value = ''
   secret.value = ''
@@ -777,6 +864,14 @@ function retryNotification(row) {
     await api.post(`/api/admin/notifications/${row.id}/retry`)
     await loadTab()
     ElMessage.success('已安排重试')
+  })
+}
+function resolveAlert(row) {
+  if (!can('alerts:write') || row.status !== 'new') return
+  return run(async () => {
+    await api.put(`/api/admin/alerts/${row.id}/resolve`)
+    await loadTab()
+    ElMessage.success('告警已标记为已处理')
   })
 }
 function createBackup() {

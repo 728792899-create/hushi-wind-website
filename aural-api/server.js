@@ -7,6 +7,9 @@ const {
 const { reconcileCatalogSnapshot, contentHistory } = require('./lib/content-history');
 require('./scripts/load-env').loadEnvFile();
 const { runMaintenance } = require('./lib/maintenance');
+const { inquiryScope } = require('./lib/crm-scope');
+const { monitorContactAccess } = require('./lib/contact-monitor');
+const { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity } = require('./lib/audit-integrity');
 const { createBackupScheduler } = require('./lib/scheduled-backup');
 const express = require('express');
 const cors = require('cors');
@@ -1179,25 +1182,23 @@ const auditOperation = async (
 ) => {
   if (!req.admin) return;
   const meta = getRequestMeta(req);
-  await prisma.operationLog.create({
-    data: {
-      adminUserId: req.admin.id,
-      operator: req.admin.username,
-      role: req.admin.role,
-      action,
-      module,
-      target,
-      targetId: String(targetId || ''),
-      summary,
-      beforeData: beforeData
-        ? safeJson(module === 'crm' ? redactPrivate(beforeData) : beforeData)
-        : null,
-      afterData: afterData
-        ? safeJson(module === 'crm' ? redactPrivate(afterData) : afterData)
-        : null,
-      ip: meta.ip,
-      userAgent: meta.userAgent,
-    },
+  await appendOperationLog(prisma, {
+    adminUserId: req.admin.id,
+    operator: req.admin.username,
+    role: req.admin.role,
+    action,
+    module,
+    target,
+    targetId: String(targetId || ''),
+    summary,
+    beforeData: beforeData
+      ? safeJson(module === 'crm' ? redactPrivate(beforeData) : beforeData)
+      : null,
+    afterData: afterData
+      ? safeJson(module === 'crm' ? redactPrivate(afterData) : afterData)
+      : null,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
   });
 };
 
@@ -1393,19 +1394,26 @@ const revealContactHandler = (model, fields, nameField, label) => [
   requirePermission('crm:private'),
   asyncHandler(async (req, res) => {
     const id = toId(req.params.id);
-    const row = await prisma[model].findUnique({
-      where: { id },
-      select: Object.fromEntries(
-        ['id', nameField, ...fields].map((field) => [field, true]),
-      ),
-    });
-    if (!row) throw createError(404, 'NOT_FOUND', `${label}不存在`);
-    await auditOperation(req, {
-      action: 'VIEW_CONTACT',
-      module: 'crm',
-      target: row[nameField],
-      targetId: id,
-      summary: `查看${label}联系方式`,
+    const row = await transaction(async () => {
+      const record = await prisma[model].findFirst({
+        where: { id, ...(model === 'inquiry' ? inquiryScope(req.admin) : {}) },
+        select: Object.fromEntries(
+          ['id', nameField, ...fields].map((field) => [field, true]),
+        ),
+      });
+      if (!record) throw createError(404, 'NOT_FOUND', `${label}不存在或已不在当前处理范围`);
+      await auditOperation(req, {
+        action: 'VIEW_CONTACT', module: 'crm', target: record[nameField],
+        targetId: id, summary: `查看${label}联系方式`,
+      });
+      // Frequency alerts must not become a new deny rule. Audit failure above
+      // still fails closed; monitoring failure is logged without personal data.
+      try {
+        await monitorContactAccess(prisma, req.admin, createAlert);
+      } catch (error) {
+        console.warn('Contact monitoring unavailable:', error.code || 'MONITOR_FAILED');
+      }
+      return record;
     });
     res.setHeader('Cache-Control', 'no-store');
     res.json({
@@ -3086,7 +3094,9 @@ app.get(
   requirePermission('crm:read'),
   asyncHandler(async (req, res) => {
     const rows = await prisma.adminUser.findMany({
-      where: { status: 'active', role: { in: ['super_admin', 'support'] } },
+      where: { status: 'active', role: { in: ['super_admin', 'support'] },
+        ...(req.admin.role === 'support' ? { id: req.admin.id } : {}),
+      },
       select: { id: true, displayName: true, username: true },
     });
     res.json({ data: rows });
@@ -3097,9 +3107,16 @@ app.get(
   requireAdmin,
   requirePermission('crm:read'),
   asyncHandler(async (req, res) => {
-    const rows = await prisma.inquiryFollowUp.findMany({
-      where: { inquiryId: toId(req.params.id) },
-      orderBy: { createdAt: 'desc' },
+    const rows = await transaction(async () => {
+      const inquiryId = toId(req.params.id);
+      const inquiry = await prisma.inquiry.findFirst({
+        where: { id: inquiryId, ...inquiryScope(req.admin) },
+        select: { id: true },
+      });
+      if (!inquiry) throw createError(404, 'NOT_FOUND', '工单不存在或已不在当前处理范围');
+      return prisma.inquiryFollowUp.findMany({
+        where: { inquiryId }, orderBy: { createdAt: 'desc' },
+      });
     });
     res.json({
       data: canAdmin(req.admin, 'crm:private')
@@ -4444,6 +4461,27 @@ app.get(
   }),
 );
 
+const visibleOperationLog = (req, row) =>
+  canAdmin(req.admin, 'crm:private') || row.module !== 'crm'
+    ? row
+    : { ...row, beforeData: null, afterData: null, target: '客户记录' };
+
+app.get(
+  '/api/admin/audit-integrity',
+  requireAdmin,
+  requirePermission('logs:read'),
+  asyncHandler(async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json({ data: await verifyAuditIntegrity(database) });
+    } catch (error) {
+      if (error.code === 'AUDIT_INTEGRITY_FAILED')
+        throw createError(409, error.code, '审计记录完整性校验未通过，请联系管理员检查');
+      throw error;
+    }
+  }),
+);
+
 app.get(
   '/api/admin/operation-logs',
   requireAdmin,
@@ -4470,11 +4508,7 @@ app.get(
     ]);
     res.json(
       paginatedPayload(
-        data.map((row) =>
-          canAdmin(req.admin, 'crm:private') || row.module !== 'crm'
-            ? row
-            : { ...row, beforeData: null, afterData: null, target: '客户记录' },
-        ),
+        data.map((row) => visibleOperationLog(req, row)),
         total,
         page,
         pageSize,
@@ -4524,7 +4558,10 @@ app.get(
     const escapeCsv = csvCell;
     const csv = [
       header.join(','),
-      ...rows.map((row) => header.map((key) => escapeCsv(row[key])).join(',')),
+      ...rows.map((row) => {
+        const visible = visibleOperationLog(req, row);
+        return header.map((key) => escapeCsv(visible[key])).join(',');
+      }),
     ].join('\n');
     const filename = `operation-logs.${new Date().toISOString().slice(0, 10)}.csv`;
     await auditOperation(req, {
@@ -5062,7 +5099,7 @@ app.get(
       prisma.product.count(),
       prisma.article.count(),
       prisma.product.findMany({ select: { quantity: true, price: true } }),
-      prisma.inquiry.count({ where: { isRead: false } }),
+      prisma.inquiry.count({ where: { isRead: false, ...inquiryScope(req.admin) } }),
       prisma.artistApplication.count({ where: { status: 'pending' } }),
       analyticsSummary(range),
     ]);
@@ -5763,6 +5800,7 @@ app.get(
     const endDate = normalizeDateEnd(req.query.endDate);
     const { page, pageSize, skip, take } = normalizePagination(req);
     const where = mergeWhere(
+      inquiryScope(req.admin),
       status && status !== 'all' ? { status } : {},
       req.query.assigneeId ? { assigneeId: toId(req.query.assigneeId) } : {},
       req.query.due === '1'
@@ -5843,7 +5881,7 @@ app.put(
   requirePermission('crm:write'),
   writeHandler(async (req, res) => {
     const id = toId(req.params.id);
-    await prisma.inquiry.update({ where: { id }, data: { isRead: true } });
+    await prisma.inquiry.update({ where: { id, ...inquiryScope(req.admin) }, data: { isRead: true } });
     await auditOperation(req, {
       action: 'READ',
       module: 'crm',
@@ -5860,9 +5898,11 @@ app.put(
   requirePermission('crm:write'),
   writeHandler(async (req, res) => {
     const id = toId(req.params.id);
-    const before = await prisma.inquiry.findUnique({ where: { id } });
+    const before = await prisma.inquiry.findFirst({ where: { id, ...inquiryScope(req.admin) } });
     if (!before) throw createError(404, 'NOT_FOUND', '工单不存在');
     const patch = normalizeInquiryUpdatePayload(req.body);
+    if (Object.hasOwn(patch, 'assigneeId') && patch.assigneeId !== before.assigneeId && req.admin.role !== 'super_admin')
+      throw createError(403, 'ASSIGNMENT_FORBIDDEN', '负责人只能由超级管理员分配或调整');
     if (
       patch.assigneeId &&
       !(await prisma.adminUser.findFirst({
@@ -5874,7 +5914,7 @@ app.put(
       }))
     )
       throw createError(400, 'INVALID_ASSIGNEE', '负责人账号不可用');
-    const versionWhere = recordVersionWhere(req, before);
+    const versionWhere = { ...recordVersionWhere(req, before), ...inquiryScope(req.admin) };
     const data = await updateWithVersion(prisma.inquiry, versionWhere, { ...patch, revision: { increment: 1 } });
     const note =
       typeof req.body.followUpNote === 'string'
@@ -5912,10 +5952,10 @@ app.delete(
   requirePermission('crm:write'),
   writeHandler(async (req, res) => {
     const id = toId(req.params.id);
-    const before = await prisma.inquiry.findUnique({ where: { id } });
+    const before = await prisma.inquiry.findFirst({ where: { id, ...inquiryScope(req.admin) } });
     if (!before) throw createError(404, 'NOT_FOUND', '工单不存在');
     await workflows.archive(req, 'inquiry', before);
-    await prisma.inquiry.delete({ where: { id } });
+    await prisma.inquiry.delete({ where: { id, ...inquiryScope(req.admin) } });
     await auditOperation(req, {
       action: 'DELETE',
       module: 'crm',
@@ -6398,7 +6438,8 @@ if (require.main === module) {
   deliveryTimer.unref();
 }
 if (require.main === module)
-  initializeCatalog(database)
+  initializeAuditIntegrity(database)
+    .then(() => initializeCatalog(database))
     .then(() =>
       app.listen(PORT, HOST, () =>
         console.log(`🚀 Backend running on http://${HOST}:${PORT}`),

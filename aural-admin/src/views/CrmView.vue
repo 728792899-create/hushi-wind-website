@@ -13,6 +13,9 @@
         艺术家合作
       </button>
     </nav>
+    <p v-if="tab === 'inquiries' && !can('admin:write') && can('crm:write')" class="field-hint">
+      仅显示分配给你的咨询。负责人由超级管理员分配或调整。
+    </p>
     <div class="table-tools">
       <div v-if="tab === 'inquiries'" class="filter-row wrap">
         <el-input
@@ -62,7 +65,7 @@
           clearable
           @keyup.enter="applyFilters"
           @clear="applyFilters"
-        /><el-select v-model="appFilters.status" @change="applyFilters"
+        /><el-select v-model="appFilters.status" aria-label="申请状态" @change="applyFilters"
           ><el-option label="全部状态" value="all" /><el-option
             v-for="(label, value) in artistStatuses"
             :key="value"
@@ -283,7 +286,7 @@
             </div>
             <div class="form-two-columns">
               <el-form-item label="负责人"
-                ><el-select v-model="form.assigneeId" clearable
+                ><el-select v-model="form.assigneeId" clearable :disabled="!can('admin:write')"
                   ><el-option
                     v-for="person in assignees"
                     :key="person.id"

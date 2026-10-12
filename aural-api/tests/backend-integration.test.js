@@ -184,6 +184,7 @@ test('role permissions cover direct upload, alerts, preview and private CRM/log 
   const row = await db.inquiry.create({
     data: {
       customerName: '客户测试',
+      assigneeId: users.support.id,
       contactInfo: '010-12345678',
       message: 'test',
       internalNote: 'private-note',

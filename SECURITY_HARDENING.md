@@ -189,3 +189,58 @@
 - 现场复现：`npm run check:bom` 返回 1，唯一违规文件同上。守卫用 `git ls-files` 枚举文件，因此之前 194 个已跟踪文件检查通过不能证明新增交接文档通过。
 - 最小修复：仅将交接文档示例中的不可见字符改成可见的 `\uFEFF` 字面文本，保留原意；补充本记录，不修改守卫范围、应用源码、数据或配置。采用追加提交，不改写已推送历史。
 - 应用源码与浏览器验收对象未变，复用上面的 390/1440 浏览器证据；追加修复后 `npm test` 再次 119 项通过、0 跳过，`quality`、`check:admin-ui`（含构建产物）、`check:admin-colors` 和 `check:bom` 全部退出 0，BOM 明确覆盖 195 个已跟踪文件。独立只读复核无可执行发现。日志为 `logs/step4-20261012/ci-fix-*.log`，首次 CI 失败日志为同目录 `ci-initial-failure.log`；最终仍须核对追加提交完整 SHA 的 CI 成功结果。
+
+
+## 第 5 步 · 权限与审计增强（2026-10-12）
+
+### 目标、现场复核与业务确认
+
+- 在 `~/Projects/hushi-wind-website`、`codex/admin-core-redesign` 复核交接、完整修复记录、工作区与远端；接手基线 `dd4e7285e479fd8e146ac3c1c83784b5cfe06025`，其 Quality run `38270992275` 成功。无既有未提交改动。
+- 现有 RBAC 限制了操作类型，但客服可读写全部咨询，负责人仅作筛选；回收列表/恢复同样缺少本人范围。逐条联系方式已有先审计再返回，但没有账号级异常频率告警。`OperationLog` 可更新/删除，没有完整性校验。
+- 独立复核还发现：无 `crm:private` 的操作日志 CSV 中 `target` 与列表脱敏不一致；CRM 回收恢复响应直接返回联系方式。新版设置没有告警处理和完整性校验入口。
+- 用户明确确认：**客服只处理分配给自己的咨询；未分配、重新分配由超级管理员负责；艺术家申请保持现状**。只读角色继续读取全部已脱敏咨询，运营角色仍无 CRM 权限。
+- 用户明确确认：**每账号 10 分钟达到 30 次联系方式查看只告警、不阻断**，咨询与艺术家申请合并、重复查看也计数，超级管理员适用相同规则；窗口和阈值可配置。
+- 用户明确确认：**保持不开启含个人信息的咨询导出，本步只修复既有日志导出的脱敏一致性**。因此未新增审批或水印流程，不把该能力记作完成。
+
+### 改动文件与行为
+
+- `aural-api/lib/crm-scope.js`（新增）、`server.js`、`lib/content-workflows.js`：统一按服务端账号生成咨询范围，通过 AND 合并客户端筛选；列表/总数、联系方式、已读、跟进时间线、保存、删除、工作台待办、回收列表/总数和恢复均覆盖。恢复再次检查快照归属。客服只能取得自己的负责人选项；分配/清空负责人仅超管可做，已有客服表单保存相同负责人仍可用。
+- `aural-admin/src/views/CrmView.vue`：客服显示本人范围提示，负责人控件禁用；为现场发现无名称的艺术家申请状态选择框增加可读名称。不改申请的共享权限或状态含义。
+- `aural-api/lib/contact-monitor.js`（新增）、`server.js`、`.env.production.example`：基于持久化 `VIEW_CONTACT` 审计记录按账号计数，不按 IP/session 拆分。默认 `CONTACT_VIEW_WINDOW_MS=600000`、`CONTACT_VIEW_ALERT_THRESHOLD=30`，非法配置回落默认。审计追加持有事务写锁，告警在同事务查询/去重；同一账号窗口内已有告警（含已处理）不会重复创建。告警仅含账号、次数、阈值、时间窗，无客户联系方式。告警写入失败不阻断查看（本地故障注入可见诊断，生产沿用现有静默返回策略）；审计写入失败仍不返回联系方式，响应仍 `no-store`。
+- `aural-api/lib/audit-integrity.js`（新增）、`prisma/schema.prisma`、迁移 `20261012170000_audit_integrity_and_inquiry_scope`：新增历史基线状态和新日志 SHA-256 链表；迁移固定原日志边界，新版启动首次计算并封存历史摘要，保留所有原日志字段。OperationLog/AuditLogEntry 禁止 UPDATE、DELETE、REPLACE；状态不可删除/替换，已封存基线不可修改。日志行、链节点、链头同事务追加，使用数据库写锁串行化，沿用已有业务事务。新增咨询归属索引并从合法回收快照回填。
+- `aural-api/scripts/verify-audit-integrity.js`（新增）、`package.json`、`server.js`：新增只读 `npm run check:audit` 与 `GET /api/admin/audit-integrity`（沿用 `logs:read`）；启动及手动/CLI 全量校验历史摘要、链、条数和触发器，损坏非零退出/API 409；追加只核对链尾，避免每次重扫历史。不会自动重签损坏数据。
+- `aural-api/scripts/brand-cleanup.js`：旧直接写操作日志的维护路径改为同事务追加审计，失败不吞掉；**本步没有运行这个脚本，没有修改品牌内容**。
+- `server.js`：操作日志列表与 CSV 共用同一可见字段转换，无 `crm:private` 时 CRM `target` 为通用客户记录、before/after 不下发；`content-workflows.js` 的 CRM 恢复响应隐藏联系方式，库内原值保留。
+- `aural-admin/src/views/SettingsView.vue`：新增安全告警分页、桌面表格/手机卡片，沿用 `logs:read` 查看、`alerts:write` 处理；按钮防重复、失败保留状态。操作记录新增完整性校验和中文结果；重新校验先清旧成功，切栏目后迟到响应失效；补齐“操作记录栏目”选择框名称。不展示内部摘要值、不声称证明历史真实性。
+- 回归测试文件：`aural-api/tests/{crm-scope,audit-integrity}.test.js`（新增）、`crm-contact-privacy.test.js`、`backend-integration.test.js`、`aural-admin/tests/editor-interactions.test.mjs`。同步本记录与 `CODEX_HANDOFF.md`；未改业务颜色、品牌材料、生产环境配置值。
+
+### 测试、反向验证与迁移演练
+
+- 最终源码 `npm test`：**148 项通过，0 失败、0 跳过**（API 94、后台 45、官网 9）。`npm run quality`、`check:admin-ui`（`distChecked=yes`，25 个真实构建静态文件）、`check:admin-colors`、`check:bom` 全部退出 0。BOM 原已跟踪范围 195 文件通过，另扫 207 个已跟踪/新增源码、配置、文档（含新迁移）均无不可见字符；提交前暂存后再次运行 BOM 门禁，201 个已跟踪源文件通过，证据为 `final-staged-bom.log`。
+- API 范围回归覆盖两客服/未分配、伪造负责人筛选、按 ID 绕过、分配/撤销、回收筛选/分页/恢复、艺术家申请保持共享；拒绝越权后数据/审计无非法变化。隐私两项新增回归在旧实现真实失败，修复后全部通过，恢复响应脱敏但数据库原值不变。
+- 真实 SQLite 完整性测试 11 项：历史迁移、8 次跨连接并发追加、业务事务回滚、UPDATE/DELETE/REPLACE 拦截；故意破坏历史、中段、尾部、插入无链日志、移除保护触发器或状态均被检出；CLI 损坏非零退出，原登录记录清理不受影响。
+- 告警边界测试以阈值 3 提高效率：预热 2 次后 6 个并发请求全部 200，仅一条告警，8 条查看审计且链通过；同进程两个 API 实例、两个独立 Prisma 连接共享 SQLite 重测通过（未声称真实双进程压测）。用触发器强制告警插入失败，查看仍 200、审计和链各增加 1；超管达到阈值同样告警，继续查看成功、不重复。测试后配置/故障触发器恢复。
+- 数据迁移仅在 `dev.db` 的 SQLite 备份副本 `logs/step5-20261012/migration-rehearsal.db` 执行。逐表比对 **32 张原表的全部原字段/逐行内容一致**；44 条原操作日志建立基线后 CLI 校验通过（新增链条目 0）。原 `aural-api/prisma/dev.db` 和原三个服务未迁移、未重启，未写原演示业务数据。
+- 两轮独立只读审查与最终验证证据复核完成，无未决 P1/P2；`git diff --check` 通过。
+
+### 浏览器证据
+
+本步使用独立合成数据 API `18337` / 后台 `15175`，通知渠道为空，避免改变原演示数据。实际视口 1440×1000 / 390×844，手机启用 coarse pointer。
+
+- 客服甲只看本人咨询，负责人不能修改。默认配置下先通过本地接口预热 29 次，第 30 次由真实浏览器点击查看，联系方式仍成功显示且提示已审计；管理员安全告警显示“最近 10 分钟查看 30 次，仅告警，未阻断”。点击处理后状态持久显示“已处理”。
+- 超管通过 UI 将未分配咨询分给甲，甲刷新后出现；甲保留原咨询抽屉期间将原咨询改派乙，甲再次查看联系方式被拒、没有出现手机号，保存也被拒。刷新后原咨询消失；乙重新登录能看到原有咨询与接手咨询共 2 条，无甲现有咨询。艺术家申请仍可见。
+- 只读账号继续看到 3 条已脱敏咨询，详情显示“当前账号无查看权限”、编辑控件禁用；安全告警只有查看入口，无处理按钮。管理员和只读账号均能沿用日志读取权限校验完整性；最后显示 33 条记录通过（本地合成库）。
+- 完整性反向验证仅在合成库移除一个保护触发器：浏览器收到 409 中文校验失败，旧“校验通过”消失；恢复原触发器后再次校验通过，未改任何日志内容。
+- 最终受影响状态（咨询列表/抽屉、告警、完整性校验、申请列表）未见整页溢出、小于 12px 可见文字、小于 24px 启用目标、无名称控件或文字对比度失败；稳定最终扫描最低 4.70:1。首次扫描出现导航颜色过渡态 4.46，等待动画结束后复测通过；初次操作记录和申请筛选的名称缺陷已修复并复测。没有覆盖官网全站或真机/VoiceOver认证。
+- 原 API `/health`、官网首页只读冒烟均 HTTP 200。收口浏览器控制台 warn/error 查询为空；预期的越权/完整性失败属于负向测试结果。验收后已恢复浏览器正常视口，保留只读告警演示页。
+
+本地证据在忽略目录 `logs/step5-20261012/`，不提交数据库、凭据或截图：`final-{npm-test,npm-quality,check-admin-ui,check-admin-colors,check-bom}.log`、`final-bom-all-files.log`、`privacy-{baseline,fixed,integrated}.log`、`contact-monitor-api.log`、`contact-two-instances.log`、`migration-{before,after}.json`、`migration-deploy.log`、`migration-audit-check.json`、`browser-audits.json`、`browser-console.json`、`browser-workflows.json`；截图包括 `support-drawer-mobile.png`、`alerts-{mobile,desktop}.png`、`integrity-{mobile,desktop}.png`、`integrity-negative-mobile.png`、`revoked-stale-drawer.png`、`recipient-support-desktop.png`、`readonly-alerts-mobile.png`。
+
+### 提交、生产状态与限制
+
+- 本步独立提交并普通推送到 `codex/admin-core-redesign`。推送后以本步完整 SHA 核对 GitHub Actions `Quality`，结果在交付回复提供，并保留 `ci-result.json`。不能把此前基线 CI 或本地门禁当作本提交 CI。
+- **无生产部署、生产数据库操作、真实通知发送**。原本地演示服务保留；当前验收库仅为合成数据。以后另行获准上线时，必须先停止旧 API 写入、备份，再迁移/生成 Prisma 客户端/启动新版封存，不能让旧代码在新迁移后继续追加无链日志。
+- SHA-256 基线/链用于检测接手后的记录一致性；不能证明接手前历史真实，不能抵御拥有完整数据库特权的攻击者重写整链或整库回滚。尚无外部可信锚点/不可变外部留存、周期全量自动校验；未宣称绝对防篡改。
+- 告警失败按用户规则不阻断联系方式；审计失败仍拒绝返回。并发验证覆盖当前 SQLite 下的多请求/多连接，未覆盖分布式数据库或真实多进程负载。
+- API/后台生产依赖审计 0；官网 6 项既有工具链例外仍未进入 24 个运行时包，到期 2027-01-09。构建仍有已知 `NUXT_B7027`（`tailwindcss/nesting` 入口），构建成功。本步没有更改工具链或业务状态色。
+- 下一步：先核对本步实际提交与 CI，再与用户确定后续加固范围；可信外部日志留存和发布前迁移演练可作为候选，不默认执行生产操作。

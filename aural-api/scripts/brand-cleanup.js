@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { appendOperationLog } = require('../lib/audit-integrity');
 require('../lib/demo-guard').assertDemoTarget();
 
 const fs = require('fs')
@@ -144,12 +145,11 @@ const collectChanges = async () => {
   if (backupEnabled && !backupFile) await fail('database backup could not be created')
   if (backupFile) console.log(`\nBackup created: ${backupFile}`)
 
-  for (const item of changes) {
-    await prisma[item.model].update({ where: { id: item.id }, data: item.data })
-  }
-
-  await prisma.operationLog.create({
-    data: {
+  await prisma.$transaction(async (tx) => {
+    for (const item of changes) {
+      await tx[item.model].update({ where: { id: item.id }, data: item.data })
+    }
+    await appendOperationLog(tx, {
       operator: 'system-script',
       action: 'BRAND_CLEANUP',
       module: 'system',
@@ -160,8 +160,8 @@ const collectChanges = async () => {
         changedTables: [...new Set(changes.map((item) => item.label))],
         backupFile
       }).slice(0, 8000)
-    }
-  }).catch(() => {})
+    })
+  })
 
   console.log(`\nBrand cleanup applied. changedRecords=${changes.length}`)
   await prisma.$disconnect()

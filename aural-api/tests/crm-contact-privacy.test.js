@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { appendOperationLog } = require('../lib/audit-integrity');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'hushi-crm-privacy-'));
 const apiRoot = path.resolve(__dirname, '..');
@@ -27,6 +28,7 @@ Object.assign(process.env, {
 const PHONE = '13800001234';
 let api, db, server, origin, inquiry, application;
 const tokens = {};
+const users = {};
 const call = async (url, role, method = 'GET', { body, headers = {} } = {}) => {
   const res = await fetch(origin + url, {
     method,
@@ -37,7 +39,10 @@ const call = async (url, role, method = 'GET', { body, headers = {} } = {}) => {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return { status: res.status, headers: res.headers, body: await res.json().catch(() => ({})) };
+  const text = await res.text();
+  let responseBody;
+  try { responseBody = JSON.parse(text); } catch { responseBody = text; }
+  return { status: res.status, headers: res.headers, body: responseBody };
 };
 const viewLogs = () => db.operationLog.findMany({ where: { action: 'VIEW_CONTACT' }, orderBy: { id: 'asc' } });
 
@@ -51,13 +56,14 @@ before(async () => {
   assert.equal(result.status, 0, result.stderr + result.stdout);
   api = require('../server');
   db = api.database;
-  for (const role of ['support', 'readonly']) {
+  for (const role of ['support', 'readonly', 'operations', 'super_admin']) {
     const { salt, hash } = api.hashPassword('PrivacySecure9!');
     const user = await db.adminUser.create({ data: { username: `privacy_${role}`, role, passwordSalt: salt, passwordHash: hash } });
+    users[role] = user;
     tokens[role] = api.createAdminToken(user);
   }
   inquiry = await db.inquiry.create({
-    data: { customerName: '王先生', contactInfo: PHONE, message: '想预约试奏', internalNote: '周五回电' },
+    data: { customerName: '王先生', contactInfo: PHONE, message: '想预约试奏', internalNote: '周五回电', assigneeId: users.support.id },
   });
   application = await db.artistApplication.create({
     data: { name: '李老师', email: 'artist@example.com', phone: '13900005678', portfolioUrl: 'https://example.com/works' },
@@ -134,15 +140,86 @@ test('accounts without crm:private cannot reveal and leave no view record', asyn
 });
 
 test('if the audit record cannot be written the contact is not returned', async () => {
-  const original = db.operationLog.create;
-  db.operationLog.create = async () => {
-    throw new Error('audit store unavailable');
-  };
+  await db.$executeRawUnsafe("CREATE TRIGGER fixture_privacy_audit_failure BEFORE INSERT ON OperationLog BEGIN SELECT RAISE(ABORT, 'audit store unavailable'); END");
   try {
     const res = await call(`/api/inquiries/${inquiry.id}/contact`, 'support', 'POST');
     assert.equal(res.status, 500);
     assert.ok(!JSON.stringify(res.body).includes(PHONE));
   } finally {
-    db.operationLog.create = original;
+    await db.$executeRawUnsafe('DROP TRIGGER fixture_privacy_audit_failure');
   }
+});
+
+test('audit CSV applies the same CRM privacy boundary as the log list without changing role access', async () => {
+  const action = 'PRIVACY_EXPORT_FIXTURE';
+  const target = '审计隐私测试客户';
+  for (const data of [
+    { action, module: 'crm', target, summary: '客户跟进记录', beforeData: '{"private":"before"}', afterData: '{"private":"after"}' },
+    { action, module: 'articles', target: '非客户内容名称', summary: '内容修改记录' },
+  ]) await appendOperationLog(db, data);
+  const query = `?action=${action}`;
+  const headers = { 'x-sensitive-confirmation': encodeURIComponent('确认执行') };
+  for (const role of ['readonly', 'operations', 'super_admin']) {
+    const list = await call(`/api/admin/operation-logs${query}`, role);
+    const exported = await call(`/api/admin/operation-logs/export${query}`, role, 'GET', { headers });
+    assert.equal(list.status, 200);
+    assert.equal(exported.status, 200);
+    assert.match(exported.headers.get('content-type'), /text\/csv/);
+    const crm = list.body.data.find((row) => row.module === 'crm');
+    if (role === 'super_admin') {
+      assert.equal(crm.target, target);
+      assert.ok(exported.body.includes(target), 'private access retains the CRM target');
+    } else {
+      assert.equal(crm.target, '客户记录');
+      assert.equal(crm.beforeData, null);
+      assert.equal(crm.afterData, null);
+      assert.ok(!exported.body.includes(target), `${role} CSV must hide the same CRM name as the list`);
+      assert.ok(exported.body.includes('客户记录'));
+    }
+    assert.ok(exported.body.includes('非客户内容名称'), 'non-CRM targets remain unchanged');
+  }
+  assert.equal((await call(`/api/admin/operation-logs/export${query}`, 'support', 'GET', { headers })).status, 403);
+  assert.equal((await call(`/api/admin/operation-logs/export${query}`, 'readonly')).status, 400, 'sensitive confirmation remains required');
+});
+
+test('restoring CRM records hides contact responses and preserves stored contacts for audited reveal', async () => {
+  for (const role of ['support', 'super_admin']) {
+    const records = [
+      { model: 'inquiry', module: 'inquiry', route: 'inquiries', data: { customerName: `恢复客户-${role}`, contactInfo: '13800006789', message: '恢复测试', internalNote: '回访备注', assigneeId: users.support.id }, contacts: ['contactInfo'] },
+      { model: 'artistApplication', module: 'artistApplication', route: 'artist-applications', data: { name: `恢复申请-${role}`, email: 'restore@example.invalid', phone: '13900006789', portfolioUrl: 'https://example.invalid/works' }, contacts: ['email', 'phone'] },
+    ];
+    for (const fixture of records) {
+      const original = await db[fixture.model].create({ data: fixture.data });
+      assert.equal((await call(`/api/${fixture.route}/${original.id}`, role, 'DELETE')).status, 200);
+      const archived = await db.recycleEntry.findUnique({ where: { module_recordId: { module: fixture.module, recordId: original.id } } });
+      const endpoint = `/api/admin/recycle-bin/${archived.id}/restore`;
+      assert.equal((await call(endpoint, 'readonly', 'POST')).status, 403);
+      const beforeViews = (await viewLogs()).length;
+      const restored = await call(endpoint, role, 'POST');
+      assert.equal(restored.status, 200, JSON.stringify(restored.body));
+      assert.equal((await viewLogs()).length, beforeViews, 'restore does not reveal contact or record a contact view');
+      const stored = await db[fixture.model].findUnique({ where: { id: original.id } });
+      for (const field of Object.keys(fixture.data))
+        assert.deepEqual(stored[field], original[field], `stored ${field} is unchanged`);
+      for (const field of fixture.contacts) {
+        assert.equal(restored.body.data[field], '已隐藏');
+        assert.ok(!JSON.stringify(restored.body).includes(original[field]), `${field} must not bypass audited reveal`);
+      }
+      const revealed = await call(`/api/${fixture.route}/${original.id}/contact`, role, 'POST');
+      assert.equal(revealed.status, 200);
+      assert.deepEqual(revealed.body.data, Object.fromEntries(fixture.contacts.map((field) => [field, original[field]])));
+      assert.equal((await viewLogs()).length, beforeViews + 1, 'explicit contact reveal remains audited');
+    }
+  }
+});
+
+test('restoring non-CRM content keeps the existing complete response', async () => {
+  const article = await db.article.create({ data: { title: '普通内容恢复', category: '测试', date: '2026-10-12', status: 'draft' } });
+  assert.equal((await call(`/api/articles/${article.id}`, 'super_admin', 'DELETE')).status, 200);
+  const archived = await db.recycleEntry.findUnique({ where: { module_recordId: { module: 'article', recordId: article.id } } });
+  const restored = await call(`/api/admin/recycle-bin/${archived.id}/restore`, 'super_admin', 'POST');
+  assert.equal(restored.status, 200, JSON.stringify(restored.body));
+  const stored = await db.article.findUnique({ where: { id: article.id } });
+  assert.deepEqual(restored.body.data, JSON.parse(JSON.stringify(stored)));
+  assert.equal(stored.title, article.title);
 });

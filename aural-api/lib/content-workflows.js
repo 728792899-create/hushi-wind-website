@@ -1,7 +1,8 @@
 const { reconcileCatalogSnapshot, contentHistory } = require('./content-history');
 const crypto = require('node:crypto');
-const { validationError } = require('./security');
+const { validationError, hideContact } = require('./security');
 const { updateWithVersion } = require('./record-version');
+const { canAccessInquiry, recycleScope } = require('./crm-scope');
 const hash = (value) =>
   crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const defaults = [
@@ -416,7 +417,7 @@ function registerContentWorkflows({
         canAdmin(req.admin, `${specs[m].permission}:write`),
       );
       const page = Math.max(1, Number(req.query.page) || 1),
-        where = { module: { in: modules } };
+        where = { AND: [{ module: { in: modules } }, recycleScope(req.admin)] };
       const [total, rows] = await Promise.all([
         prisma.recycleEntry.count({ where }),
         prisma.recycleEntry.findMany({
@@ -451,6 +452,8 @@ function registerContentWorkflows({
       if (await prisma[spec.model].findUnique({ where: { id: row.recordId } }))
         throw createError(409, 'CONFLICT', '原记录编号已被使用');
       const payload = JSON.parse(row.payload);
+      if (row.module === 'inquiry' && !canAccessInquiry(req.admin, payload))
+        throw createError(404, 'NOT_FOUND', '回收记录不存在或已不在当前处理范围');
       const data = await prisma[spec.model].create({
         data: {
           ...(spec.restore ? spec.restore(payload) : spec.validate(payload)),
@@ -465,7 +468,18 @@ function registerContentWorkflows({
         targetId: row.recordId,
         summary: '从回收站恢复内容',
       });
-      res.json({ data });
+      // 恢复只返回业务结果；客户联系方式仍须通过逐条查看接口审计后获取。
+      const response = spec.permission === 'crm'
+        ? {
+            ...data,
+            ...Object.fromEntries(
+              ['contactInfo', 'email', 'phone']
+                .filter((field) => Object.hasOwn(data, field))
+                .map((field) => [field, hideContact(data[field])]),
+            ),
+          }
+        : data;
+      res.json({ data: response });
     }),
   );
   return {
@@ -476,6 +490,7 @@ function registerContentWorkflows({
           module,
           recordId: record.id,
           payload: JSON.stringify(record),
+          inquiryAssigneeId: module === 'inquiry' ? record.assigneeId ?? null : null,
           title:
             record.title ||
             record.name ||
@@ -486,6 +501,7 @@ function registerContentWorkflows({
         },
         update: {
           payload: JSON.stringify(record),
+          inquiryAssigneeId: module === 'inquiry' ? record.assigneeId ?? null : null,
           operator: req.admin.username,
           createdAt: new Date(),
         },

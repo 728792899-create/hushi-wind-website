@@ -289,3 +289,157 @@ test('workflow keeps the last reviewed version on conflict and reload does not r
   await vm.load();assert.equal(vm.draft.value.version,'v2');assert.equal(props.payload.title,'unsaved local');assert.ok(!emitted.some(([type])=>type==='loaded'));
   await vm.saveDraft();assert.equal(seen.at(-1).headers.get('If-Match'),'v2');assert.equal(vm.draft.value.version,'v3');
 });
+
+test('security alerts follow existing log access and readonly accounts cannot resolve through the action', async () => {
+  const auth = await server.ssrLoadModule('/src/lib/api.js')
+  const originalUser = auth.getCurrentUser()
+  try {
+    auth.setCurrentUser({ id: 81, permissions: ['crm:read', 'crm:write'] })
+    const support = await setup('Settings')
+    assert.equal(support.tabs.value.some(item => item.id === 'alerts'), false)
+    auth.setCurrentUser({ id: 82, permissions: ['logs:read'] })
+    const readonly = await setup('Settings')
+    assert.equal(readonly.tabs.value.some(item => item.id === 'alerts'), true)
+    let writes = 0
+    api.defaults.adapter = config => { writes++; return Promise.resolve(response(config, {})) }
+    await readonly.resolveAlert({ id: 5, status: 'new' })
+    assert.equal(writes, 0)
+  } finally {
+    auth.setCurrentUser(originalUser)
+  }
+})
+
+test('security alert pagination loads totals and resolving sends one write then refreshes the active page', async () => {
+  const auth = await server.ssrLoadModule('/src/lib/api.js')
+  const originalUser = auth.getCurrentUser()
+  try {
+    auth.setCurrentUser({ id: 83, permissions: ['logs:read', 'alerts:write'] })
+    const vm = await setup('Settings')
+    vm.tab.value = 'alerts'
+    vm.page.value = 2
+    const requests = []
+    const pending = deferred()
+    let status = 'new'
+    api.defaults.adapter = config => {
+      requests.push(config)
+      if (config.method === 'put') return pending.promise
+      return Promise.resolve(response(config, { data: [{ id: 42, title: '异常查看告警', status }], meta: { pagination: { total: 21, page: 2 } } }))
+    }
+    await vm.loadTab()
+    assert.equal(requests[0].url, '/api/admin/alerts')
+    assert.equal(requests[0].params.page, 2)
+    assert.equal(requests[0].params.pageSize, 20)
+    assert.equal(vm.total.value, 21)
+    const row = vm.rows.value[0]
+    const resolving = vm.resolveAlert(row)
+    await new Promise(resolve => setImmediate(resolve))
+    await vm.resolveAlert(row)
+    assert.equal(requests.filter(config => config.method === 'put').length, 1)
+    assert.equal(requests[1].url, '/api/admin/alerts/42/resolve')
+    status = 'resolved'
+    pending.resolve(response(requests[1], { success: true }))
+    await resolving
+    assert.equal(requests[2].url, '/api/admin/alerts')
+    assert.equal(requests[2].params.page, 2)
+    assert.equal(vm.rows.value[0].status, 'resolved')
+    assert.equal(vm.saving.value, false)
+    await vm.resolveAlert(vm.rows.value[0])
+    assert.equal(requests.length, 3, 'resolved records do not send another write')
+  } finally {
+    auth.setCurrentUser(originalUser)
+  }
+})
+
+test('failed security alert resolution keeps the record pending and displays the server error', async () => {
+  const auth = await server.ssrLoadModule('/src/lib/api.js')
+  const originalUser = auth.getCurrentUser()
+  try {
+    auth.setCurrentUser({ id: 84, permissions: ['logs:read', 'alerts:write'] })
+    const vm = await setup('Settings')
+    vm.tab.value = 'alerts'
+    const row = { id: 43, status: 'new' }
+    vm.rows.value = [row]
+    notices.length = 0
+    let calls = 0
+    api.defaults.adapter = () => { calls++; return Promise.reject(new Error('告警暂时无法更新')) }
+    await vm.resolveAlert(row)
+    assert.equal(calls, 1, 'failure must not reload or imply success')
+    assert.equal(vm.rows.value[0].status, 'new')
+    assert.match(vm.error.value, /告警暂时无法更新/)
+    assert.equal(vm.saving.value, false)
+    assert.equal(notices.some(notice => notice.kind === 'success'), false)
+  } finally {
+    auth.setCurrentUser(originalUser)
+  }
+})
+
+test('audit integrity recheck clears old success before showing a server verification failure', async () => {
+  const auth = await server.ssrLoadModule('/src/lib/api.js')
+  const originalUser = auth.getCurrentUser()
+  try {
+    auth.setCurrentUser({ id: 85, permissions: ['logs:read'] })
+    const vm = await setup('Settings')
+    vm.tab.value = 'activity'
+    const valid = { ok: true, logCount: 25, baselineCount: 20, entryCount: 5, sealedAt: '2026-10-12T08:00:00.000Z', headHash: 'internal-digest' }
+    api.defaults.adapter = config => {
+      assert.equal(config.url, '/api/admin/audit-integrity')
+      return Promise.resolve(response(config, { data: valid }))
+    }
+    await vm.verifyIntegrity()
+    assert.equal(vm.integrityResult.value.logCount, 25)
+    assert.ok(Number.isFinite(Date.parse(vm.integrityCheckedAt.value)))
+    const pending = deferred()
+    api.defaults.adapter = () => pending.promise
+    const checking = vm.verifyIntegrity()
+    assert.equal(vm.integrityResult.value, null)
+    assert.equal(vm.integrityCheckedAt.value, '')
+    assert.equal(vm.integrityLoading.value, true)
+    pending.reject(Object.assign(new Error('Request failed'), { response: { status: 409, data: { error: { message: '操作记录完整性校验未通过' } } } }))
+    await checking
+    assert.equal(vm.integrityResult.value, null)
+    assert.match(vm.integrityError.value, /完整性校验未通过/)
+    assert.equal(vm.integrityLoading.value, false)
+  } finally {
+    auth.setCurrentUser(originalUser)
+  }
+})
+
+test('audit verification refuses duplicate requests and ignores a previous tab visit response', async () => {
+  const auth = await server.ssrLoadModule('/src/lib/api.js')
+  const originalUser = auth.getCurrentUser()
+  try {
+    auth.setCurrentUser({ id: 86, permissions: ['logs:read'] })
+    const vm = await setup('Settings')
+    vm.tab.value = 'activity'
+    const requests = []
+    api.defaults.adapter = config => {
+      const request = { config, ...deferred() }
+      requests.push(request)
+      return request.promise
+    }
+    const old = vm.verifyIntegrity()
+    await new Promise(resolve => setImmediate(resolve))
+    await vm.verifyIntegrity()
+    assert.equal(requests.length, 1)
+    await vm.changeTab('alerts')
+    assert.equal(vm.integrityLoading.value, false)
+    await vm.changeTab('activity')
+    const current = vm.verifyIntegrity()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(requests.length, 2)
+    requests[0].reject(new Error('旧页面的迟到失败'))
+    await old
+    assert.equal(vm.integrityLoading.value, true)
+    assert.equal(vm.integrityError.value, '')
+    assert.equal(vm.integrityResult.value, null)
+    requests[1].resolve(response(requests[1].config, { data: { ok: true, logCount: 31, baselineCount: 20, entryCount: 11 } }))
+    await current
+    assert.equal(vm.integrityResult.value.logCount, 31)
+    assert.equal(vm.integrityLoading.value, false)
+    auth.setCurrentUser({ id: 86, permissions: ['crm:read'] })
+    await vm.verifyIntegrity()
+    assert.equal(requests.length, 2, 'accounts without log access do not issue a verification request')
+  } finally {
+    auth.setCurrentUser(originalUser)
+  }
+})

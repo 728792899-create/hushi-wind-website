@@ -8,6 +8,7 @@
     "preflight": "node scripts/preflight.js",
     "backup:db": "node scripts/backup-database.js",
     "check:db": "node scripts/check-database.js",
+    "check:audit": "node scripts/verify-audit-integrity.js",
     "deploy:guard": "node scripts/deploy-guard.js",
     "deploy:safe": "node scripts/safe-deploy.js",
     "deploy:history": "node scripts/deploy-history.js",

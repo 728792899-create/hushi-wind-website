@@ -284,6 +284,29 @@ model OperationLog {
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
+
+  @@index([adminUserId, action, createdAt])
+}
+
+// Historical rows are sealed once at migration/startup; never rewritten or re-signed.
+model AuditIntegrityState {
+  id            Int       @id @default(1)
+  version       Int       @default(1)
+  baselineCount Int
+  baselineMaxId Int
+  baselineHash  String?
+  sealedAt      DateTime?
+  entryCount    Int       @default(0)
+  lastLogId     Int
+  headHash      String?
+}
+
+model AuditLogEntry {
+  sequence       Int    @id
+  operationLogId Int    @unique
+  previousHash   String
+  rowHash        String
+  hash           String
 }
 
 model ExportRecord {
@@ -407,8 +430,10 @@ model RecycleEntry {
   payload String
   title String
   operator String
+  inquiryAssigneeId Int?
   createdAt DateTime @default(now())
   @@unique([module, recordId])
+  @@index([module, inquiryAssigneeId, createdAt])
 }
 
 model InquiryFollowUp {
