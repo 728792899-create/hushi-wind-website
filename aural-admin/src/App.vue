@@ -174,6 +174,23 @@
         </main>
       </div>
     </div>
+    <el-dialog
+      :model-value="isLoggedIn && idleCountdown > 0"
+      title="即将因长时间未操作而退出"
+      width="min(420px, 92vw)"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      align-center
+    >
+      <p role="timer" aria-live="polite">
+        为保护后台数据，{{ idleSecondsShown }} 秒后将自动退出。未保存的编辑内容会暂存，重新登录同一账号后可继续。
+      </p>
+      <template #footer>
+        <el-button @click="handleLogout">退出登录</el-button>
+        <el-button type="primary" @click="continueSession">继续使用</el-button>
+      </template>
+    </el-dialog>
   </el-config-provider>
 </template>
 
@@ -208,12 +225,20 @@ import {
   clearToken,
   extractErrorMessage,
   getCurrentUser,
+  getToken,
   hasToken,
   login,
   openPreview,
   refreshSession,
   validateSession,
 } from './lib/api'
+import {
+  lastActivityAt,
+  markActivity,
+  sessionAction,
+  tokenClaims,
+  trackActivity,
+} from './lib/sessionIdle'
 
 const route = useRoute()
 const router = useRouter()
@@ -224,7 +249,14 @@ const isCollapse = ref(isMobile.value)
 const loginLoading = ref(false)
 const currentUser = ref(getCurrentUser())
 const loginForm = reactive({ username: '', password: '', totpCode: '' })
-let sessionRefreshTimer = 0
+let sessionWatchTimer = 0
+let stopActivityTracking = null
+let sessionEndsAt = Infinity
+let endNoticeShown = false
+let refreshInFlight = false
+let refreshRetryAt = 0
+const idleCountdown = ref(0)
+const idleSecondsShown = ref(0)
 const sessionReady = ref(!hasToken())
 const icons = { House, Collection, Document, ChatDotRound, Picture, Setting }
 const navigation = computed(() => navigationFor(currentUser.value))
@@ -308,7 +340,7 @@ const handleLogin = async () => {
     loginForm.password = ''
     loginForm.totpCode = ''
     ensureAccessibleRoute()
-    scheduleSessionRefresh(res.expiresIn)
+    startSessionWatch(res)
     if (route.path === '/') router.replace('/dashboard')
   } catch (error) {
     const code = error?.response?.data?.error?.code
@@ -327,7 +359,7 @@ const handleLogin = async () => {
 
 const handleLogout = async () => {
   if (!(await confirmPendingWork())) return
-  clearTimeout(sessionRefreshTimer)
+  stopSessionWatch()
   clearToken()
   resumeEditor.value = false
   currentUser.value = null
@@ -336,45 +368,96 @@ const handleLogout = async () => {
 
 const handleAuthExpired = (event) => {
   if (!isLoggedIn.value) return
-  clearTimeout(sessionRefreshTimer)
+  stopSessionWatch()
   isLoggedIn.value = false
   resumeEditor.value = !!currentUser.value
   clearToken()
   const code = event?.detail?.code
   const message =
-    code === 'TOKEN_EXPIRED'
-      ? '登录已过期，请重新登录'
-      : code === 'TOKEN_REVOKED'
-        ? '账号会话已被重置，请重新登录'
-        : code === 'ACCOUNT_LOCKED'
-          ? '账号已被临时锁定，请稍后再试'
-          : '登录状态已失效，请重新登录'
+    {
+      IDLE_TIMEOUT: '长时间未操作，已自动退出，请重新登录',
+      SESSION_ENDED: '本次登录已达最长时长，请重新登录',
+      TOKEN_EXPIRED: '登录已过期，请重新登录',
+      TOKEN_REVOKED: '账号会话已被重置，请重新登录',
+      ACCOUNT_LOCKED: '账号已被临时锁定，请稍后再试',
+    }[code] || '登录状态已失效，请重新登录'
   ElMessage.warning(message)
 }
 
 const handleSessionUpdated = (event) => {
   currentUser.value = event.detail.user
-  scheduleSessionRefresh(event.detail.expiresIn)
+  noteSession(event.detail)
 }
 
-const scheduleSessionRefresh = (expiresIn = 0) => {
-  clearTimeout(sessionRefreshTimer)
-  const seconds = Number(expiresIn || 0)
-  if (!seconds || seconds < 120) return
-  const delay = Math.max(60_000, (seconds - 300) * 1000)
-  sessionRefreshTimer = window.setTimeout(async () => {
-    try {
-      const res = await refreshSession()
-      currentUser.value = res.data?.user || getCurrentUser()
-      scheduleSessionRefresh(res.data?.expiresIn)
-    } catch (error) {
-      if (error?.response?.status === 401) handleAuthExpired()
-      else {
-        ElMessage.warning('网络暂时不可用，编辑内容已保留，将自动重试连接')
-        scheduleSessionRefresh(360)
-      }
+const noteSession = (session = {}) => {
+  const ends = Date.parse(session.sessionExpiresAt || '')
+  if (Number.isFinite(ends)) sessionEndsAt = ends
+}
+
+const stopSessionWatch = () => {
+  clearInterval(sessionWatchTimer)
+  sessionWatchTimer = 0
+  stopActivityTracking?.()
+  stopActivityTracking = null
+  idleCountdown.value = 0
+}
+
+const startSessionWatch = (session) => {
+  noteSession(session)
+  if (sessionWatchTimer) return
+  endNoticeShown = false
+  stopActivityTracking = trackActivity(window)
+  sessionWatchTimer = window.setInterval(evaluateSession, 1000)
+}
+
+const renewSession = async () => {
+  if (refreshInFlight || Date.now() < refreshRetryAt) return
+  refreshInFlight = true
+  try {
+    const res = await refreshSession()
+    currentUser.value = res.data?.user || getCurrentUser()
+    noteSession(res.data)
+  } catch (error) {
+    if (error?.response?.status === 401) handleAuthExpired()
+    else {
+      refreshRetryAt = Date.now() + 30_000
+      ElMessage.warning('网络暂时不可用，编辑内容已保留，将自动重试连接')
     }
-  }, delay)
+  } finally {
+    refreshInFlight = false
+  }
+}
+
+const evaluateSession = () => {
+  if (!isLoggedIn.value) return
+  const claims = tokenClaims(getToken())
+  const now = Date.now()
+  const action = sessionAction({
+    now,
+    exp: claims?.exp,
+    iat: claims?.iat,
+    lastActivity: lastActivityAt(),
+    absoluteEnd: sessionEndsAt,
+  })
+  idleCountdown.value =
+    action === 'warn-idle' ? Math.ceil((claims.exp - now) / 1000) : 0
+  if (idleCountdown.value) idleSecondsShown.value = idleCountdown.value
+  if (action === 'refresh') renewSession()
+  else if (action === 'warn-end' && !endNoticeShown) {
+    endNoticeShown = true
+    ElMessage.warning({
+      message: '本次登录将在 2 分钟内到期，请及时保存正在编辑的内容',
+      duration: 10_000,
+    })
+  } else if (action === 'idle-end' || action === 'end')
+    handleAuthExpired({
+      detail: { code: action === 'idle-end' ? 'IDLE_TIMEOUT' : 'SESSION_ENDED' },
+    })
+}
+
+const continueSession = () => {
+  markActivity()
+  renewSession()
 }
 
 onMounted(async () => {
@@ -386,14 +469,14 @@ onMounted(async () => {
   try {
     const res = await validateSession()
     currentUser.value = res.data?.user || getCurrentUser()
-    scheduleSessionRefresh(res.data?.expiresIn)
+    startSessionWatch(res.data)
     ensureAccessibleRoute()
     if (route.path === '/') router.replace('/dashboard')
   } catch (error) {
     if (error?.response?.status === 401) handleAuthExpired()
     else {
       ElMessage.warning('连接暂时中断，已保留当前会话')
-      scheduleSessionRefresh(360)
+      startSessionWatch()
     }
   } finally {
     sessionReady.value = true
@@ -411,7 +494,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (typeof document !== 'undefined') document.body.classList.remove('admin-session-locked')
-  clearTimeout(sessionRefreshTimer)
+  stopSessionWatch()
   window.removeEventListener('resize', syncViewport)
   window.removeEventListener('admin-auth-expired', handleAuthExpired)
   window.removeEventListener('admin-session-updated', handleSessionUpdated)

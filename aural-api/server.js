@@ -83,9 +83,16 @@ const isStrongPassword = (password) => {
 const passwordRequirements = IS_PRODUCTION
   ? '12–64 位，包含大小写字母、数字和符号'
   : '8–64 位，包含字母和数字';
+// 绝对时长：自登录起算，续期不能延长；空闲时长：每次续期只顺延这么久，
+// 后台仅在用户有操作时续期，因此离开电脑超过空闲时长即需重新登录。
 const ADMIN_TOKEN_TTL_MS =
   Number.parseInt(process.env.ADMIN_TOKEN_TTL_MS || '', 10) ||
   1000 * 60 * 60 * 12;
+const ADMIN_IDLE_TIMEOUT_MS = Math.min(
+  Number.parseInt(process.env.ADMIN_IDLE_TIMEOUT_MS || '', 10) ||
+    1000 * 60 * 30,
+  ADMIN_TOKEN_TTL_MS,
+);
 const LOGIN_LOCK_AFTER = 5;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const API_RATE_WINDOW_MS =
@@ -941,7 +948,8 @@ const verifyTotp = (secret, code) => {
   });
 };
 
-const createAdminToken = (admin) => {
+const createAdminToken = (admin, authTime = Date.now()) => {
+  const now = Date.now();
   const payload = Buffer.from(
     JSON.stringify({
       kind: 'admin-session',
@@ -949,11 +957,22 @@ const createAdminToken = (admin) => {
       uid: admin.id,
       role: admin.role,
       tv: admin.tokenVersion,
-      iat: Date.now(),
-      exp: Date.now() + ADMIN_TOKEN_TTL_MS,
+      iat: now,
+      auth: authTime,
+      exp: Math.min(now + ADMIN_IDLE_TIMEOUT_MS, authTime + ADMIN_TOKEN_TTL_MS),
     }),
   ).toString('base64url');
   return `${payload}.${signToken(payload)}`;
+};
+
+const adminSessionTiming = (token) => {
+  const parsed = parseAdminToken(token).parsed || {};
+  const authTime = Number(parsed.auth || parsed.iat) || Date.now();
+  return {
+    expiresIn: Math.max(0, Math.floor((Number(parsed.exp) - Date.now()) / 1000)),
+    idleTimeout: ADMIN_IDLE_TIMEOUT_MS / 1000,
+    sessionExpiresAt: new Date(authTime + ADMIN_TOKEN_TTL_MS).toISOString(),
+  };
 };
 
 const parseAdminToken = (token) => {
@@ -973,12 +992,27 @@ const parseAdminToken = (token) => {
     );
     if (parsed.kind !== 'admin-session')
       return { ok: false, code: 'TOKEN_INVALID' };
-    if (!Number(parsed.exp) || Number(parsed.exp) <= Date.now())
+    const authTime = Number(parsed.auth || parsed.iat) || 0;
+    if (
+      !Number(parsed.exp) ||
+      Number(parsed.exp) <= Date.now() ||
+      authTime + ADMIN_TOKEN_TTL_MS <= Date.now()
+    )
       return { ok: false, code: 'TOKEN_EXPIRED', parsed };
     return { ok: true, parsed };
   } catch {
     return { ok: false, code: 'TOKEN_INVALID' };
   }
+};
+
+const sessionPayload = (admin, authTime) => {
+  const token = createAdminToken(admin, authTime);
+  return { token, ...adminSessionTiming(token) };
+};
+
+const requestAuthTime = (req) => {
+  const parsed = parseAdminToken(adminTokenFromRequest(req)).parsed || {};
+  return Number(parsed.auth || parsed.iat) || Date.now();
 };
 
 const adminTokenFromRequest = (req) => {
@@ -4014,11 +4048,9 @@ app.post(
         },
       });
     }
-    const token = createAdminToken(updated);
     res.json({
       success: true,
-      token,
-      expiresIn: ADMIN_TOKEN_TTL_MS / 1000,
+      ...sessionPayload(updated),
       user: publicAdminUser(updated),
     });
   }),
@@ -4028,7 +4060,7 @@ app.get('/api/auth/session', requireAdmin, (req, res) =>
   res.json({
     success: true,
     user: req.admin,
-    expiresIn: ADMIN_TOKEN_TTL_MS / 1000,
+    ...adminSessionTiming(adminTokenFromRequest(req)),
   }),
 );
 
@@ -4041,11 +4073,9 @@ app.post(
     });
     if (!admin || admin.status !== 'active')
       throw createError(401, 'UNAUTHORIZED', '请先登录后台');
-    const token = createAdminToken(admin);
     res.json({
       success: true,
-      token,
-      expiresIn: ADMIN_TOKEN_TTL_MS / 1000,
+      ...sessionPayload(admin, requestAuthTime(req)),
       user: publicAdminUser(admin),
     });
   }),
@@ -4145,8 +4175,7 @@ app.post(
     });
     res.json({
       success: true,
-      token: createAdminToken(updated),
-      expiresIn: ADMIN_TOKEN_TTL_MS / 1000,
+      ...sessionPayload(updated, requestAuthTime(req)),
       user: publicAdminUser(updated),
     });
   }),
@@ -4178,8 +4207,7 @@ app.post(
     });
     res.json({
       success: true,
-      token: createAdminToken(updated),
-      expiresIn: ADMIN_TOKEN_TTL_MS / 1000,
+      ...sessionPayload(updated, requestAuthTime(req)),
       user: publicAdminUser(updated),
     });
   }),
