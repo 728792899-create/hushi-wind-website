@@ -1,3 +1,4 @@
+const { runSqliteTransaction } = require('./sqlite-transaction');
 const days = (value, fallback) =>
   Number.isFinite(Number(value)) && Number(value) >= 1
     ? Math.floor(Number(value))
@@ -11,7 +12,7 @@ async function runMaintenance(db, backupRoot) {
   if (latest && Date.now() - latest.createdAt.getTime() < 86400000)
     return { skipped: true };
   try {
-    const result = await db.$transaction(async (tx) => {
+    const result = await runSqliteTransaction(db, async (tx) => {
       const out = {};
       for (const [model, n, extra] of [
         ['analyticsEvent', days(process.env.ANALYTICS_RETENTION_DAYS, 180), {}],

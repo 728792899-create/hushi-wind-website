@@ -97,6 +97,8 @@ before(async () => {
   assert.equal(result.status, 0, result.stderr + result.stdout);
   api = require('../server');
   db = api.database;
+  await db.$queryRawUnsafe('PRAGMA journal_mode=WAL');
+  await db.$queryRawUnsafe('PRAGMA wal_autocheckpoint=0');
   for (const role of [
     'super_admin',
     'operations',
@@ -590,8 +592,8 @@ test('consistent WAL backup validates every current model and rejects missing bu
     createDatabaseBackup,
     verifyDatabase,
   } = require('../lib/database-backup');
-  await db.$queryRawUnsafe('PRAGMA journal_mode=WAL');
-  await db.$queryRawUnsafe('PRAGMA wal_autocheckpoint=0');
+  const [journalMode] = await db.$queryRawUnsafe('PRAGMA journal_mode');
+  assert.equal(journalMode.journal_mode, 'wal');
   await db.inquiry.create({
     data: {
       customerName: 'WAL客户',

@@ -20,6 +20,8 @@ jobs:
       - run: npm ci --prefix aural-admin
       - run: npm ci --prefix aural-website
       - run: npm test
+        env:
+          TOKIO_WORKER_THREADS: '2'
       - run: npm run quality
         env:
           DATABASE_URL: file:./dev.db

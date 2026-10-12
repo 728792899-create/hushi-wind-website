@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const { validationError, hideContact } = require('./security');
 const { updateWithVersion } = require('./record-version');
 const { canAccessInquiry, recycleScope } = require('./crm-scope');
+const { runSqliteTransaction } = require('./sqlite-transaction');
 const hash = (value) =>
   crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const defaults = [
@@ -600,7 +601,7 @@ function registerContentWorkflows({
   };
 }
 async function initializeCatalog(db) {
-  await db.$transaction(async (tx) => {
+  await runSqliteTransaction(db, async (tx) => {
     if (await tx.productCategory.count()) return;
     await tx.productCategory.createMany({ data: defaults });
     for (const product of await tx.product.findMany({

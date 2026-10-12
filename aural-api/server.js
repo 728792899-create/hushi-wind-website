@@ -1308,7 +1308,7 @@ const buildWebhookPayload = (payload) => {
   };
 };
 
-const notificationWorker = createNotificationWorker(database, {
+const notificationWorker = createNotificationWorker(prisma, {
   url: ALERT_WEBHOOK_URL,
   provider: ALERT_WEBHOOK_PROVIDER,
   isPaused: deploymentPaused,
@@ -6402,7 +6402,7 @@ app.use((err, req, res, next) => {
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
 if (require.main === module) {
-  const backups = createBackupScheduler(database, {source:resolveSqliteDatabaseFile(), uploadsRoot:uploadDir, backupRoot:path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname,'backups')),isPaused:deploymentPaused});
+  const backups = createBackupScheduler(prisma, {source:resolveSqliteDatabaseFile(), uploadsRoot:uploadDir, backupRoot:path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname,'backups')),isPaused:deploymentPaused});
   const backupTick = () => backups.run().catch(e=>console.warn('Scheduled backup:',e.code || 'BACKUP_FAILED'));
   const backupTimer = setInterval(backupTick,3600000); backupTimer.unref();
   backupTick();
@@ -6410,7 +6410,7 @@ if (require.main === module) {
     () =>
       !deploymentPaused() &&
       runMaintenance(
-        database,
+        prisma,
         path.resolve(
           process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
         ),
@@ -6420,7 +6420,7 @@ if (require.main === module) {
   maintenanceTimer.unref();
   if (!deploymentPaused())
     runMaintenance(
-      database,
+      prisma,
       path.resolve(
         process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
       ),

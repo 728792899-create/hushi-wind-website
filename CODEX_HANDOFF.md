@@ -22,9 +22,9 @@
 | `e481530` | 11 张内容表加 `revision`（迁移 `20261012090000_content_revision`），Prisma 扩展自动递增；全部内容保存 `If-Match` 409/428 |
 | `8a3c5f6` | 后台设计令牌、WCAG AA 对比度、时间/金额格式；`check:admin-colors` |
 | `9d843dd`、`dd4e728` | 第 4 步布局与可用性；追加修复交接文档不可见字符，最终 Quality run `38270992275` 成功 |
-| 本交接更新所在提交 | 第 5 步权限与审计增强，详情见 `SECURITY_HARDENING.md` |
+| `3862a6d` + 本交接更新所在追加提交 | 第 5 步权限与审计增强；首次 Linux CI 发现 SQLite 并发线程争用，追加统一事务队列修复，见修复记录 |
 
-每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：`npm test` 共 148 项（API 94、后台 45、官网 9）全部通过。
+每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：`npm test` 共 155 项（API 101、后台 45、官网 9）全部通过。
 
 ## 3. 第 4 步「布局与可用性」已完成本地验收
 
@@ -60,6 +60,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 ## 5. 已踩过的坑
 
 - 浏览器面板/窗口不可见时 `requestAnimationFrame` 不触发，Element Plus 弹窗、抽屉停在动画起点（如 `translateX(390px)`），关闭的弹窗也残留在 DOM。判断真实状态请读组件状态（`modelValue` / `visible`）或计算最终 CSS，不要凭位置下结论。
+- SQLite/Prisma 少线程主机不能让多个交互事务同时在引擎中等写锁，否则持锁者也无法推进。API 统一通过 `lib/unit-of-work.js` 与 `lib/sqlite-transaction.js` 排队，独立写/维护/后台任务也必须走该入口；已有事务复用、不重播业务回调。CI 的 `TOKIO_WORKER_THREADS=2` 为回归约束，勿提高线程数绕过测试。WAL 等连接模式在测试夹具开始时设置，不能在活动请求间切换。
 - 改了 `schema.prisma` 必须 `npx prisma generate`，否则报 `Unknown argument`。
 - 新增内容表的任何更新路径都会自动递增 `revision`（`lib/record-version.js` 的 `withContentRevision`）。如需新增“非编辑类”写入（如浏览计数），不要写在这 11 张表上，否则会让编辑表单误报冲突。`Inquiry` 不在自动递增范围。
 - API 集成测试辅助函数会为普通 PUT 自动带当前版本；新增受保护资源要同步 `versionedTables`。
@@ -68,7 +69,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 ## 6. 后续计划（每步先现场复核再动手）
 
-1. **先核对第 5 步提交与对应完整 SHA 的 CI**（本地 148 项及全部门禁通过，推送后核对结果见该步交付回复）。
+1. **先核对第 5 步提交与对应完整 SHA 的 CI**（本地两个引擎线程下 155 项及全部门禁通过，推送后核对结果见该步交付回复）。
 2. **第 5 步已落实的用户确认规则**：
    - 客服只能处理分配给自己的咨询；未分配和重新分配由超级管理员负责。服务端覆盖列表、详情相关操作、统计及回收恢复。艺术家申请保持共享；只读角色原有脱敏读取权限保持。
    - 联系方式查看按账号合并咨询/艺术家申请计数，包含超级管理员，重复查看也计数。默认 10 分钟达到 30 次只告警、不阻断；`CONTACT_VIEW_WINDOW_MS` / `CONTACT_VIEW_ALERT_THRESHOLD` 可配置，同窗口告警去重。

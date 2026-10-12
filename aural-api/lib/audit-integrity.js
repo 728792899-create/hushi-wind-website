@@ -1,6 +1,7 @@
 const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { runSqliteTransaction } = require('./sqlite-transaction');
 
 const VERSION = 1;
 const BATCH_SIZE = 500;
@@ -34,8 +35,7 @@ const entryDigest = (entry) => sha256(JSON.stringify([
 // The unit-of-work proxy exposes the current transaction client. Prisma's
 // transaction client has no $transaction, so nested business writes stay atomic.
 async function inTransaction(db, action) {
-  if (typeof db.$transaction !== 'function') return action(db);
-  return db.$transaction(action, { maxWait: 10000, timeout: 30000 });
+  return runSqliteTransaction(db, action, { maxWait: 10000, timeout: 30000 });
 }
 async function lockState(db) {
   // Acquire SQLite's writer lock before any reads; two writers cannot derive

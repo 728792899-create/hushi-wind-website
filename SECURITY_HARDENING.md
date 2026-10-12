@@ -244,3 +244,17 @@
 - 告警失败按用户规则不阻断联系方式；审计失败仍拒绝返回。并发验证覆盖当前 SQLite 下的多请求/多连接，未覆盖分布式数据库或真实多进程负载。
 - API/后台生产依赖审计 0；官网 6 项既有工具链例外仍未进入 24 个运行时包，到期 2027-01-09。构建仍有已知 `NUXT_B7027`（`tailwindcss/nesting` 入口），构建成功。本步没有更改工具链或业务状态色。
 - 下一步：先核对本步实际提交与 CI，再与用户确定后续加固范围；可信外部日志留存和发布前迁移演练可作为候选，不默认执行生产操作。
+
+
+### 首次 CI 发现与追加修复（2026-10-13）
+
+- 主提交 `3862a6d4ab090bf14809cd6ee636514bd5b8945d` 已普通推送。[首次 Quality](https://github.com/728792899-create/hushi-wind-website/actions/runs/38274575342) 的 API 测试失败 4 项，质量构建未执行：跨连接并发追加、校验与追加并发均出现 `Socket timeout`；两组联系方式并发均仅 1 个 200，其余 409。这是首次 CI 的真实发现，未用重跑掩盖。
+- 现场复现：本机设置 `TOKIO_WORKER_THREADS=2` 后重现；另建本任务独立 Linux/Node 22.23.3 arm64 容器（CPU 限为 2），在原提交上复现相同 4 项失败。并发 SQLite 交互事务的同步锁等待占住数据库引擎线程，使持锁事务无法继续；仅提高超时不能消除此调度问题。旧的后台请求日志独立写入也会争用，因此修复不能只限审计入口。
+- 新增 `aural-api/lib/sqlite-transaction.js`，以进程内共享 FIFO 限制同时进入引擎的交互事务；数据库锁仍负责跨进程互斥。最多 256 个等待任务，等待超时即移除且不再执行；失败后释放队列，不重放已经进入的业务回调、不放宽原事务超时。队满或排队超时返回 503，适用于资源繁忙，不是按联系方式查看次数阻断。
+- `lib/unit-of-work.js` 的业务事务及独立模型写入、`$executeRaw` 使用同一队列；已有事务直接复用，外部保存的方法在执行时也重新识别当前事务，避免自排队。普通读取保持原行为。`lib/audit-integrity.js`、`lib/maintenance.js`、`lib/content-workflows.js` 的事务入口统一接入；`server.js` 的通知、备份记录和维护任务改用该代理，避免后台写入绕过队列。数据库备份的 `VACUUM INTO` 保留独立连接，不放入交互事务。
+- 新增 `tests/sqlite-transaction.test.js` 7 项：跨客户端 FIFO、超时取消、256 容量、异常释放且不重放、嵌套复用、成功提交后通知/回滚丢弃及暂存响应；真实 SQLite 同时覆盖后台写入、捕获函数调用、版本号扩展与回滚。原有 4 项并发断言保留，仍要求所有联系方式请求成功且仅一条告警。
+- 完整回归还发现 WAL 备份测试在前一条 API 请求的后台日志未结束时切换 `journal_mode`，触发独占锁竞争。仅修改测试夹具：将 WAL/自动 checkpoint 配置移到 before 钩子、服务接收请求之前；备份测试改为只读确认 `journal_mode=wal`，原新数据/表完整性/坏库拒绝断言不变。生产数据库模式未改变。
+- `.github/workflows/quality.yml` 对 `npm test` 显式设置两个引擎线程，使今后 runner 核数变化也不会掩盖这类问题。Linux 修复后完整 API **101/101** 通过、0 跳过；本机同样两个引擎线程下完整测试 **155/155** 通过（API 101、后台 45、官网 9）。quality、真实构建 admin-ui、colors、BOM 均通过。新增文件也纳入补充 BOM 扫描；追加提交前暂存后再次检查，203 个已跟踪源文件通过（`ci-fix-final-staged-bom.log`）。
+- 浏览器用原合成验收库、两个引擎线程重启本步独立 API，未重启原 `1337/3100/5175` 服务。客服仍只看到本人 1 条咨询、负责人禁用，手机查看联系方式成功并留痕；完整性校验显示 **34 条记录通过**，旧告警仍为已处理。390 咨询抽屉/告警及 1440 完整性页面复测全部归零，最低对比度 4.73。恢复正常视口，保留管理员告警演示页。
+- 专项独立复核无未决 P1/P2。额外证据：`ci-initial-failure.log`、`ci-low-thread-contact-baseline.log`、`linux-baseline.log`、`linux-runtime.json`、`linux-fixed-api.log`、`ci-fix-two-worker-targeted.log`、`ci-fix-wal-fixture-failure.log`、`linux-wal-fixture-failure.log`、`ci-fix-final-*.log`、`ci-fix-{support-mobile,integrity-desktop,alerts-mobile}.png`。Linux 容器仅用于此轮合成测试，已停止并移除；日志留在本地忽略目录。
+- 采用追加提交并普通推送，不改写 `3862a6d`；以追加提交完整 SHA 对应的成功 CI 才完成第 5 步交付。仍无生产操作，原文的哈希链可信边界、未开放个人信息导出及遗留构建警告保持。
