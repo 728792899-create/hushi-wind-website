@@ -1,12 +1,12 @@
 <template>
-  <div class="bg-white min-h-screen">
-    
+  <div ref="pageRoot" class="bg-white min-h-screen">
+
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
-      <button 
+      <button
         v-if="route.query.source"
         type="button"
         aria-label="返回"
-        @click="handleBack" 
+        @click="handleBack"
         class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto"
       >
         <div class="w-10 h-10 flex items-center justify-center rounded-full border border-white/50 group-hover:border-white transition-colors">
@@ -28,18 +28,18 @@
     </section>
 
     <section class="py-32 px-4 max-w-6xl mx-auto space-y-40">
-      
-      <div v-if="pending" class="text-center py-20 text-gray-400">正在翻阅历史档案...</div>
-      
+
+      <div v-if="pending" class="text-center py-20 text-gray-600">正在翻阅历史档案...</div>
+
       <template v-else>
-        <div 
-          v-for="(item, index) in displayTimelines" 
-          :key="item.id" 
+        <div
+          v-for="(item, index) in displayTimelines"
+          :key="item.id"
           class="flex flex-col gap-12 lg:gap-20 items-center gsap-story-section"
           :class="index % 2 !== 0 ? 'md:flex-row-reverse' : 'md:flex-row'"
         >
           <div class="brand-timeline-copy w-full md:w-1/2">
-            <span class="text-zinc-400 font-mono tracking-widest text-sm mb-4 block border-b border-zinc-200 pb-2 w-max">{{ item.year }}</span>
+            <span class="text-zinc-600 font-mono tracking-widest text-sm mb-4 block border-b border-zinc-200 pb-2 w-max">{{ item.year }}</span>
             <h2 class="text-4xl lg:text-5xl font-bold mb-8 text-black leading-tight">{{ item.title }}</h2>
             <p class="text-zinc-500 text-lg leading-relaxed">{{ item.desc }}</p>
           </div>
@@ -64,7 +64,8 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { createPageMotion } from '../../utils/pageMotion'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -72,6 +73,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 const route = useRoute()
 const router = useRouter()
 const smartBack = useSmartBack('/')
+const pageRoot = ref(null)
 let ctx;
 let animationTimer = 0
 
@@ -110,10 +112,10 @@ useBreadcrumbSchema(() => [
 ])
 
 const initAnimations = () => {
-  if (process.server) return
-  useGsapCleanup(ctx, ScrollTrigger)
+  if (process.server || !pageRoot.value) return
+  ctx?.revert()
 
-  ctx = gsap.context(() => {
+  ctx = createPageMotion(gsap, pageRoot.value, () => {
     gsap.registerPlugin(ScrollTrigger)
     gsap.from('.gsap-story-text', { y: 40, opacity: 0, duration: 1.5, stagger: 0.3, ease: 'power3.out' })
     gsap.to('.gsap-story-hero-img', { scale: 1.15, duration: 15, ease: 'none' })
@@ -126,7 +128,7 @@ const initAnimations = () => {
       }
     })
     gsap.from('.gsap-story-footer', { scrollTrigger: { trigger: '.gsap-story-footer', start: 'top 85%' }, y: 40, opacity: 0, duration: 1, ease: 'power3.out' })
-    
+
     // 渲染完 DOM 后强制刷新一次高度侦测
     ScrollTrigger.refresh()
   })
@@ -140,7 +142,7 @@ watch(pending, (newVal) => {
 })
 onBeforeUnmount(() => {
   if (process.client) window.clearTimeout(animationTimer)
-  useGsapCleanup(ctx, ScrollTrigger)
+  ctx?.revert()
 })
 </script>
 

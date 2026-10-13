@@ -11,12 +11,14 @@ export function activateDialog(dialog, close, doc = document) {
     }
     branch = branch.parentElement;
   }
-  const focusable = () => [...dialog.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')]
+  const focusable = () => [...dialog.querySelectorAll('a[href], button, input, select, textarea, video[controls], audio[controls], [tabindex]')]
     .filter(el => el.tabIndex >= 0 && !el.matches(':disabled') && !el.closest('[inert]') && el.getClientRects().length);
   const focusFirst = () => (focusable()[0] || dialog).focus({ preventScroll: true });
   const keydown = event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
     if (event.key !== 'Tab') return;
+    // Native media controls share one activeElement; keep ordinary buttons before and after media in dialogs.
+    if (dialog.contains(doc.activeElement) && doc.activeElement?.matches('video[controls], audio[controls]')) return;
     const items = focusable(), first = items[0], last = items.at(-1);
     if (!first) { event.preventDefault(); dialog.focus(); return; }
     if (event.shiftKey && (doc.activeElement === first || !items.includes(doc.activeElement))) {

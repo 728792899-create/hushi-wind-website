@@ -17,18 +17,18 @@
 
       <div class="max-w-7xl mx-auto px-4 relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-8 border-b border-white/10 pb-6 md:pb-8 mt-2 md:mt-4">
         <div>
-          <span class="text-[9px] md:text-[10px] text-zinc-500 tracking-[0.28em] md:tracking-[0.35em] uppercase font-bold block mb-3 md:mb-4">The HUSHI WIND Collection</span>
+          <span class="text-xs md:text-xs text-zinc-300 tracking-[0.28em] md:tracking-[0.35em] uppercase font-bold block mb-3 md:mb-4">The HUSHI WIND Collection</span>
           <h1 class="text-3xl md:text-5xl font-black tracking-[0.04em] md:tracking-[0.06em] uppercase mb-3 md:mb-4">全线产品目录</h1>
           <p class="text-zinc-400 text-sm md:text-base leading-relaxed max-w-2xl">探索每一件声学作品，从原声钢琴到舞台设备，找到适合演奏、创作与现场扩声的方案。</p>
         </div>
         <div class="grid grid-cols-2 gap-5 md:gap-6 text-left md:text-right">
           <div>
             <p class="text-2xl md:text-3xl font-serif italic text-white">{{ products.length }}</p>
-            <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Products</p>
+            <p class="text-xs text-zinc-300 uppercase tracking-widest mt-1">Products</p>
           </div>
           <div>
             <p class="text-2xl md:text-3xl font-serif italic text-white">{{ categories.length - 1 }}</p>
-            <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">品类</p>
+            <p class="text-xs text-zinc-300 uppercase tracking-widest mt-1">品类</p>
           </div>
         </div>
       </div>
@@ -43,8 +43,8 @@
               :key="cat.value"
               type="button"
               @click="setCategory(cat.value)"
-              class="relative min-h-10 md:min-h-10 rounded-sm py-2 text-[11px] md:text-[11px] font-black tracking-[0.08em] md:tracking-[0.1em] transition-all duration-300"
-              :class="activeCategory === cat.value ? 'text-black' : 'text-gray-400 hover:text-black'"
+              class="relative min-h-10 md:min-h-10 rounded-sm py-2 text-xs md:text-xs font-black tracking-[0.08em] md:tracking-[0.1em] transition-all duration-300"
+              :class="activeCategory === cat.value ? 'text-black' : 'text-gray-600 hover:text-black'"
             >
               {{ cat.label }}
               <span class="absolute bottom-0 left-0 h-[2px] bg-black transition-all duration-300" :class="activeCategory === cat.value ? 'w-full' : 'w-0'"></span>
@@ -54,35 +54,35 @@
 
         <div class="flex w-full gap-2 lg:hidden">
           <div class="relative flex-1">
-            <input v-model="searchQuery" type="search" inputmode="search" placeholder="搜索产品 / 场景" class="h-11 w-full rounded-xl border border-gray-200 px-4 pr-10 text-sm outline-none transition-all focus:border-black focus:bg-zinc-50" @keyup.enter="syncFiltersToRoute" />
-            <button v-if="searchQuery" type="button" class="absolute right-9 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-black" aria-label="清空搜索" @click="searchQuery = ''">&times;</button>
-            <svg class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input v-model="searchQuery" aria-label="搜索产品" type="search" inputmode="search" placeholder="搜索产品 / 场景" class="h-11 w-full rounded-xl border border-gray-200 px-4 pr-10 text-sm outline-none transition-all focus:border-black focus:bg-zinc-50" @keyup.enter="syncFiltersToRoute" />
+            <button v-if="searchQuery" type="button" class="absolute right-9 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-gray-600 transition-colors hover:text-black" aria-label="清空搜索" @click="searchQuery = ''">&times;</button>
+            <svg class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
           <button type="button" class="flex h-11 shrink-0 items-center justify-center rounded-xl border border-black bg-black px-4 text-xs font-black tracking-widest text-white" @click="openFilterDrawer">
             筛选
-            <span v-if="activeFilterTags.length" class="ml-2 rounded-full bg-white px-2 py-0.5 text-[10px] text-black">{{ activeFilterTags.length }}</span>
+            <span v-if="activeFilterTags.length" class="ml-2 rounded-full bg-white px-2 py-0.5 text-xs text-black">{{ activeFilterTags.length }}</span>
           </button>
         </div>
 
         <div class="hidden flex-col gap-2 sm:flex-row sm:items-center lg:flex">
           <div class="relative">
-            <input v-model="searchQuery" type="search" placeholder="搜索产品 / 参数 / 场景" class="h-10 w-full sm:w-56 xl:w-64 border border-gray-200 px-3 pr-10 text-sm outline-none focus:border-black focus:bg-zinc-50 transition-all" @keyup.enter="syncFiltersToRoute" />
-            <button v-if="searchQuery" type="button" class="absolute right-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors" aria-label="清空搜索" @click="searchQuery = ''">&times;</button>
-            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input v-model="searchQuery" aria-label="搜索产品" type="search" placeholder="搜索产品 / 参数 / 场景" class="h-10 w-full sm:w-56 xl:w-64 border border-gray-200 px-3 pr-10 text-sm outline-none focus:border-black focus:bg-zinc-50 transition-all" @keyup.enter="syncFiltersToRoute" />
+            <button v-if="searchQuery" type="button" class="absolute right-9 top-1/2 -translate-y-1/2 min-h-8 min-w-8 text-gray-600 hover:text-black transition-colors" aria-label="清空搜索" @click="searchQuery = ''">&times;</button>
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <select v-model="priceFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select aria-label="价格区间" v-model="priceFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="all">全部价格</option>
             <option value="consult">咨询报价</option>
             <option value="under10000">1 万以内</option>
             <option value="10000-50000">1-5 万</option>
             <option value="over50000">5 万以上</option>
           </select>
-          <select v-model="stockFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select aria-label="库存状态" v-model="stockFilter" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="all">全部库存</option>
             <option value="inStock">可咨询体验</option>
             <option value="outStock">待补货</option>
           </select>
-          <select v-model="sortMode" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
+          <select aria-label="排序方式" v-model="sortMode" class="h-10 border border-gray-200 bg-white px-3 text-sm outline-none focus:border-black">
             <option value="featured">推荐优先</option>
             <option value="latest">最新更新</option>
             <option value="priceAsc">价格从低到高</option>
@@ -92,10 +92,10 @@
       </div>
     </section>
 
-    <main class="max-w-7xl mx-auto px-4 pt-8 md:pt-16">
-      <div v-if="pending" class="py-32 flex flex-col items-center justify-center text-gray-400">
+    <section class="max-w-7xl mx-auto px-4 pt-8 md:pt-16">
+      <div v-if="pending" class="py-32 flex flex-col items-center justify-center text-gray-600">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-black mb-6"></div>
-        <p class="text-[10px] tracking-[0.3em] font-bold uppercase">连接产品数据...</p>
+        <p class="text-xs tracking-[0.3em] font-bold uppercase">连接产品数据...</p>
       </div>
 
       <FrontState
@@ -111,15 +111,15 @@
       <template v-else>
         <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-4 md:gap-5 mb-6 md:mb-8">
           <div>
-            <p class="hidden text-xs text-gray-400 tracking-widest uppercase font-bold mb-2 md:block">{{ filteredProducts.length }} results</p>
+            <p class="hidden text-xs text-gray-600 tracking-widest uppercase font-bold mb-2 md:block">{{ filteredProducts.length }} results</p>
             <p class="hidden text-sm text-gray-500 leading-relaxed sm:block">{{ filterSummary }}</p>
           </div>
           <div class="flex items-center justify-between gap-3 md:hidden">
-            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">已筛选 {{ filteredProducts.length }} 项</p>
+            <p class="text-xs font-black uppercase tracking-[0.22em] text-zinc-600">已筛选 {{ filteredProducts.length }} 项</p>
             <div class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 p-1">
               <button
                 type="button"
-                class="h-8 rounded-full px-3 text-[10px] font-black tracking-widest transition-colors"
+                class="h-8 rounded-full px-3 text-xs font-black tracking-widest transition-colors"
                 :class="mobileViewMode === 'compact' ? 'bg-black text-white' : 'text-zinc-500'"
                 @click="mobileViewMode = 'compact'"
               >
@@ -127,7 +127,7 @@
               </button>
               <button
                 type="button"
-                class="h-8 rounded-full px-3 text-[10px] font-black tracking-widest transition-colors"
+                class="h-8 rounded-full px-3 text-xs font-black tracking-widest transition-colors"
                 :class="mobileViewMode === 'grid' ? 'bg-black text-white' : 'text-zinc-500'"
                 @click="mobileViewMode = 'grid'"
               >
@@ -136,7 +136,7 @@
             </div>
           </div>
           <div class="flex flex-wrap gap-2 md:justify-end">
-            <span v-for="tag in activeFilterTags" :key="tag" class="px-3 py-2 bg-zinc-100 text-[10px] font-bold tracking-widest text-black uppercase transition-colors hover:bg-zinc-200">{{ tag }}</span>
+            <span v-for="tag in activeFilterTags" :key="tag" class="px-3 py-2 bg-zinc-100 text-xs font-bold tracking-widest text-black uppercase transition-colors hover:bg-zinc-200">{{ tag }}</span>
             <button v-if="hasFilters" type="button" @click="resetFilters" class="text-xs font-bold tracking-widest text-black border-b border-black pb-1 hover:text-zinc-500 hover:border-zinc-400 transition-colors">清除筛选</button>
           </div>
         </div>
@@ -147,17 +147,20 @@
           tag="div"
           class="product-results-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-7 md:gap-y-14 items-stretch"
           :class="mobileViewMode === 'grid' ? 'mobile-grid-mode' : 'mobile-compact-mode'"
-          role="list"
+          role="region"
           :aria-label="`${filteredProducts.length} 个产品结果`"
         >
-          <NuxtLink
+          <div
             v-for="(product, index) in filteredProducts"
             :key="product.id"
-            :to="`/products/${product.slug || product.id}`"
-            @click="trackProductClick(product)"
-            class="product-tile group cursor-pointer flex h-full flex-col rounded-2xl md:rounded-[1.35rem] p-2 -m-2 transition-all duration-500 hover:bg-white hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,0.45)]"
-            role="listitem"
+            class="product-tile relative isolate group cursor-pointer flex h-full flex-col rounded-2xl md:rounded-[1.35rem] p-2 -m-2 transition-all duration-500 hover:bg-white hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,0.45)]"
           >
+            <NuxtLink
+              :to="`/products/${product.slug || product.id}`"
+              :aria-label="`查看 ${product.title} 详情`"
+              class="product-detail-link absolute inset-0 z-10 rounded-[inherit] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black"
+              @click="trackProductClick(product)"
+            />
             <div class="product-media relative aspect-[16/10] md:aspect-[4/3] overflow-hidden bg-[#f8f8f8] mb-4 md:mb-6 rounded-2xl md:rounded-[1.15rem]">
               <img
                 v-if="product.image"
@@ -170,19 +173,19 @@
                 class="w-full h-full object-cover transition-all duration-[800ms] group-hover:scale-105"
                 @error="imageFallback"
               />
-              <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50 border border-gray-100">
+              <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-600 bg-gray-50 border border-gray-100">
                 <svg class="w-8 h-8 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <span class="text-[9px] tracking-[0.3em] font-bold">NO IMAGE</span>
+                <span class="text-xs tracking-[0.3em] font-bold">NO IMAGE</span>
               </div>
 
               <div class="absolute top-3 left-3 md:top-4 md:left-4 flex gap-2">
-                <span v-if="product.isFeatured" class="bg-black text-white text-[9px] px-2.5 py-1.5 md:px-3 md:py-2 font-bold tracking-widest uppercase">推荐</span>
-                <span v-if="!isProductPublished(product.status)" class="bg-white text-black text-[9px] px-2.5 py-1.5 md:px-3 md:py-2 font-bold tracking-widest uppercase">未上架</span>
+                <span v-if="product.isFeatured" class="bg-black text-white text-xs px-2.5 py-1.5 md:px-3 md:py-2 font-bold tracking-widest uppercase">推荐</span>
+                <span v-if="!isProductPublished(product.status)" class="bg-white text-black text-xs px-2.5 py-1.5 md:px-3 md:py-2 font-bold tracking-widest uppercase">未上架</span>
               </div>
 
               <button
                 type="button"
-                class="product-compare-button absolute right-3 top-3 md:right-4 md:top-4 z-20 min-h-10 md:min-h-11 rounded-full px-3 md:px-4 py-2 text-[10px] font-black tracking-widest shadow-lg backdrop-blur transition-all"
+                class="product-compare-button absolute right-3 top-3 md:right-4 md:top-4 z-20 min-h-10 md:min-h-11 rounded-full px-3 md:px-4 py-2 text-xs font-black tracking-widest shadow-lg backdrop-blur transition-all"
                 :class="isCompareSelected(product.id) ? 'bg-black text-white' : 'bg-white/90 text-black hover:bg-black hover:text-white'"
                 :aria-pressed="isCompareSelected(product.id)"
                 :aria-label="isCompareSelected(product.id) ? `取消对比 ${product.title}` : `加入对比 ${product.title}`"
@@ -192,7 +195,7 @@
               </button>
 
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 hidden md:flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <span class="bg-black text-white px-8 py-4 text-[10px] font-black tracking-[0.2em] transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                <span class="bg-black text-white px-8 py-4 text-xs font-black tracking-[0.2em] transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
                   DISCOVER
                 </span>
               </div>
@@ -201,10 +204,10 @@
             <div class="product-card-body flex flex-col flex-grow justify-between">
               <div>
                 <div class="flex justify-between items-center gap-4 mb-3 md:mb-4">
-                  <p class="text-[9px] text-gray-400 tracking-[0.4em] uppercase font-bold line-clamp-1">
+                  <p class="text-xs text-gray-600 tracking-[0.4em] uppercase font-bold line-clamp-1">
                     {{ product.series || product.type }}
                   </p>
-                  <p class="text-[9px] text-gray-400 tracking-[0.2em] uppercase font-bold whitespace-nowrap">
+                  <p class="text-xs text-gray-600 tracking-[0.2em] uppercase font-bold whitespace-nowrap">
                     库存: <span class="text-black">{{ product.quantity }}</span>
                   </p>
                 </div>
@@ -215,10 +218,10 @@
               </div>
               <div class="product-footer mt-4 md:mt-5 pt-3 md:pt-4 border-t border-gray-100 flex justify-between items-end">
                 <p class="text-[13px] font-black text-black tracking-widest">{{ formatPrice(product.price) }}</p>
-                <span class="text-[9px] text-gray-400 tracking-[0.2em] uppercase font-bold">详情</span>
+                <span class="text-xs text-gray-600 tracking-[0.2em] uppercase font-bold">详情</span>
               </div>
             </div>
-          </NuxtLink>
+          </div>
         </TransitionGroup>
 
         <FrontState
@@ -230,25 +233,25 @@
           @retry="resetFilters"
         />
       </template>
-    </main>
+    </section>
 
     <Transition name="compare-bar">
       <div v-if="selectedCompareProducts.length" class="fixed bottom-4 left-1/2 z-[110] w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_24px_70px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl md:px-5 md:pb-4" data-no-scroll-fx>
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div class="min-w-0">
-            <p class="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">Product Compare</p>
+            <p class="text-xs font-black uppercase tracking-[0.28em] text-zinc-600">Product Compare</p>
             <div class="mt-2 flex flex-wrap gap-2">
               <span v-for="item in selectedCompareProducts" :key="item.id" class="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-2 text-xs font-bold text-black">
                 {{ item.title }}
-                <button type="button" class="text-zinc-400 hover:text-black" :aria-label="`移除 ${item.title}`" @click="removeCompare(item.id)">&times;</button>
+                <button type="button" class="inline-flex min-h-8 min-w-8 items-center justify-center text-zinc-600 hover:text-black" :aria-label="`移除 ${item.title}`" @click="removeCompare(item.id)">&times;</button>
               </span>
             </div>
           </div>
           <div class="flex shrink-0 items-center gap-2">
-            <button type="button" class="min-h-11 border border-zinc-200 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:border-black hover:text-black" @click="clearCompare">
+            <button type="button" class="min-h-11 border border-zinc-200 px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 transition-colors hover:border-black hover:text-black" @click="clearCompare">
               清空
             </button>
-            <button type="button" class="min-h-11 flex-1 bg-black px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-zinc-800 disabled:bg-zinc-300 md:flex-none" :disabled="selectedCompareProducts.length < 2" @click="openCompare">
+            <button type="button" class="min-h-11 flex-1 bg-black px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-zinc-800 disabled:bg-zinc-300 md:flex-none" :disabled="selectedCompareProducts.length < 2" @click="openCompare">
               开始对比 {{ selectedCompareProducts.length }}/3
             </button>
           </div>
@@ -268,12 +271,12 @@
 
     <Teleport to="body">
       <Transition name="filter-drawer">
-        <div v-if="isFilterDrawerOpen" class="fixed inset-0 z-[210] bg-black/50 backdrop-blur-sm lg:hidden" data-no-scroll-fx @keydown.esc="closeFilterDrawer" tabindex="-1">
-          <button type="button" class="absolute inset-0 cursor-default" aria-label="关闭筛选" @click="closeFilterDrawer"></button>
+        <div v-if="isFilterDrawerOpen" ref="filterDialog" role="dialog" aria-modal="true" aria-label="筛选产品" class="fixed inset-0 z-[210] bg-black/50 backdrop-blur-sm lg:hidden" data-no-scroll-fx @keydown.esc="closeFilterDrawer" tabindex="-1">
+          <button type="button" class="absolute inset-0 cursor-default" aria-label="关闭筛选" tabindex="-1" aria-hidden="true" @click="closeFilterDrawer"></button>
           <div class="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.5rem] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 shadow-2xl">
             <div class="mb-5 flex items-center justify-between">
               <div>
-                <p class="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">Filters</p>
+                <p class="text-xs font-black uppercase tracking-[0.28em] text-zinc-600">Filters</p>
                 <h2 class="mt-1 text-xl font-black text-black">筛选产品</h2>
               </div>
               <button type="button" class="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100 text-2xl leading-none text-zinc-500" aria-label="关闭筛选" @click="closeFilterDrawer">&times;</button>
@@ -281,7 +284,7 @@
 
             <div class="space-y-5">
               <div>
-                <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">产品系列</label>
+                <label class="mb-2 block text-xs font-black uppercase tracking-widest text-zinc-600">产品系列</label>
                 <div class="grid grid-cols-2 gap-2">
                   <button
                     v-for="cat in categories"
@@ -297,9 +300,9 @@
               </div>
 
               <div class="grid gap-4">
-                <label class="flex flex-col gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                <label class="flex flex-col gap-2 text-xs font-black uppercase tracking-widest text-zinc-600">
                   价格区间
-                  <select v-model="priceFilter" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
+                  <select aria-label="价格区间" v-model="priceFilter" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
                     <option value="all">全部价格</option>
                     <option value="consult">咨询报价</option>
                     <option value="under10000">1 万以内</option>
@@ -307,17 +310,17 @@
                     <option value="over50000">5 万以上</option>
                   </select>
                 </label>
-                <label class="flex flex-col gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                <label class="flex flex-col gap-2 text-xs font-black uppercase tracking-widest text-zinc-600">
                   库存状态
-                  <select v-model="stockFilter" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
+                  <select aria-label="库存状态" v-model="stockFilter" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
                     <option value="all">全部库存</option>
                     <option value="inStock">可咨询体验</option>
                     <option value="outStock">待补货</option>
                   </select>
                 </label>
-                <label class="flex flex-col gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                <label class="flex flex-col gap-2 text-xs font-black uppercase tracking-widest text-zinc-600">
                   排序方式
-                  <select v-model="sortMode" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
+                  <select aria-label="排序方式" v-model="sortMode" class="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-black outline-none focus:border-black">
                     <option value="featured">推荐优先</option>
                     <option value="latest">最新更新</option>
                     <option value="priceAsc">价格从低到高</option>
@@ -327,7 +330,7 @@
               </div>
 
               <div v-if="activeFilterTags.length" class="flex flex-wrap gap-2">
-                <span v-for="tag in activeFilterTags" :key="`drawer-tag-${tag}`" class="rounded-full bg-zinc-100 px-3 py-2 text-[10px] font-bold tracking-widest text-black">{{ tag }}</span>
+                <span v-for="tag in activeFilterTags" :key="`drawer-tag-${tag}`" class="rounded-full bg-zinc-100 px-3 py-2 text-xs font-bold tracking-widest text-black">{{ tag }}</span>
               </div>
             </div>
 
@@ -544,6 +547,8 @@ const resetFilters = () => {
 const selectedCompareIds = ref([])
 const isCompareOpen = ref(false)
 const isFilterDrawerOpen = ref(false)
+const filterDialog = ref(null)
+useDialogFocus(isFilterDrawerOpen, filterDialog, () => closeFilterDrawer())
 const compareLimit = 3
 useOverlayLock('products-compare', isCompareOpen)
 useOverlayLock('products-filter', isFilterDrawerOpen)
@@ -848,11 +853,11 @@ img { -webkit-user-drag: none; }
   }
 
   .mobile-compact-mode .product-compare-button {
-    min-height: 1.75rem;
+    min-height: 2.75rem;
     right: 0.45rem;
     top: 0.45rem;
     padding: 0.35rem 0.55rem;
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     letter-spacing: 0.12em;
     box-shadow: none;
   }
@@ -864,7 +869,7 @@ img { -webkit-user-drag: none; }
 
   .mobile-compact-mode .product-media > div.absolute.top-3 span {
     padding: 0.3rem 0.45rem;
-    font-size: 0.52rem;
+    font-size: 0.75rem;
   }
 
   .mobile-grid-mode {
@@ -911,11 +916,11 @@ img { -webkit-user-drag: none; }
   }
 
   .mobile-grid-mode .product-compare-button {
-    min-height: 1.75rem;
+    min-height: 2.75rem;
     right: 0.45rem;
     top: 0.45rem;
     padding: 0.35rem 0.5rem;
-    font-size: 0.52rem;
+    font-size: 0.75rem;
     box-shadow: none;
   }
 

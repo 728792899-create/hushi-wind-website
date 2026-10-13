@@ -3,6 +3,7 @@
     <div class="relative mb-5 border-b-2 border-zinc-800 pb-4 transition-colors duration-500 focus-within:border-white md:mb-16 md:pb-6">
       <input
         ref="searchInput"
+        aria-label="搜索产品、新闻、FAQ 或支持资料"
         v-model="query"
         type="text"
         placeholder="搜索产品、新闻、FAQ 或支持资料"
@@ -10,20 +11,20 @@
         enterkeyhint="search"
         autocomplete="off"
         autocapitalize="off"
-        class="w-full bg-transparent pl-0 pr-14 text-2xl font-bold leading-tight text-white outline-none placeholder:text-zinc-500 sm:text-4xl md:text-7xl"
+        class="w-full bg-transparent pl-0 pr-14 text-2xl font-bold leading-tight text-white outline-none placeholder:text-zinc-300 sm:text-4xl md:text-7xl"
         @keydown.enter.prevent="submitSearch"
       />
       <button
         v-if="query"
         type="button"
-        class="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-bold tracking-[0.2em] text-zinc-500 transition-colors hover:text-white"
+        class="absolute right-0 top-1/2 -translate-y-1/2 min-h-11 min-w-11 text-xs font-bold tracking-[0.2em] text-zinc-300 transition-colors hover:text-white"
         @click="clearQuery"
       >
         清空
       </button>
     </div>
 
-    <div class="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(5rem+env(safe-area-inset-bottom))] pr-1 md:pb-20 md:pr-4">
+    <div ref="searchResultsRegion" tabindex="-1" role="region" aria-label="搜索结果" class="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(5rem+env(safe-area-inset-bottom))] pr-1 md:pb-20 md:pr-4">
       <div v-if="!query" class="animate-in slide-in-from-bottom-8 grid grid-cols-1 gap-12 duration-700 lg:grid-cols-3 lg:gap-16">
         <div class="lg:col-span-1">
           <h3 class="search-section-title">热门探索</h3>
@@ -77,13 +78,13 @@
                 <img :src="item.image" :alt="item.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 100vw" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" @error="imageFallback" />
               </div>
               <div class="min-w-0">
-                <span class="font-mono text-[10px] uppercase tracking-widest text-zinc-500">{{ item.category }}</span>
+                <span class="font-mono text-xs uppercase tracking-widest text-zinc-300">{{ item.category }}</span>
                 <h4 class="mt-1 mb-2 line-clamp-2 text-base font-bold text-white transition-colors group-hover:text-blue-400 md:text-lg">{{ item.title }}</h4>
                 <span class="border-b border-zinc-700 pb-1 text-xs text-zinc-400">查看详情</span>
               </div>
             </NuxtLink>
           </div>
-          <p v-else class="text-sm text-zinc-600">暂无推荐内容，相关产品、资讯和支持内容正在整理中。</p>
+          <p v-else class="text-sm text-zinc-300">暂无推荐内容，相关产品、资讯和支持内容正在整理中。</p>
         </div>
       </div>
 
@@ -95,7 +96,7 @@
               v-for="tab in resultTabs"
               :key="tab.value"
               type="button"
-              class="rounded-full border px-3 py-2 text-[10px] font-bold tracking-widest transition-colors"
+              class="rounded-full border px-3 py-2 text-xs font-bold tracking-widest transition-colors"
               :class="activeResultType === tab.value ? 'border-white bg-white text-black' : 'border-zinc-800 text-zinc-400 hover:border-zinc-500 hover:text-white'"
               @click="activeResultType = tab.value"
             >
@@ -122,19 +123,19 @@
           >
             <div class="flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-800">
               <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 72vw" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" @error="imageFallback" />
-              <span v-else class="text-[10px] font-black tracking-widest text-zinc-500">{{ item.badge }}</span>
+              <span v-else class="text-xs font-black tracking-widest text-zinc-300">{{ item.badge }}</span>
             </div>
             <div class="min-w-0">
-              <span class="font-mono text-[10px] uppercase tracking-widest text-zinc-500">{{ item.label }} / {{ item.category }}</span>
+              <span class="font-mono text-xs uppercase tracking-widest text-zinc-300">{{ item.label }} / {{ item.category }}</span>
               <h4 class="mt-1 line-clamp-1 text-base font-bold text-white transition-colors group-hover:text-blue-400">{{ item.title }}</h4>
-              <p class="mt-2 line-clamp-1 text-xs text-zinc-500">{{ item.description }}</p>
+              <p class="mt-2 line-clamp-1 text-xs text-zinc-300">{{ item.description }}</p>
             </div>
           </NuxtLink>
         </div>
 
         <div v-else-if="!searchError" class="py-16 text-center md:py-20">
           <p class="mb-2 text-2xl font-bold text-zinc-400">未找到匹配内容</p>
-          <p class="text-zinc-600">换个关键词，或从产品目录、支持中心继续浏览。</p>
+          <p class="text-zinc-300">换个关键词，或从产品目录、支持中心继续浏览。</p>
           <div class="mt-8 flex flex-wrap justify-center gap-3">
             <NuxtLink to="/products" class="inline-flex bg-white px-6 py-3 text-xs font-bold uppercase tracking-widest text-black transition-colors hover:bg-zinc-200" @click="closeSearch">
               浏览产品
@@ -153,6 +154,7 @@
 </template>
 
 <script setup>
+import { articlePreviewText } from '../utils/articlePreviewText'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -177,6 +179,7 @@ const pagesUrl = useApiUrl('/api/page-contents')
 
 const query = ref(props.initialQuery || '')
 const searchInput = ref(null)
+const searchResultsRegion = ref(null)
 const activeResultType = ref('all')
 const fullSearchRequested = ref(false)
 let productLoadPromise = null
@@ -287,7 +290,7 @@ const articleResultsSource = computed(() => normalizeRows(articleResponse).map((
   badge: 'NEWS',
   title: item.title || '未命名新闻',
   category: item.category || 'News',
-  description: item.description || '',
+  description: articlePreviewText(item.description || ''),
   image: mediaUrl(item.image?.data?.attributes?.url || item.imageUrl, ''),
   slug: item.slug || '',
   to: `/news/${item.id || item.slug}`,
@@ -427,7 +430,8 @@ const clearQuery = () => {
 
 const submitSearch = async () => {
   if (query.value.trim().length >= 2) await ensureFullSearchData()
-  searchInput.value?.blur()
+  await nextTick()
+  searchResultsRegion.value?.focus({ preventScroll: true })
 }
 
 const selectHotTag = (tag) => {
@@ -507,7 +511,7 @@ onBeforeUnmount(() => {
 .search-card { @apply flex min-h-[7rem] items-center gap-5 rounded-sm border border-transparent bg-zinc-950/20 p-4 transition-all hover:bg-zinc-900 md:gap-6; }
 .search-card:hover { transform: translateY(-2px); }
 .search-quick-card { @apply flex min-h-[7rem] flex-col justify-between rounded-sm border border-zinc-700 bg-zinc-950/30 p-5 text-white transition-all hover:border-zinc-400 hover:bg-zinc-900; }
-.search-quick-card span { @apply font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-400; }
+.search-quick-card span { @apply font-mono text-xs uppercase tracking-[0.28em] text-zinc-400; }
 .search-quick-card strong { @apply text-lg font-bold tracking-widest text-white; }
 .animate-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .slide-in-from-bottom-8 { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -521,7 +525,7 @@ onBeforeUnmount(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
 @media (max-width: 767px) {
-  .search-section-title { @apply mb-4 text-[10px]; }
+  .search-section-title { @apply mb-4 text-xs; }
   .search-card {
     min-height: 5.75rem;
     gap: 0.9rem;

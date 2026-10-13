@@ -2,7 +2,7 @@
   <NuxtLink :to="link" class="product-card group block cursor-pointer">
     <div class="w-full aspect-[4/3] bg-gray-100 mb-4 overflow-hidden relative">
       
-      <div v-if="!imageUrl" class="absolute inset-0 flex items-center justify-center text-sm text-gray-400 bg-gray-200">
+      <div v-if="!imageUrl" class="absolute inset-0 flex items-center justify-center text-sm text-gray-600 bg-gray-200">
         [ {{ imageText }} ]
       </div>
 

@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-white min-h-screen relative overflow-hidden">
+  <div ref="pageRoot" class="bg-white min-h-screen relative overflow-hidden">
     <Transition name="fade">
       <div v-if="pending" class="fixed inset-0 z-[300] bg-white flex flex-col items-center justify-center">
         <div class="w-12 h-12 border-4 border-zinc-100 border-t-black rounded-full animate-spin mb-6"></div>
-        <p class="font-mono text-[10px] tracking-[0.3em] uppercase">Fetching Product Intel...</p>
+        <p class="font-mono text-xs tracking-[0.3em] uppercase">Fetching Product Intel...</p>
       </div>
     </Transition>
 
@@ -41,7 +41,7 @@
           <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-900/60 to-black/20"></div>
         </div>
         <div class="relative z-10 max-w-7xl w-full px-4 text-white gsap-fade-up">
-          <p class="text-[10px] md:text-xs font-mono tracking-[0.35em] uppercase text-zinc-400 mb-5">{{ product.series }} Series</p>
+          <p class="text-xs font-mono tracking-[0.35em] uppercase text-zinc-400 mb-5">{{ product.series }} Series</p>
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 md:gap-8">
             <div>
               <h1 class="text-3xl font-serif italic tracking-tighter mb-4 md:mb-6 sm:text-5xl md:text-7xl">{{ product.title }}</h1>
@@ -49,7 +49,7 @@
             </div>
             <div class="lg:text-right">
               <p class="text-2xl md:text-4xl font-black tracking-widest">{{ formatPrice(product.price) }}</p>
-              <p class="text-[10px] text-zinc-500 uppercase tracking-widest mt-3">库存 {{ product.quantity }} 件</p>
+              <p class="text-xs text-zinc-400 uppercase tracking-widest mt-3">库存 {{ product.quantity }} 件</p>
             </div>
           </div>
         </div>
@@ -77,13 +77,13 @@
 
           <div class="w-full lg:w-1/2 space-y-8 md:space-y-12 pt-2 lg:pt-4">
             <div class="gsap-fade-up-stagger">
-              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-4 block">Product Story</span>
+              <span class="text-xs font-bold text-gray-600 uppercase tracking-[0.25em] mb-4 block">Product Story</span>
               <h2 class="text-2xl md:text-4xl font-serif italic mb-4 md:mb-5 text-black leading-tight">设计、触感与音色的平衡。</h2>
               <p class="text-sm md:text-base text-gray-600 leading-relaxed">{{ product.description }}</p>
             </div>
 
             <div class="detail-info-panel border-t border-gray-200 pt-8 md:pt-10 gsap-fade-up-stagger">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-6">核心声学特性</h3>
+              <h3 class="text-xs font-bold text-gray-600 uppercase tracking-[0.2em] mb-6">核心声学特性</h3>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div v-for="(feat, idx) in product.features" :key="idx" class="space-y-3">
                   <div class="w-6 h-[2px] bg-black"></div>
@@ -93,56 +93,56 @@
             </div>
 
             <div class="detail-info-panel border-t border-gray-200 pt-8 md:pt-10 gsap-fade-up-stagger">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-6">结构化参数</h3>
+              <h3 class="text-xs font-bold text-gray-600 uppercase tracking-[0.2em] mb-6">结构化参数</h3>
               <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div v-for="spec in product.specs" :key="spec.label" class="bg-zinc-50 border border-zinc-100 p-5 rounded-sm">
-                  <dt class="text-gray-400 mb-2 text-xs">{{ spec.label }}</dt>
+                  <dt class="text-gray-600 mb-2 text-xs">{{ spec.label }}</dt>
                   <dd class="font-bold text-black leading-snug">{{ spec.value }}</dd>
                 </div>
               </dl>
             </div>
 
             <div class="detail-info-panel border-t border-gray-200 pt-8 md:pt-10 gsap-fade-up-stagger">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-6">产品信息</h3>
+              <h3 class="text-xs font-bold text-gray-600 uppercase tracking-[0.2em] mb-6">产品信息</h3>
               <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-sm">
                 <div v-if="product.sku">
-                  <dt class="text-gray-400 mb-1">SKU</dt>
+                  <dt class="text-gray-600 mb-1">SKU</dt>
                   <dd class="font-bold text-black">{{ product.sku }}</dd>
                 </div>
                 <div v-if="product.model">
-                  <dt class="text-gray-400 mb-1">型号</dt>
+                  <dt class="text-gray-600 mb-1">型号</dt>
                   <dd class="font-bold text-black">{{ product.model }}</dd>
                 </div>
                 <div v-if="product.color">
-                  <dt class="text-gray-400 mb-1">颜色 / 配置</dt>
+                  <dt class="text-gray-600 mb-1">颜色 / 配置</dt>
                   <dd class="font-bold text-black">{{ product.color }}</dd>
                 </div>
                 <div>
-                  <dt class="text-gray-400 mb-1">产品系列</dt>
+                  <dt class="text-gray-600 mb-1">产品系列</dt>
                   <dd class="font-bold text-black">{{ product.series }}</dd>
                 </div>
                 <div>
-                  <dt class="text-gray-400 mb-1">产品分类</dt>
+                  <dt class="text-gray-600 mb-1">产品分类</dt>
                   <dd class="font-bold text-black">{{ product.typeLabel }}</dd>
                 </div>
                 <div>
-                  <dt class="text-gray-400 mb-1">库存状态</dt>
+                  <dt class="text-gray-600 mb-1">库存状态</dt>
                   <dd class="font-bold text-black">{{ product.quantity > 0 ? '可咨询体验' : '待补货' }}</dd>
                 </div>
                 <div>
-                  <dt class="text-gray-400 mb-1">报价方式</dt>
+                  <dt class="text-gray-600 mb-1">报价方式</dt>
                   <dd class="font-bold text-black">{{ product.price ? '公开参考价' : '专属顾问报价' }}</dd>
                 </div>
               </dl>
               <div v-if="product.scenes.length" class="mt-8">
-                <p class="text-gray-400 text-xs mb-3">适用场景</p>
+                <p class="text-gray-600 text-xs mb-3">适用场景</p>
                 <div class="flex flex-wrap gap-2">
-                  <span v-for="scene in product.scenes" :key="scene" class="px-3 py-2 bg-black text-white text-[10px] font-bold tracking-widest uppercase">{{ scene }}</span>
+                  <span v-for="scene in product.scenes" :key="scene" class="px-3 py-2 bg-black text-white text-xs font-bold tracking-widest uppercase">{{ scene }}</span>
                 </div>
               </div>
               <p v-if="product.warranty" class="mt-8 text-xs md:text-sm text-gray-500 leading-relaxed border-l-2 border-black pl-5">{{ product.warranty }}</p>
               <div v-if="product.accessories.length" class="mt-8">
-                <p class="text-gray-400 text-xs mb-3">推荐配件 / 组合</p>
+                <p class="text-gray-600 text-xs mb-3">推荐配件 / 组合</p>
                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <span v-for="accessory in product.accessories" :key="accessory" class="rounded-sm border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs font-bold text-zinc-700">{{ accessory }}</span>
                 </div>
@@ -150,7 +150,7 @@
             </div>
 
             <div v-if="relatedFaqs.length || supportDownloads.length" class="detail-info-panel border-t border-gray-200 pt-8 md:pt-10 gsap-fade-up-stagger">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-6">资料与售后支持</h3>
+              <h3 class="text-xs font-bold text-gray-600 uppercase tracking-[0.2em] mb-6">资料与售后支持</h3>
               <div class="grid grid-cols-1 gap-4">
                 <a
                   v-for="file in supportDownloads"
@@ -161,9 +161,9 @@
                 >
                   <span class="min-w-0">
                     <span class="block truncate text-sm font-bold text-black">{{ file.name }}</span>
-                    <span class="mt-1 block text-[10px] font-bold uppercase tracking-widest text-zinc-400">{{ file.type || '资料下载' }} {{ file.size ? `/ ${file.size}` : '' }}</span>
+                    <span class="mt-1 block text-xs font-bold uppercase tracking-widest text-zinc-600">{{ file.type || '资料下载' }} {{ file.size ? `/ ${file.size}` : '' }}</span>
                   </span>
-                  <span class="shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-black">下载</span>
+                  <span class="shrink-0 text-xs font-black uppercase tracking-widest text-zinc-600 group-hover:text-black">下载</span>
                 </a>
                 <NuxtLink
                   v-if="!supportDownloads.length"
@@ -172,17 +172,17 @@
                 >
                   <span>
                     <span class="block text-sm font-bold text-black">查看产品资料与服务支持</span>
-                    <span class="mt-1 block text-[10px] font-bold uppercase tracking-widest text-zinc-400">Downloads & Service</span>
+                    <span class="mt-1 block text-xs font-bold uppercase tracking-widest text-zinc-600">Downloads & Service</span>
                   </span>
-                  <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">进入</span>
+                  <span class="text-xs font-black uppercase tracking-widest text-zinc-600">进入</span>
                 </NuxtLink>
               </div>
               <div v-if="relatedFaqs.length" class="mt-6 space-y-3">
                 <details v-for="faq in relatedFaqs" :key="`faq-${faq.id || faq.question}`" class="group border border-zinc-100 bg-white px-5 py-4 open:border-black">
-                  <summary class="cursor-pointer list-none text-sm font-bold text-black">
-                    <span class="flex items-center justify-between gap-4">
+                  <summary class="flex min-h-11 cursor-pointer list-none items-center text-sm font-bold text-black">
+                    <span class="flex w-full items-center justify-between gap-4">
                       <span>{{ faq.question }}</span>
-                      <span class="text-zinc-300 transition-transform group-open:rotate-45">+</span>
+                      <span aria-hidden="true" class="text-zinc-600 transition-transform group-open:rotate-45">+</span>
                     </span>
                   </summary>
                   <p class="mt-4 text-sm leading-relaxed text-zinc-500">{{ faq.answer }}</p>
@@ -205,10 +205,10 @@
       <section v-if="relatedProducts.length" class="max-w-7xl mx-auto px-4 pb-20 md:pb-24">
         <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-t border-gray-200 pt-12 mb-8">
           <div>
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] block mb-3">Related Collection</span>
+            <span class="text-xs font-bold text-gray-600 uppercase tracking-[0.25em] block mb-3">Related Collection</span>
             <h2 class="text-3xl md:text-4xl font-serif italic text-black">同类声学选择</h2>
           </div>
-          <NuxtLink to="/products" class="text-xs font-bold tracking-[0.2em] uppercase border-b border-black pb-1 text-black hover:text-gray-500 hover:border-gray-400 transition-colors">
+          <NuxtLink to="/products" class="inline-flex min-h-11 items-center text-xs font-bold tracking-[0.2em] uppercase border-b border-black pb-1 text-black hover:text-gray-500 hover:border-gray-400 transition-colors">
             返回目录
           </NuxtLink>
         </div>
@@ -224,11 +224,11 @@
               <img :src="item.imageUrl" :alt="item.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 100vw" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" @error="imageFallback" />
             </div>
             <div class="p-5">
-              <p class="text-[9px] text-gray-400 tracking-[0.3em] uppercase font-bold mb-3">{{ item.series }}</p>
+              <p class="text-xs text-gray-600 tracking-[0.3em] uppercase font-bold mb-3">{{ item.series }}</p>
               <h3 class="text-lg font-black text-black mb-3 leading-snug group-hover:text-gray-500 transition-colors">{{ item.title }}</h3>
-              <div class="flex justify-between items-center border-t border-gray-100 pt-4 text-[11px] font-bold tracking-widest">
+              <div class="flex justify-between items-center border-t border-gray-100 pt-4 text-xs font-bold tracking-widest">
                 <span>{{ formatPrice(item.price) }}</span>
-                <span class="text-gray-400">库存 {{ item.quantity }}</span>
+                <span class="text-gray-600">库存 {{ item.quantity }}</span>
               </div>
             </div>
           </NuxtLink>
@@ -241,7 +241,7 @@
         </div>
         <div class="relative z-10 max-w-4xl mx-auto gsap-fade-up">
           <h2 class="text-2xl md:text-4xl font-serif italic leading-tight mb-6">"它不只是一件设备，<br>更是情感与灵感的放大器。"</h2>
-          <p class="text-zinc-500 tracking-[0.3em] uppercase text-[10px] font-bold">胡氏管乐技术服务团队</p>
+          <p class="text-zinc-400 tracking-[0.3em] uppercase text-xs font-bold">胡氏管乐技术服务团队</p>
         </div>
       </section>
     </div>
@@ -251,47 +251,64 @@
         <div class="flex items-center gap-3">
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-bold text-black">{{ product.title }}</p>
-            <p class="text-[10px] tracking-widest text-zinc-400 uppercase">{{ formatPrice(product.price) }}</p>
+            <p class="text-xs tracking-widest text-zinc-600 uppercase">{{ formatPrice(product.price) }}</p>
           </div>
-          <button type="button" @click="openModal('appointment')" class="min-h-11 rounded-sm bg-black px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white">试奏</button>
-          <button type="button" @click="openModal('quote')" class="min-h-11 rounded-sm border border-black px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-black">报价</button>
-          <a :href="phoneHref" class="flex min-h-11 items-center rounded-sm border border-zinc-200 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-black" @click="trackPhoneCta">电话</a>
+          <button type="button" @click="openModal('appointment')" class="min-h-11 rounded-sm bg-black px-4 py-3 text-xs font-bold uppercase tracking-widest text-white">试奏</button>
+          <button type="button" @click="openModal('quote')" class="min-h-11 rounded-sm border border-black px-4 py-3 text-xs font-bold uppercase tracking-widest text-black">报价</button>
+          <a :href="phoneHref" class="flex min-h-11 items-center rounded-sm border border-zinc-200 px-3 py-3 text-xs font-bold uppercase tracking-widest text-black" @click="trackPhoneCta">电话</a>
         </div>
       </div>
     </Transition>
 
     <Teleport to="body">
       <Transition name="modal-pop">
-        <div v-if="isModalOpen" class="fixed inset-0 z-[200] flex items-center justify-center p-4" @keydown.esc="closeModal" tabindex="-1">
+        <div v-if="isModalOpen" ref="inquiryDialog" role="dialog" aria-modal="true" aria-labelledby="product-inquiry-title" class="fixed inset-0 z-[200] flex items-center justify-center p-4" tabindex="-1">
           <div @click="closeModal" class="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
           <div class="relative bg-white w-full max-w-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:p-10 shadow-2xl rounded-sm max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-start mb-8 gap-6">
               <div>
-                <h2 class="text-xl font-bold uppercase tracking-widest">{{ modalTitle }}</h2>
-                <p class="text-xs text-gray-400 mt-2">产品顾问将尽快与您联系。</p>
+                <h2 id="product-inquiry-title" class="text-xl font-bold uppercase tracking-widest">{{ modalTitle }}</h2>
+                <p class="text-xs text-gray-600 mt-2">产品顾问将尽快与您联系。</p>
               </div>
-              <button type="button" @click="closeModal" class="flex h-11 w-11 shrink-0 items-center justify-center text-gray-400 hover:text-black text-3xl leading-none transition-transform hover:rotate-90" aria-label="关闭弹窗">&times;</button>
+              <button type="button" @click="closeModal" class="flex h-11 w-11 shrink-0 items-center justify-center text-gray-600 hover:text-black text-3xl leading-none transition-transform hover:rotate-90" aria-label="关闭产品咨询">&times;</button>
             </div>
             <form @submit.prevent="handleSubmit" class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <input type="text" :value="product?.title" disabled class="sm:col-span-2 w-full bg-gray-50 border px-6 py-4 text-gray-400 cursor-not-allowed font-bold text-sm" />
-              <label class="form-field">
-                <input v-model="formData.name" type="text" required maxlength="30" autocomplete="name" placeholder="您的姓名" class="form-control" />
-                <span v-if="formErrors.name" class="form-error">{{ formErrors.name }}</span>
+              <label for="product-inquiry-product" class="form-field sm:col-span-2">
+                <span class="form-label">咨询产品</span>
+                <input id="product-inquiry-product" type="text" :value="product?.title" disabled class="w-full bg-gray-50 border px-6 py-4 text-gray-600 cursor-not-allowed font-bold text-sm" />
               </label>
-              <label class="form-field">
-                <input v-model="formData.phone" type="tel" required maxlength="11" inputmode="tel" autocomplete="tel" placeholder="联系电话" class="form-control" />
-                <span v-if="formErrors.phone" class="form-error">{{ formErrors.phone }}</span>
+              <label for="product-inquiry-name" class="form-field">
+                <span class="form-label">您的姓名</span>
+                <input id="product-inquiry-name" v-model="formData.name" type="text" required maxlength="30" autocomplete="name" placeholder="您的姓名" class="form-control" :aria-invalid="Boolean(formErrors.name)" :aria-describedby="formErrors.name ? 'product-inquiry-name-error' : undefined" />
+                <span v-if="formErrors.name" id="product-inquiry-name-error" class="form-error" role="alert">{{ formErrors.name }}</span>
               </label>
-              <input v-model="formData.city" type="text" maxlength="30" autocomplete="address-level2" placeholder="所在城市" class="w-full border px-6 py-4 focus:border-black outline-none transition-colors text-sm min-h-12" />
-              <select v-model="formData.budget" class="w-full border px-6 py-4 focus:border-black outline-none transition-colors text-sm bg-white">
-                <option value="">预算区间</option>
-                <option value="1 万以内">1 万以内</option>
-                <option value="1-5 万">1-5 万</option>
-                <option value="5-15 万">5-15 万</option>
-                <option value="15 万以上">15 万以上</option>
-              </select>
-              <input v-model="formData.preferredTime" type="text" maxlength="40" placeholder="期望联系 / 试奏时间" class="sm:col-span-2 w-full border px-6 py-4 focus:border-black outline-none transition-colors text-sm min-h-12" />
-              <textarea v-model="formData.message" rows="3" placeholder="补充需求，例如用途、场地、音色偏好或安装条件" class="sm:col-span-2 w-full border px-6 py-4 focus:border-black outline-none transition-colors text-sm min-h-28"></textarea>
+              <label for="product-inquiry-phone" class="form-field">
+                <span class="form-label">联系电话</span>
+                <input id="product-inquiry-phone" v-model="formData.phone" type="tel" required maxlength="11" inputmode="tel" autocomplete="tel" placeholder="联系电话" class="form-control" :aria-invalid="Boolean(formErrors.phone)" :aria-describedby="formErrors.phone ? 'product-inquiry-phone-error' : undefined" />
+                <span v-if="formErrors.phone" id="product-inquiry-phone-error" class="form-error" role="alert">{{ formErrors.phone }}</span>
+              </label>
+              <label for="product-inquiry-city" class="form-field">
+                <span class="form-label">所在城市</span>
+                <input id="product-inquiry-city" v-model="formData.city" type="text" maxlength="30" autocomplete="address-level2" placeholder="所在城市" class="form-control" />
+              </label>
+              <label for="product-inquiry-budget" class="form-field">
+                <span class="form-label">预算区间</span>
+                <select id="product-inquiry-budget" v-model="formData.budget" class="form-control bg-white">
+                  <option value="">预算区间</option>
+                  <option value="1 万以内">1 万以内</option>
+                  <option value="1-5 万">1-5 万</option>
+                  <option value="5-15 万">5-15 万</option>
+                  <option value="15 万以上">15 万以上</option>
+                </select>
+              </label>
+              <label for="product-inquiry-time" class="form-field sm:col-span-2">
+                <span class="form-label">期望联系 / 试奏时间</span>
+                <input id="product-inquiry-time" v-model="formData.preferredTime" type="text" maxlength="40" placeholder="期望联系 / 试奏时间" class="form-control" />
+              </label>
+              <label for="product-inquiry-message" class="form-field sm:col-span-2">
+                <span class="form-label">补充需求</span>
+                <textarea id="product-inquiry-message" v-model="formData.message" rows="3" placeholder="补充需求，例如用途、场地、音色偏好或安装条件" class="form-control min-h-28"></textarea>
+              </label>
               <input v-model="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
               <button type="submit" :disabled="isSubmitting" class="sm:col-span-2 w-full bg-black text-white py-4 mt-2 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all disabled:bg-gray-300 disabled:cursor-wait min-h-12">
                 <span class="inline-flex items-center justify-center gap-3">
@@ -307,26 +324,27 @@
 
     <Teleport to="body">
       <Transition name="modal-pop">
-        <div v-if="showSuccessGuide && product" class="fixed inset-0 z-[210] flex items-center justify-center p-4">
-          <button type="button" class="absolute inset-0 bg-black/55 backdrop-blur-md" aria-label="关闭提交成功引导" @click="showSuccessGuide = false"></button>
-          <div class="relative w-full max-w-xl rounded-sm bg-white p-6 shadow-2xl md:p-10">
-            <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Request Received</p>
-            <h2 class="mb-4 text-2xl font-black text-black md:text-3xl">申请已提交</h2>
+        <div v-if="showSuccessGuide && product" ref="successDialog" role="dialog" aria-modal="true" aria-labelledby="product-success-title" tabindex="-1" class="fixed inset-0 z-[210] flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-black/55 backdrop-blur-md" @click="successOverlayHistory.closeViaHistory()"></div>
+          <div class="relative w-full max-w-xl max-h-[90dvh] overflow-y-auto rounded-sm bg-white p-6 shadow-2xl md:p-10">
+            <button type="button" class="absolute right-3 top-3 flex h-11 w-11 items-center justify-center text-3xl text-zinc-600" aria-label="关闭提交成功引导" @click="successOverlayHistory.closeViaHistory()">&times;</button>
+            <p class="mb-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-600">Request Received</p>
+            <h2 id="product-success-title" class="mb-4 text-2xl font-black text-black md:text-3xl">申请已提交</h2>
             <p class="mb-8 text-sm leading-relaxed text-zinc-500">
               产品顾问会根据您提交的产品、城市与时间偏好跟进。等待期间，可以继续查看同系列产品、售后政策或回到产品目录做对比。
             </p>
             <div class="grid gap-3 sm:grid-cols-3">
-              <NuxtLink to="/products" class="border border-black px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-white" @click="showSuccessGuide = false">
+              <NuxtLink to="/products" class="border border-black px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-black transition-colors hover:bg-black hover:text-white" @click="showSuccessGuide = false">
                 产品目录
               </NuxtLink>
-              <NuxtLink v-if="relatedProducts[0]" :to="`/products/${relatedProducts[0].slug || relatedProducts[0].id}`" class="border border-zinc-200 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:border-black" @click="showSuccessGuide = false">
+              <NuxtLink v-if="relatedProducts[0]" :to="`/products/${relatedProducts[0].slug || relatedProducts[0].id}`" class="border border-zinc-200 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-black transition-colors hover:border-black" @click="showSuccessGuide = false">
                 同系列推荐
               </NuxtLink>
-              <NuxtLink to="/support" class="border border-zinc-200 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:border-black" @click="showSuccessGuide = false">
+              <NuxtLink to="/support" class="border border-zinc-200 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-black transition-colors hover:border-black" @click="showSuccessGuide = false">
                 售后支持
               </NuxtLink>
             </div>
-            <button type="button" class="mt-6 text-xs font-bold tracking-widest text-zinc-400 transition-colors hover:text-black" @click="showSuccessGuide = false">
+            <button type="button" class="mt-6 min-h-11 text-xs font-bold tracking-widest text-zinc-600 transition-colors hover:text-black" @click="successOverlayHistory.closeViaHistory()">
               继续留在当前页面
             </button>
           </div>
@@ -337,10 +355,13 @@
 </template>
 
 <script setup>
+import { createPageMotion } from '../../utils/pageMotion'
 import { computed, ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { resetSubmittedFields } from '../../utils/supportSubmission'
+import { createSubmissionAttempt } from '../../utils/submissionAttempt'
 
 const route = useRoute()
 const router = useRouter()
@@ -365,6 +386,12 @@ const modalType = ref('appointment')
 const isSubmitting = ref(false)
 const activeImage = ref('')
 const showSuccessGuide = ref(false)
+const inquiryDialog = ref(null)
+const successDialog = ref(null)
+const inquirySession = ref(0)
+useDialogFocus(isModalOpen, inquiryDialog, () => closeModal())
+useDialogFocus(showSuccessGuide, successDialog, () => successOverlayHistory.closeViaHistory())
+watch(isModalOpen, () => { inquirySession.value++ }, { flush: 'sync' })
 useOverlayLock('product-inquiry-modal', isModalOpen)
 useOverlayLock('product-success-guide', showSuccessGuide)
 const inquiryOverlayHistory = useOverlayHistory('product-inquiry-modal', isModalOpen, () => {
@@ -373,9 +400,16 @@ const inquiryOverlayHistory = useOverlayHistory('product-inquiry-modal', isModal
 const successOverlayHistory = useOverlayHistory('product-success-guide', showSuccessGuide, () => {
   showSuccessGuide.value = false
 })
+watch(() => route.params.id, () => {
+  inquirySession.value++
+  inquiryOverlayHistory.closeDirect()
+  successOverlayHistory.closeDirect()
+}, { flush: 'sync' })
 const formData = reactive({ name: '', phone: '', city: '', budget: '', preferredTime: '', message: '' })
 const { honeypot, getGuardPayload, canSubmit, resetGuard } = useFormGuard('product-inquiry')
+const submissionAttempt = createSubmissionAttempt(getGuardPayload)
 const trackedProductKeys = new Set()
+const pageRoot = ref(null)
 let ctx
 let animationTimer = 0
 
@@ -544,6 +578,7 @@ const handleBack = () => {
 }
 
 const openModal = (type) => {
+  clearFormErrors()
   showSuccessGuide.value = false
   modalType.value = type
   isModalOpen.value = true
@@ -570,10 +605,6 @@ const showToast = (message, type = 'success') => {
   setTimeout(() => { toast.value.show = false }, 3500)
 }
 
-const resetForm = () => {
-  Object.assign(formData, { name: '', phone: '', city: '', budget: '', preferredTime: '', message: '' })
-}
-
 const formErrors = reactive({ name: '', phone: '' })
 
 const clearFormErrors = () => {
@@ -595,9 +626,16 @@ const trackPhoneCta = () => {
 }
 
 const handleSubmit = async () => {
+  if (isSubmitting.value) return
+  const submitted = { ...formData }
+  const session = inquirySession.value
+  const submittedProduct = { id: product.value?.id, title: product.value?.title || '' }
+  const submittedType = modalType.value
+  const identity = { ...submitted, productId: submittedProduct.id, productTitle: submittedProduct.title, inquiryType: submittedType }
+  const tracking = { ...getTrackingPayload() }
   clearFormErrors()
-  const name = formData.name.trim()
-  const phone = formData.phone.trim()
+  const name = submitted.name.trim()
+  const phone = submitted.phone.trim()
   if (name.length < 2) {
     formErrors.name = '请输入至少 2 个字符的姓名'
     return showToast('请输入有效姓名', 'error')
@@ -616,53 +654,60 @@ const handleSubmit = async () => {
       body: {
         customerName: name,
         contactInfo: phone,
-        inquiryType: modalType.value,
-        productId: product.value?.id,
-        productTitle: product.value?.title || '',
-        city: formData.city.trim(),
-        budget: formData.budget,
-        preferredTime: formData.preferredTime.trim(),
-        message: formData.message.trim() || '无补充需求',
-        ...getTrackingPayload(),
-        ...getGuardPayload()
+        inquiryType: submittedType,
+        productId: submittedProduct.id,
+        productTitle: submittedProduct.title,
+        city: submitted.city.trim(),
+        budget: submitted.budget,
+        preferredTime: submitted.preferredTime.trim(),
+        message: submitted.message.trim() || '无补充需求',
+        ...tracking,
+        ...submissionAttempt.getPayload(identity)
       }
     })
+    submissionAttempt.complete(identity)
     track('form_submit', {
+      ...tracking,
       entityType: 'product',
-      entityId: product.value?.id ? String(product.value.id) : '',
-      entityTitle: product.value?.title || '',
-      ctaName: modalType.value,
+      entityId: submittedProduct.id ? String(submittedProduct.id) : '',
+      entityTitle: submittedProduct.title,
+      ctaName: submittedType,
       metadata: { source: 'product-detail' }
     })
+    if (session !== inquirySession.value || !isModalOpen.value) return
+    const hasNewInput = Object.keys(submitted).some(key => formData[key] !== submitted[key])
     showToast('申请已提交，品牌顾问将尽快联系您。')
-    resetForm()
+    resetSubmittedFields(formData, submitted)
     resetGuard()
-    inquiryOverlayHistory.closeDirect()
-    showSuccessGuide.value = true
+    if (!hasNewInput) {
+      inquiryOverlayHistory.closeDirect()
+      showSuccessGuide.value = true
+    }
   } catch (error) {
     const message = error?.data?.error?.message || '提交失败，请稍后再试。'
     track('form_submit_failed', {
+      ...tracking,
       entityType: 'product',
-      entityId: product.value?.id ? String(product.value.id) : '',
-      entityTitle: product.value?.title || '',
-      ctaName: modalType.value,
+      entityId: submittedProduct.id ? String(submittedProduct.id) : '',
+      entityTitle: submittedProduct.title,
+      ctaName: submittedType,
       metadata: {
         source: 'product-detail',
         message,
         status: error?.status || error?.response?.status || ''
       }
     })
-    showToast(message, 'error')
+    if (session === inquirySession.value && isModalOpen.value) showToast(message, 'error')
   } finally {
     isSubmitting.value = false
   }
 }
 
 const initAnimations = () => {
-  if (process.server || !product.value) return
-  useGsapCleanup(ctx, ScrollTrigger)
+  if (process.server || !pageRoot.value || !product.value) return
+  ctx?.revert()
 
-  ctx = gsap.context(() => {
+  ctx = createPageMotion(gsap, pageRoot.value, () => {
     gsap.from('.gsap-fade-up', { y: 30, opacity: 0, duration: 1, ease: 'power3.out' })
     gsap.to('.gsap-detail-hero-img', { scale: 1.05, duration: 15, ease: 'none' })
     gsap.utils.toArray('.gsap-fade-up-stagger').forEach((elem) => {
@@ -683,8 +728,9 @@ watch(pending, (newVal) => {
 })
 
 onBeforeUnmount(() => {
+  inquirySession.value++
   if (process.client) window.clearTimeout(animationTimer)
-  useGsapCleanup(ctx, ScrollTrigger)
+  ctx?.revert()
 })
 
 useSiteSeo({
@@ -751,7 +797,9 @@ useBreadcrumbSchema(() => [
 .animate-in { animation: fadeIn 0.7s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .form-field { display: flex; flex-direction: column; gap: 0.5rem; }
+.form-label { color: #52525b; font-size: 0.75rem; font-weight: 600; }
 .form-control { width: 100%; min-height: 3rem; border: 1px solid #e5e7eb; padding: 1rem 1.5rem; font-size: 0.875rem; outline: none; transition: border-color 0.2s ease, background-color 0.2s ease; }
+.form-control::placeholder { color: #52525b; opacity: 1; }
 .form-control:focus { border-color: #000; background-color: #fafafa; }
 .form-error { color: #dc2626; font-size: 0.75rem; line-height: 1.2; }
 img { -webkit-user-drag: none; }

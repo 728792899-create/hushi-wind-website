@@ -4,12 +4,12 @@
       <svg v-if="type === 'error'" class="h-7 w-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
       </svg>
-      <svg v-else class="h-7 w-7 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg v-else class="h-7 w-7 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 12h16M4 17h10" />
       </svg>
     </div>
 
-    <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.32em] text-zinc-400">{{ eyebrow }}</p>
+    <p class="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-zinc-600">{{ eyebrow }}</p>
     <h2 class="mb-4 text-2xl font-bold text-black md:text-3xl">{{ title }}</h2>
     <p class="max-w-md text-sm leading-relaxed text-zinc-500">{{ description }}</p>
 
@@ -17,7 +17,7 @@
       <button
         v-if="showRetry"
         type="button"
-        class="border border-black bg-black px-6 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white transition-colors hover:bg-zinc-800"
+        class="border border-black bg-black px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white transition-colors hover:bg-zinc-800"
         @click="$emit('retry')"
       >
         重新加载
@@ -25,14 +25,14 @@
       <NuxtLink
         v-if="homeLink"
         to="/"
-        class="border border-zinc-200 px-6 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-black transition-colors hover:border-black"
+        class="border border-zinc-200 px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black transition-colors hover:border-black"
       >
         返回首页
       </NuxtLink>
       <NuxtLink
         v-if="supportLink"
         to="/support"
-        class="border border-zinc-200 px-6 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-black transition-colors hover:border-black"
+        class="border border-zinc-200 px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black transition-colors hover:border-black"
       >
         联系支持
       </NuxtLink>

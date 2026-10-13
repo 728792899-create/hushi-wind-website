@@ -59,12 +59,12 @@
     </Transition>
 
     <Transition name="fade">
-      <div v-if="isOffline" class="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-4 py-2 bg-orange-500/10 border border-orange-500/30 backdrop-blur-md rounded-sm text-orange-500 shadow-lg cursor-help transition-all hover:bg-orange-500/20" title="无法连接到后端服务，部分动态内容可能暂时不可用">
+      <div v-if="isOffline" class="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-4 py-2 bg-orange-50 border border-orange-500/30 rounded-sm text-orange-800 shadow-lg cursor-help transition-all hover:bg-orange-100" title="无法连接到后端服务，部分动态内容可能暂时不可用">
         <span class="relative flex h-2 w-2">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
         </span>
-        <span class="text-[10px] font-bold uppercase tracking-widest">连接异常</span>
+        <span class="text-xs font-bold uppercase tracking-widest">连接异常</span>
       </div>
     </Transition>
   </NuxtLayout>
@@ -174,6 +174,7 @@ if (process.client) {
     const key = event.key?.toLowerCase()
     const activeTag = document.activeElement?.tagName?.toLowerCase()
     const isTyping = ['input', 'textarea', 'select'].includes(activeTag)
+    if (document.body.classList.contains('overlay-open')) return
 
     if ((event.metaKey || event.ctrlKey) && key === 'k') {
       event.preventDefault()
@@ -351,9 +352,10 @@ body.overlay-open .mobile-bottom-cta {
   touch-action: manipulation;
 }
 
-:where(a, button, input, select, textarea):focus-visible {
+:is(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid rgba(17, 17, 17, 0.95);
   outline-offset: 3px;
+  box-shadow: 0 0 0 5px #fff;
 }
 
 :where(button, a, [role="button"]):active {
@@ -570,6 +572,8 @@ html[data-scroll-direction="up"] main :where(.interactive-card, .product-tile, .
   min-height: 44px;
   justify-content: center;
 }
+
+input::placeholder, textarea::placeholder { color: #52525b; opacity: 1; }
 
 /* Toast */
 .toast-slide-enter-active, .toast-slide-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }

@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white min-h-screen pb-32 relative">
+  <div ref="pageRoot" class="bg-white min-h-screen pb-32 relative">
 
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
       <button type="button" aria-label="返回" @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto">
@@ -17,7 +17,7 @@
 
     <div v-if="pending" class="py-40 text-center">
       <div class="w-10 h-10 border-4 border-zinc-100 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
-      <p class="text-zinc-400 font-mono text-xs uppercase tracking-widest">Loading Articles...</p>
+      <p class="text-zinc-600 font-mono text-xs uppercase tracking-widest">Loading Articles...</p>
     </div>
 
     <FrontState
@@ -34,7 +34,7 @@
       <div v-if="allData.length" class="news-filter-panel mb-12 rounded-sm border border-zinc-200 bg-zinc-50/80 p-4 md:mb-16 md:p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div class="min-w-0 flex-1">
-            <label class="mb-2 block text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500" for="news-search-input">搜索资讯</label>
+            <label class="mb-2 block text-xs font-bold uppercase tracking-[0.24em] text-zinc-500" for="news-search-input">搜索资讯</label>
             <div class="relative">
               <input
                 id="news-search-input"
@@ -48,7 +48,7 @@
               <button
                 v-if="searchKeyword"
                 type="button"
-                class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-black"
+                class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black"
                 aria-label="清空新闻搜索"
                 @click="searchKeyword = ''"
               >
@@ -62,7 +62,7 @@
             <button
               v-if="hasActiveFilters"
               type="button"
-              class="rounded-full border border-zinc-300 px-3 py-2 text-[11px] font-bold tracking-wider text-zinc-700 transition-colors hover:border-black hover:text-black"
+              class="rounded-full border border-zinc-300 px-3 py-2 text-xs font-bold tracking-wider text-zinc-700 transition-colors hover:border-black hover:text-black"
               @click="clearFilters"
             >
               清除筛选
@@ -71,7 +71,7 @@
         </div>
 
         <div class="mt-5 flex flex-col gap-3 md:flex-row md:items-center">
-          <span class="shrink-0 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500">分类</span>
+          <span class="shrink-0 text-xs font-bold uppercase tracking-[0.24em] text-zinc-500">分类</span>
           <div class="news-category-strip flex gap-2 overflow-x-auto pb-1">
             <button
               v-for="category in categoryOptions"
@@ -92,18 +92,18 @@
           v-if="!route.query.id"
           :to="newsDetailPath(displayFeatured)"
           @click="trackNewsClick(displayFeatured, 'featured-news-link')"
-          class="inline-flex mb-6 text-[10px] font-bold tracking-[0.24em] uppercase text-zinc-500 border-b border-zinc-200 pb-1 hover:text-black hover:border-black transition-colors"
+          class="inline-flex min-h-11 items-center mb-6 text-xs font-bold tracking-[0.24em] uppercase text-zinc-500 border-b border-zinc-200 pb-1 hover:text-black hover:border-black transition-colors"
         >
           查看完整资讯
         </NuxtLink>
         <div class="news-featured-media aspect-video md:aspect-[21/9] bg-zinc-100 mb-8 overflow-hidden rounded-sm relative border border-zinc-100 shadow-sm">
           <img :src="displayFeatured.image" :alt="displayFeatured.title" loading="eager" fetchpriority="high" decoding="async" sizes="(min-width: 768px) 55vw, 100vw" class="w-full h-full object-cover" @error="imageFallback" />
-          <div class="absolute top-6 left-6 bg-black text-white text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1">
+          <div class="absolute top-6 left-6 bg-black text-white text-xs font-bold uppercase tracking-[0.2em] px-3 py-1">
             {{ displayFeatured.category }}
           </div>
         </div>
         <div class="max-w-4xl">
-          <span class="text-sm font-mono text-zinc-400 uppercase tracking-widest mb-4 block">{{ displayFeatured.date }}</span>
+          <span class="text-sm font-mono text-zinc-600 uppercase tracking-widest mb-4 block">{{ displayFeatured.date }}</span>
           <h2 class="text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">{{ displayFeatured.title }}</h2>
           <p class="text-lg text-gray-500 leading-relaxed line-clamp-3">{{ displayFeatured.desc }}</p>
         </div>
@@ -126,7 +126,7 @@
             <div class="news-card-media aspect-[4/3] bg-zinc-100 mb-6 overflow-hidden rounded-sm relative shadow-sm border border-zinc-100">
               <img :src="news.image" :alt="news.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 100vw" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0" @error="imageFallback" />
             </div>
-            <span class="text-xs font-mono text-zinc-400 uppercase tracking-wider block mb-3">{{ news.date }}</span>
+            <span class="text-xs font-mono text-zinc-600 uppercase tracking-wider block mb-3">{{ news.date }}</span>
             <h4 class="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">{{ news.title }}</h4>
           </NuxtLink>
         </div>
@@ -137,6 +137,8 @@
 </template>
 
 <script setup>
+import { articlePreviewText } from '../../utils/articlePreviewText'
+import { createPageMotion } from '../../utils/pageMotion'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
@@ -144,6 +146,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const route = useRoute(); const router = useRouter()
 const smartBack = useSmartBack('/')
+const pageRoot = ref(null)
 let ctx;
 let animationTimer = 0
 let searchTrackTimer = 0
@@ -165,7 +168,7 @@ const allData = computed(() => {
       slug: item.attributes.slug || '',
       date: item.attributes.date || item.attributes.createdAt?.split('T')[0] || '',
       title: item.attributes.title || '未命名资讯',
-      desc: item.attributes.seoDescription || item.attributes.description || '',
+      desc: articlePreviewText(item.attributes.seoDescription || item.attributes.description || ''),
       category: item.attributes.category || 'News',
       image: item.attributes.image?.data ? mediaUrl(item.attributes.image.data.attributes.url) : brandAssets.brandCraft
     }))
@@ -313,9 +316,9 @@ const trackNewsClick = (news, ctaName) => {
 }
 
 const initAnimations = () => {
-  if (process.server) return
-  useGsapCleanup(ctx, ScrollTrigger)
-  ctx = gsap.context(() => {
+  if (process.server || !pageRoot.value) return
+  ctx?.revert()
+  ctx = createPageMotion(gsap, pageRoot.value, () => {
     gsap.from('.gsap-fade-up', { y: 40, opacity: 0, duration: 1, stagger: 0.2, ease: 'power3.out' })
     gsap.from('.gsap-news-card', { scrollTrigger: { trigger: '.gsap-news-card', start: 'top 85%' }, y: 40, opacity: 0, duration: 0.8, stagger: 0.15, ease: 'power2.out' })
   })
@@ -339,7 +342,7 @@ onBeforeUnmount(() => {
     window.clearTimeout(animationTimer)
     window.clearTimeout(searchTrackTimer)
   }
-  useGsapCleanup(ctx, ScrollTrigger)
+  ctx?.revert()
 })
 
 useSiteSeo({

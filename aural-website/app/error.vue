@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-4">
     <div class="max-w-2xl text-center">
-      <p class="mb-5 text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">
+      <p class="mb-5 text-xs font-bold uppercase tracking-[0.35em] text-zinc-400">
         {{ isNotFound ? '404 Not Found' : 'Service Notice' }}
       </p>
       <h1 class="mb-6 text-4xl font-serif italic leading-tight md:text-6xl">

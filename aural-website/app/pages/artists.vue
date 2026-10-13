@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white relative overflow-x-hidden" :class="{'overflow-hidden': showArtistModal}">
+  <div ref="pageRoot" class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white relative overflow-x-hidden" :class="{'overflow-hidden': showArtistModal}">
 
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] pointer-events-none">
       <button type="button" aria-label="返回" @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto mix-blend-difference">
@@ -88,7 +88,7 @@
           <div class="artist-meta flex w-full flex-1 flex-col justify-end px-5 py-5 md:px-5 lg:px-6 md:py-6">
             <div class="w-6 h-[1px] bg-black/30 mb-3 md:mb-4 group-hover:w-16 group-hover:bg-black transition-all duration-700 ease-out"></div>
 
-            <p class="text-zinc-400 text-[10px] tracking-[0.25em] mb-2 uppercase font-semibold">{{ artist.role }}</p>
+            <p class="text-zinc-600 text-xs tracking-[0.25em] mb-2 uppercase font-semibold">{{ artist.role }}</p>
             <h2 class="text-xl md:text-2xl lg:text-3xl font-serif text-black group-hover:text-zinc-500 transition-colors duration-500">{{ artist.name }}</h2>
             <p class="mt-3 md:mt-4 text-xs leading-relaxed text-zinc-500 line-clamp-2">{{ artist.equipment || 'HUSHI WIND Artist Series' }}</p>
           </div>
@@ -111,10 +111,10 @@
 
     <Teleport to="body">
       <Transition name="apple-modal">
-        <div v-if="showArtistModal && activeArtist" class="fixed inset-0 z-[200] flex items-center justify-center bg-white/80 backdrop-blur-3xl overflow-y-auto" @keydown.esc="closeArtistModal" tabindex="-1">
+        <div v-if="showArtistModal && activeArtist" ref="artistDialog" role="dialog" aria-modal="true" aria-labelledby="artist-profile-title" class="fixed inset-0 z-[200] flex items-center justify-center bg-white/80 backdrop-blur-3xl overflow-y-auto" tabindex="-1">
 
-          <button @click="closeArtistModal" class="absolute top-8 right-8 md:top-12 md:right-12 w-12 h-12 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors z-50">
-            <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          <button type="button" aria-label="关闭艺术家资料" @click="closeArtistModal" class="absolute top-8 right-8 md:top-12 md:right-12 w-12 h-12 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors z-50">
+            <svg aria-hidden="true" class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
 
           <div class="max-w-7xl mx-auto w-full min-h-screen md:min-h-0 px-6 py-24 md:p-12 flex flex-col md:flex-row items-center gap-12 md:gap-24 relative">
@@ -126,7 +126,7 @@
 
             <div class="w-full md:w-1/2 flex flex-col justify-center">
               <p class="text-zinc-500 text-sm tracking-[0.3em] uppercase font-bold mb-4">{{ activeArtist.role }}</p>
-              <h2 class="text-5xl md:text-7xl font-serif text-black mb-10 leading-tight">{{ activeArtist.name }}</h2>
+              <h2 id="artist-profile-title" class="text-5xl md:text-7xl font-serif text-black mb-10 leading-tight">{{ activeArtist.name }}</h2>
 
               <div class="w-16 h-[2px] bg-black mb-10"></div>
 
@@ -135,7 +135,7 @@
               </p>
 
               <div>
-                <span class="text-xs text-zinc-400 uppercase tracking-[0.2em] font-bold block mb-4">Preferred Equipment</span>
+                <span class="text-xs text-zinc-600 uppercase tracking-[0.2em] font-bold block mb-4">Preferred Equipment</span>
                 <p class="text-2xl font-serif text-black">{{ activeArtist.equipment || 'HUSHI WIND Master Series' }}</p>
               </div>
             </div>
@@ -146,20 +146,20 @@
 
     <Teleport to="body">
       <Transition name="application-modal">
-      <div v-if="showApplyModal" class="modal-overlay" @click.self="closeApplyModal" @keydown.esc="closeApplyModal" tabindex="-1">
+      <div v-if="showApplyModal" ref="applicationDialog" role="dialog" aria-modal="true" aria-label="艺术家合作申请" class="modal-overlay" @click.self="closeApplyModal" tabindex="-1">
         <div class="modal-content">
           <div class="modal-header">
             <h2 class="font-serif italic text-3xl text-black">Application</h2>
-            <button class="close-btn" @click="closeApplyModal">✕</button>
+            <button type="button" class="close-btn" aria-label="关闭合作申请" @click="closeApplyModal">✕</button>
           </div>
-          <p class="text-xs text-zinc-400 tracking-widest uppercase mb-8 border-b border-zinc-100 pb-4">HUSHI WIND Artist Program</p>
+          <p class="text-xs text-zinc-600 tracking-widest uppercase mb-8 border-b border-zinc-100 pb-4">HUSHI WIND Artist Program</p>
 
           <form @submit.prevent="submitApplication" class="apply-form">
-            <div class="form-group"><label>姓名 / 艺名 <span>*</span></label><input v-model="form.name" type="text" maxlength="30" required placeholder="请输入您的称呼" /></div>
-            <div class="form-group"><label>联系邮箱 <span>*</span></label><input v-model="form.email" type="email" required placeholder="example@email.com" /></div>
-            <div class="form-group"><label>联系电话</label><input v-model="form.phone" type="tel" maxlength="11" placeholder="您的手机号码 (选填)" /></div>
-            <div class="form-group"><label>作品集链接 <span>*</span></label><input v-model="form.portfolioUrl" type="url" required placeholder="B站 / YouTube 主页链接" /></div>
-            <div class="form-group"><label>合作意向简述</label><textarea v-model="form.message" rows="3" placeholder="简述您的音乐履历与诉求..."></textarea></div>
+            <div class="form-group"><label for="artist-application-name">姓名 / 艺名 <span aria-hidden="true">*</span></label><input id="artist-application-name" v-model="form.name" type="text" maxlength="30" autocomplete="name" required placeholder="请输入您的称呼" /></div>
+            <div class="form-group"><label for="artist-application-email">联系邮箱 <span aria-hidden="true">*</span></label><input id="artist-application-email" v-model="form.email" type="email" autocomplete="email" required placeholder="example@email.com" /></div>
+            <div class="form-group"><label for="artist-application-phone">联系电话</label><input id="artist-application-phone" v-model="form.phone" type="tel" maxlength="11" autocomplete="tel" placeholder="您的手机号码 (选填)" /></div>
+            <div class="form-group"><label for="artist-application-portfolio">作品集链接 <span aria-hidden="true">*</span></label><input id="artist-application-portfolio" v-model="form.portfolioUrl" type="url" required placeholder="B站 / YouTube 主页链接" /></div>
+            <div class="form-group"><label for="artist-application-message">合作意向简述</label><textarea id="artist-application-message" v-model="form.message" rows="3" placeholder="简述您的音乐履历与诉求..."></textarea></div>
             <input v-model="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
             <button type="submit" class="submit-btn" :disabled="isSubmitting">
               <span class="inline-flex items-center justify-center gap-3">
@@ -177,10 +177,13 @@
 </template>
 
 <script setup>
+import { createPageMotion } from '../utils/pageMotion'
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { resetSubmittedFields } from '../utils/supportSubmission'
+import { createSubmissionAttempt } from '../utils/submissionAttempt'
 
 defineOptions({ name: 'ArtistsPage' })
 
@@ -238,6 +241,12 @@ const displayArtists = computed(() => {
 const showArtistModal = ref(false)
 const activeArtist = ref(null)
 const showApplyModal = ref(false)
+const artistDialog = ref(null)
+const applicationDialog = ref(null)
+const applicationSession = ref(0)
+useDialogFocus(showArtistModal, artistDialog, () => closeArtistModal())
+useDialogFocus(showApplyModal, applicationDialog, () => closeApplyModal())
+watch(showApplyModal, () => { applicationSession.value++ }, { flush: 'sync' })
 useOverlayLock('artist-profile-modal', showArtistModal)
 useOverlayLock('artist-apply-modal', showApplyModal)
 const artistProfileHistory = useOverlayHistory('artist-profile-modal', showArtistModal, () => {
@@ -275,31 +284,41 @@ const openApplyModal = () => {
 const form = reactive({ name: '', email: '', phone: '', portfolioUrl: '', message: '' })
 const isSubmitting = ref(false)
 const { honeypot, getGuardPayload, canSubmit, resetGuard } = useFormGuard('artist-application')
+const submissionAttempt = createSubmissionAttempt(getGuardPayload)
 
 const submitApplication = async () => {
-  const name = form.name.trim();
+  if (isSubmitting.value) return
+  const submitted = { ...form }
+  const session = applicationSession.value
+  const tracking = { ...getTrackingPayload() }
+  const name = submitted.name.trim();
   if (!name || name.length < 2) { return triggerToast('请输入有效姓名或艺名 (至少2个字符)', 'error'); }
   const guard = canSubmit()
   if (!guard.ok) return triggerToast(guard.message, 'error')
 
   isSubmitting.value = true
   try {
-    await $fetch(artistApplicationsUrl.value, { method: 'POST', body: { ...form, ...getTrackingPayload(), ...getGuardPayload() } })
+    await $fetch(artistApplicationsUrl.value, { method: 'POST', body: { ...submitted, ...tracking, ...submissionAttempt.getPayload(submitted) } })
+    submissionAttempt.complete(submitted)
     track('form_submit', {
+      ...tracking,
       entityType: 'artist-application',
-      entityTitle: form.name,
+      entityTitle: submitted.name,
       ctaName: 'artist-application',
       metadata: { source: 'artists-page' }
     })
+    if (session !== applicationSession.value || !showApplyModal.value) return
+    const hasNewInput = Object.keys(submitted).some(key => form[key] !== submitted[key])
     triggerToast('申请已加密提交！专属运营专员将尽快审阅。', 'success')
-    artistApplyHistory.closeDirect()
     resetGuard()
-    Object.keys(form).forEach(key => form[key] = '')
+    resetSubmittedFields(form, submitted)
+    if (!hasNewInput) artistApplyHistory.closeDirect()
   } catch (error) {
     const message = error?.data?.error?.message || '无法连接至服务器，请检查网络或后端状态。'
     track('form_submit_failed', {
+      ...tracking,
       entityType: 'artist-application',
-      entityTitle: form.name,
+      entityTitle: submitted.name,
       ctaName: 'artist-application',
       metadata: {
         source: 'artists-page',
@@ -307,12 +326,13 @@ const submitApplication = async () => {
         status: error?.status || error?.response?.status || ''
       }
     })
-    triggerToast(message, 'error')
+    if (session === applicationSession.value && showApplyModal.value) triggerToast(message, 'error')
   } finally {
     isSubmitting.value = false
   }
 }
 
+const pageRoot = ref(null)
 let ctx;
 let animationTimer = 0
 onMounted(() => {
@@ -327,9 +347,9 @@ watch(pending, (newVal) => {
 })
 
 const initAnimations = () => {
-  if (process.server) return
-  useGsapCleanup(ctx, ScrollTrigger)
-  ctx = gsap.context(() => {
+  if (process.server || !pageRoot.value) return
+  ctx?.revert()
+  ctx = createPageMotion(gsap, pageRoot.value, () => {
     gsap.from('.animate-in', { y: 40, opacity: 0, duration: 1.5, ease: 'power3.out', delay: 0.2 })
 
     gsap.from('.gsap-gallery .artist-media', {
@@ -355,8 +375,9 @@ const initAnimations = () => {
 }
 
 onBeforeUnmount(() => {
+  applicationSession.value++
   if (process.client) window.clearTimeout(animationTimer)
-  useGsapCleanup(ctx, ScrollTrigger)
+  ctx?.revert()
 })
 </script>
 
@@ -479,7 +500,7 @@ onBeforeUnmount(() => {
 
   .artist-meta p:first-of-type {
     margin-bottom: 0.25rem;
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     letter-spacing: 0.2em;
   }
 
@@ -543,16 +564,17 @@ onBeforeUnmount(() => {
 }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(8px); }
-.modal-content { background: #fff; color: #000; width: 90%; max-width: 480px; padding: 40px; border-radius: 0px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;}
+.modal-content { background: #fff; color: #000; width: 90%; max-width: 480px; max-height: 90dvh; overflow-y: auto; padding: 40px; border-radius: 0px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;}
 @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; transition: color 0.3s; line-height: 1;}
+.close-btn { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; background: none; border: none; font-size: 24px; cursor: pointer; color: #52525b; transition: color 0.3s; line-height: 1;}
 .close-btn:hover { color: #000; transform: rotate(90deg); transition: all 0.3s;}
 .apply-form { display: flex; flex-direction: column; gap: 20px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #555; text-transform: uppercase; }
+.form-group label { font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #555; text-transform: uppercase; }
 .form-group label span { color: #e74c3c; }
 .form-group input, .form-group textarea { border: 1px solid #e5e5e5; padding: 16px; font-size: 14px; border-radius: 0px; font-family: inherit; transition: all 0.3s; background: #fafafa;}
+.form-group input::placeholder, .form-group textarea::placeholder { color: #52525b; opacity: 1; }
 .form-group input:focus, .form-group textarea:focus { border-color: #000; outline: none; background: #fff; box-shadow: 0 0 0 1px #000;}
 .submit-btn { background-color: #000; color: #fff; border: none; padding: 20px; font-size: 12px; font-weight: 900; letter-spacing: 3px; cursor: pointer; margin-top: 10px; transition: background-color 0.3s;}
 .submit-btn:hover { background-color: #333; }

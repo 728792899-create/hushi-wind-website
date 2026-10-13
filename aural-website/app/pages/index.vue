@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white overflow-x-hidden">
+  <div ref="pageRoot" class="min-h-screen bg-[#fbfbfd] text-black selection:bg-black selection:text-white overflow-x-hidden">
 
     <section class="home-hero relative min-h-[calc(100dvh-4rem)] md:h-screen flex flex-col justify-center items-center text-center px-4 overflow-hidden bg-black" data-scroll-fx>
       <div class="home-hero-media absolute inset-0 z-0">
@@ -26,7 +26,7 @@
       </div>
 
       <div class="gsap-hero absolute bottom-12 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center text-zinc-400">
-        <span class="text-[10px] uppercase tracking-[0.3em] mb-3 font-bold">Scroll</span>
+        <span class="text-xs uppercase tracking-[0.3em] mb-3 font-bold">Scroll</span>
         <div class="w-[1px] h-12 bg-white/20 overflow-hidden"><div class="w-full h-1/2 bg-white animate-scroll-down"></div></div>
       </div>
     </section>
@@ -35,10 +35,10 @@
       <div class="max-w-[90rem] mx-auto">
         <div class="gsap-fade-up flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-20 pb-6 md:pb-8 border-b border-zinc-200/80 gap-4 md:gap-6">
           <div>
-            <span class="text-[10px] font-mono text-zinc-400 tracking-[0.25em] md:tracking-[0.3em] uppercase mb-3 md:mb-4 block font-bold">Masterpieces</span>
+            <span class="text-xs font-mono text-zinc-600 tracking-[0.25em] md:tracking-[0.3em] uppercase mb-3 md:mb-4 block font-bold">Masterpieces</span>
             <h2 class="text-4xl md:text-5xl lg:text-6xl font-serif text-black tracking-tighter">Featured Series.</h2>
           </div>
-          <NuxtLink to="/products" class="text-xs text-zinc-500 uppercase tracking-widest hover:text-black border-b border-transparent hover:border-black transition-all font-bold pb-1" @click="trackHomeCta('featured-view-all')">
+          <NuxtLink to="/products" class="inline-flex min-h-11 items-center text-xs text-zinc-500 uppercase tracking-widest hover:text-black border-b border-transparent hover:border-black transition-all font-bold pb-1" @click="trackHomeCta('featured-view-all')">
             View All Collection &rarr;
           </NuxtLink>
         </div>
@@ -61,7 +61,7 @@
 
             <div class="home-featured-body w-full flex flex-1 flex-col px-1 md:px-2 transform group-hover:-translate-y-1 transition-transform duration-500">
               <div class="w-6 h-[1px] bg-black/20 mb-3 md:mb-4 group-hover:w-12 group-hover:bg-black transition-all duration-700 ease-out"></div>
-              <p class="text-[10px] text-zinc-400 tracking-[0.25em] uppercase mb-2 font-bold">{{ product.attributes.series || product.attributes.categoryName || product.attributes.type }}</p>
+              <p class="text-xs text-zinc-600 tracking-[0.25em] uppercase mb-2 font-bold">{{ product.attributes.series || product.attributes.categoryName || product.attributes.type }}</p>
               <h3 class="text-xl md:text-2xl font-serif text-black group-hover:text-zinc-500 transition-colors duration-500 mb-2">{{ product.attributes.title }}</h3>
               <p class="mt-auto text-xs font-mono text-zinc-500">¥ {{ (product.attributes.price || 0).toFixed(2) }}</p>
             </div>
@@ -81,15 +81,15 @@
       <div class="max-w-[76rem] mx-auto w-full flex flex-col lg:flex-row items-center gap-8 lg:gap-14 relative z-10">
         <div class="gsap-slide-right scroll-drift w-full max-w-[34rem] lg:w-[46%] aspect-[16/10] md:aspect-[4/3] relative bg-zinc-900/30 backdrop-blur-xl rounded-2xl md:rounded-[1.75rem] overflow-hidden shadow-[0_24px_50px_-18px_rgba(0,0,0,0.9)] border border-white/10 group">
           <img v-if="sysConfig.coreTechImageUrl" :src="mediaUrl(sysConfig.coreTechImageUrl)" alt="Core Technology Product" loading="lazy" decoding="async" sizes="(min-width: 1024px) 46vw, 100vw" class="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]" @error="imageFallback" />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center text-zinc-600"><span class="text-2xl font-bold tracking-widest">HUSHI WIND CORE</span></div>
+          <div v-else class="w-full h-full flex flex-col items-center justify-center text-zinc-300"><span class="text-2xl font-bold tracking-widest">HUSHI WIND CORE</span></div>
           <div class="absolute inset-0 bg-gradient-to-tr from-black/30 via-transparent to-white/10 pointer-events-none"></div>
         </div>
 
         <div class="gsap-slide-left scroll-lift w-full lg:w-[54%] flex flex-col justify-center">
-          <span class="text-[10px] font-mono tracking-[0.24em] md:tracking-[0.28em] text-zinc-400 mb-4 md:mb-5 uppercase font-bold drop-shadow-md">Core Technology</span>
+          <span class="text-xs font-mono tracking-[0.24em] md:tracking-[0.28em] text-zinc-400 mb-4 md:mb-5 uppercase font-bold drop-shadow-md">Core Technology</span>
           <h2 class="text-3xl md:text-5xl lg:text-[3.6rem] font-serif text-white mb-5 md:mb-7 leading-[1.12] md:leading-[1.08] whitespace-pre-line drop-shadow-lg">{{ sysConfig.coreTechTitle || '声学与数字的\n完美共振。' }}</h2>
           <p class="text-zinc-300 text-sm md:text-lg mb-7 md:mb-9 leading-relaxed drop-shadow-md font-light max-w-[34rem]">{{ sysConfig.coreTechDesc || '我们不仅仅是制造乐器，我们是在塑造声音的灵魂...' }}</p>
-          <NuxtLink to="/info/brand-story?source=home" class="w-max pb-2 border-b border-white/30 hover:border-white text-xs font-bold uppercase tracking-[0.2em] transition-colors text-white drop-shadow-md" @click="trackHomeCta('core-technology-brand-story')">
+          <NuxtLink to="/info/brand-story?source=home" class="inline-flex min-h-11 items-center w-max pb-2 border-b border-white/30 hover:border-white text-xs font-bold uppercase tracking-[0.2em] transition-colors text-white drop-shadow-md" @click="trackHomeCta('core-technology-brand-story')">
             {{ sysConfig.coreTechLinkText || 'Explore Engineering' }}
           </NuxtLink>
         </div>
@@ -113,7 +113,7 @@
     <section class="py-20 md:py-40 px-5 md:px-12 relative bg-[#f5f5f7]" data-scroll-fx>
       <div class="max-w-[90rem] mx-auto">
         <div class="text-center mb-10 md:mb-24 gsap-fade-up">
-          <span class="text-[10px] font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-400 uppercase font-bold block mb-3 md:mb-4">Ecosystem</span>
+          <span class="text-xs font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-600 uppercase font-bold block mb-3 md:mb-4">Ecosystem</span>
           <h2 class="text-3xl md:text-6xl font-serif text-black">超越硬件的完整体验.</h2>
         </div>
 
@@ -132,16 +132,16 @@
               />
               <div v-else class="absolute inset-0 bg-zinc-200"></div>
               <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
-              <div class="absolute left-4 bottom-4 md:left-6 md:bottom-6 h-10 md:h-12 min-w-10 md:min-w-12 px-3 md:px-4 rounded-full bg-white/90 backdrop-blur text-black flex items-center justify-center text-[10px] md:text-xs font-bold tracking-[0.16em] md:tracking-[0.18em] uppercase shadow-sm">
+              <div class="absolute left-4 bottom-4 md:left-6 md:bottom-6 h-10 md:h-12 min-w-10 md:min-w-12 px-3 md:px-4 rounded-full bg-white/90 backdrop-blur text-black flex items-center justify-center text-xs md:text-xs font-bold tracking-[0.16em] md:tracking-[0.18em] uppercase shadow-sm">
                 {{ service.icon }}
               </div>
             </div>
 
             <div class="home-service-body p-5 md:p-8 lg:p-10 flex flex-col items-start flex-1">
-              <span class="text-[10px] font-mono text-zinc-400 tracking-[0.24em] md:tracking-[0.28em] uppercase mb-3 md:mb-4 block font-bold">{{ service.kicker }}</span>
+              <span class="text-xs font-mono text-zinc-600 tracking-[0.24em] md:tracking-[0.28em] uppercase mb-3 md:mb-4 block font-bold">{{ service.kicker }}</span>
               <h3 class="text-2xl md:text-3xl font-serif text-black mb-3 md:mb-4 leading-tight">{{ service.title }}</h3>
               <p class="home-service-desc text-zinc-500 text-sm md:text-base leading-relaxed mb-6 md:mb-10 flex-grow font-light">{{ service.desc }}</p>
-              <NuxtLink :to="service.link?.startsWith('/') ? service.link : '/'" class="text-black text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black/20 pb-1 group-hover:border-black transition-colors" @click="trackHomeCta(`ecosystem-${service.title}`)">{{ service.actionText }}</NuxtLink>
+              <NuxtLink :to="service.link?.startsWith('/') ? service.link : '/'" class="inline-flex min-h-11 items-center text-black text-xs font-bold uppercase tracking-[0.2em] border-b border-black/20 pb-1 group-hover:border-black transition-colors" @click="trackHomeCta(`ecosystem-${service.title}`)">{{ service.actionText }}</NuxtLink>
             </div>
           </article>
         </div>
@@ -152,10 +152,10 @@
       <div class="max-w-[90rem] mx-auto">
         <div class="gsap-fade-up flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-20 pb-6 md:pb-8 border-b border-zinc-200/80 gap-4 md:gap-6">
           <div>
-            <span class="text-[10px] font-mono text-zinc-400 tracking-[0.25em] md:tracking-[0.3em] uppercase mb-3 md:mb-4 block font-bold">Journals</span>
+            <span class="text-xs font-mono text-zinc-600 tracking-[0.25em] md:tracking-[0.3em] uppercase mb-3 md:mb-4 block font-bold">Journals</span>
             <h2 class="text-4xl md:text-5xl lg:text-6xl font-serif text-black tracking-tighter">Brand Vision.</h2>
           </div>
-          <NuxtLink to="/news" class="text-xs text-zinc-500 uppercase tracking-widest hover:text-black border-b border-transparent hover:border-black transition-all font-bold pb-1" @click="trackHomeCta('news-view-all')">
+          <NuxtLink to="/news" class="inline-flex min-h-11 items-center text-xs text-zinc-500 uppercase tracking-widest hover:text-black border-b border-transparent hover:border-black transition-all font-bold pb-1" @click="trackHomeCta('news-view-all')">
             Read All News &rarr;
           </NuxtLink>
         </div>
@@ -181,7 +181,7 @@
 
             <div class="home-news-body w-full flex flex-1 flex-col px-1 md:px-2 transform group-hover:-translate-y-1 transition-transform duration-500">
               <div class="w-6 h-[1px] bg-black/20 mb-3 md:mb-4 group-hover:w-16 group-hover:bg-black transition-all duration-700 ease-out"></div>
-              <span class="text-[10px] font-mono text-zinc-400 uppercase tracking-[0.2em] block mb-3 font-bold">{{ news.date }}</span>
+              <span class="text-xs font-mono text-zinc-600 uppercase tracking-[0.2em] block mb-3 font-bold">{{ news.date }}</span>
               <h3 class="text-xl md:text-2xl font-serif text-black group-hover:text-zinc-500 transition-colors duration-500 leading-snug line-clamp-2 pr-4">{{ news.title }}</h3>
             </div>
           </NuxtLink>
@@ -193,10 +193,14 @@
 </template>
 
 <script setup>
+import { createPageMotion } from '../utils/pageMotion'
 import { ref, computed, onMounted, onBeforeUnmount, watch, onActivated } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
+const pageRoot = ref(null)
 let ctx;
+let animationGeneration = 0
+let pageDisposed = false
 let animationTimer = 0
 let gsapLib = null
 let scrollTriggerLib = null
@@ -343,7 +347,7 @@ onActivated(async () => {
     if (savedY) {
       window.scrollTo(0, parseInt(savedY, 10))
       if (!scrollTriggerLib) await loadGsap()
-      requestAnimationFrame(() => scrollTriggerLib?.refresh?.())
+      requestAnimationFrame(() => { if (!pageDisposed) scrollTriggerLib?.refresh?.() })
     }
   }
 })
@@ -361,13 +365,13 @@ const loadGsap = async () => {
 }
 
 const initAnimations = async () => {
-  if (process.server) return
-  const isMobile = window.matchMedia('(max-width: 767px), (pointer: coarse)').matches
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (prefersReducedMotion) return
-  const { gsap, ScrollTrigger } = await loadGsap()
-  useGsapCleanup(ctx, ScrollTrigger)
-  ctx = gsap.context(() => {
+  if (process.server || pageDisposed || !pageRoot.value) return
+  const generation = ++animationGeneration
+  const { gsap } = await loadGsap()
+  if (pageDisposed || generation !== animationGeneration || !pageRoot.value) return
+  ctx?.revert()
+  ctx = createPageMotion(gsap, pageRoot.value, () => {
+    const isMobile = window.matchMedia('(max-width: 767px), (pointer: coarse)').matches
     gsap.from('.gsap-hero', {
       y: isMobile ? 24 : 40,
       opacity: 0,
@@ -411,8 +415,10 @@ watch([productsPending, newsPending], ([p1, p2]) => {
   animationTimer = window.setTimeout(() => { void initAnimations() }, 100)
 })
 onBeforeUnmount(() => {
+  pageDisposed = true
+  animationGeneration++
   if (process.client) window.clearTimeout(animationTimer)
-  useGsapCleanup(ctx, scrollTriggerLib)
+  ctx?.revert()
 })
 </script>
 

@@ -1,6 +1,7 @@
 <template>
   <div
     class="fixed inset-0 z-[220] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
+    ref="compareDialog"
     data-no-scroll-fx
     role="dialog"
     aria-modal="true"
@@ -8,11 +9,11 @@
     tabindex="-1"
     @keydown.esc="close"
   >
-    <button type="button" class="absolute inset-0 cursor-default" aria-label="关闭产品对比" @click="close"></button>
+    <button type="button" class="absolute inset-0 cursor-default" aria-label="关闭产品对比" tabindex="-1" aria-hidden="true" @click="close"></button>
     <div class="relative flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
       <div class="flex items-start justify-between gap-6 border-b border-zinc-100 px-5 py-5 md:px-8">
         <div>
-          <p class="mb-2 text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">Compare</p>
+          <p class="mb-2 text-xs font-black uppercase tracking-[0.28em] text-zinc-600">Compare</p>
           <h2 id="product-compare-title" class="text-2xl font-black text-black md:text-3xl">产品选型对比</h2>
           <p class="mt-2 text-sm leading-relaxed text-zinc-500">对比价格、库存、参数、适用场景与售后说明，快速判断哪一款更适合当前用途。</p>
         </div>
@@ -27,14 +28,14 @@
                 <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" decoding="async" sizes="96px" class="h-full w-full object-cover" @error="imageFallback" />
               </div>
               <div class="min-w-0">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{{ item.series || item.type }}</p>
+                <p class="text-xs font-bold uppercase tracking-widest text-zinc-600">{{ item.series || item.type }}</p>
                 <h3 class="mt-1 text-base font-black leading-snug text-black">{{ item.title }}</h3>
                 <p class="mt-2 text-xs font-bold text-zinc-600">{{ formatPrice(item.price) }}</p>
               </div>
             </NuxtLink>
             <dl class="mt-4 divide-y divide-zinc-200 text-sm">
               <div v-for="row in compareRows" :key="`${item.id}-${row.label}`" class="grid grid-cols-[6rem_1fr] gap-3 py-3">
-                <dt class="text-xs font-black text-zinc-400">{{ row.label }}</dt>
+                <dt class="text-xs font-black text-zinc-600">{{ row.label }}</dt>
                 <dd class="leading-relaxed text-zinc-700">{{ compareValueFor(row, item) }}</dd>
               </div>
             </dl>
@@ -44,14 +45,14 @@
         <table class="hidden min-w-[720px] w-full border-separate border-spacing-0 text-left text-sm md:table">
           <thead>
             <tr>
-              <th class="sticky left-0 z-10 w-36 bg-white pb-4 pr-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">项目</th>
+              <th class="sticky left-0 z-10 w-36 bg-white pb-4 pr-4 text-xs font-black uppercase tracking-widest text-zinc-600">项目</th>
               <th v-for="item in products" :key="item.id" class="pb-4 pr-4 align-top">
                 <NuxtLink :to="`/products/${item.slug || item.id}`" class="group block" @click="close">
                   <div class="mb-3 aspect-[4/3] overflow-hidden rounded-xl bg-zinc-100">
                     <img v-if="item.image" :src="item.image" :alt="item.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 25vw, 96px" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" @error="imageFallback" />
                   </div>
                   <p class="text-base font-black leading-snug text-black group-hover:text-zinc-500">{{ item.title }}</p>
-                  <p class="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">{{ item.series || item.type }}</p>
+                  <p class="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-600">{{ item.series || item.type }}</p>
                 </NuxtLink>
               </th>
             </tr>
@@ -71,7 +72,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   products: {
@@ -81,6 +82,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const compareDialog = ref(null)
+useDialogFocus(() => true, compareDialog, () => close())
 const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.productPiano)
 

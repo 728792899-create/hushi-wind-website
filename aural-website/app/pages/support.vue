@@ -27,15 +27,15 @@
 
           <div class="default-view relative z-10">
             <div class="w-6 h-[1px] bg-black/20 mb-4 md:mb-6 group-hover:w-12 group-hover:bg-black transition-all duration-700 ease-out"></div>
-            <div class="text-zinc-400 font-mono text-[10px] tracking-[0.3em] mb-2 font-bold">0{{ index + 1 }}</div>
+            <div class="text-zinc-600 font-mono text-xs tracking-[0.3em] mb-2 font-bold">0{{ index + 1 }}</div>
             <h3 class="text-xl md:text-2xl font-serif text-black mb-2 md:mb-3 group-hover:text-blue-600 transition-colors duration-500">{{ item.name }}</h3>
             <p class="text-zinc-500 text-xs md:text-sm font-light leading-relaxed">{{ item.tagline }}</p>
           </div>
 
-          <div class="pointer-events-none absolute right-4 top-5 z-0 flex items-center justify-center md:static md:flex-1 opacity-100 md:opacity-10 group-hover:opacity-100 transition-opacity duration-700">
+          <div aria-hidden="true" class="pointer-events-none absolute right-4 top-5 z-0 flex items-center justify-center md:static md:flex-1 opacity-100 md:opacity-10 group-hover:opacity-100 transition-opacity duration-700">
              <div class="flex h-10 w-10 md:h-20 md:w-20 items-center justify-center rounded-full border border-black/10 bg-zinc-50 text-xs md:text-xl font-serif italic text-black">{{ item.iconText }}</div>
           </div>
-          <span class="support-action-arrow pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 text-xl text-zinc-300">→</span>
+          <span aria-hidden="true" class="support-action-arrow pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 text-xl text-zinc-300">→</span>
 
           <div class="absolute inset-0 border border-black/5 rounded-[2rem] pointer-events-none"></div>
         </div>
@@ -44,14 +44,14 @@
 
     <section class="py-16 md:py-40 max-w-4xl mx-auto px-4 mt-4 md:mt-10">
       <div class="text-center mb-8 md:mb-20">
-        <span class="text-[10px] md:text-xs font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-400 uppercase block mb-3 md:mb-4">Knowledge Base</span>
+        <span class="text-xs md:text-xs font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-600 uppercase block mb-3 md:mb-4">Knowledge Base</span>
         <h2 class="text-2xl md:text-4xl font-serif italic text-black">常见问题 (FAQ)</h2>
         <div class="mt-8 flex gap-2 overflow-x-auto px-1 pb-2 md:flex-wrap md:justify-center">
           <button
             v-for="category in faqCategories"
             :key="category.value"
             type="button"
-            class="min-h-11 shrink-0 px-4 py-2 rounded-full border text-[10px] font-bold tracking-widest uppercase transition-all"
+            class="min-h-11 shrink-0 px-4 py-2 rounded-full border text-xs font-bold tracking-widest uppercase transition-all"
             :class="activeFaqCategory === category.value ? 'bg-black text-white border-black' : 'bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black'"
             @click="activeFaqCategory = category.value; activeFaq = null"
           >
@@ -80,18 +80,18 @@
       />
 
       <div v-else class="space-y-4">
-        <div v-for="(faq, index) in displayFaqs" :key="faq.id || index" :id="`support-faq-${faq.id}`" class="border border-zinc-200/60 rounded-2xl bg-white p-4 md:p-8 cursor-pointer group hover:shadow-md transition-all duration-300 hover:-translate-y-1" role="button" tabindex="0" :aria-expanded="activeFaq === index" @click="toggleFaq(index, faq)" @keydown.enter.prevent="toggleFaq(index, faq)" @keydown.space.prevent="toggleFaq(index, faq)">
-          <div class="flex justify-between items-start gap-4">
-            <p class="font-bold text-base md:text-lg text-black group-hover:text-blue-600 transition-colors leading-snug">{{ faq.question }}</p>
-            <span class="text-2xl text-zinc-400 group-hover:text-black transition-transform duration-300" :class="activeFaq === index ? 'rotate-45' : ''">+</span>
-          </div>
+        <div v-for="(faq, index) in displayFaqs" :key="faq.id || index" :id="`support-faq-${faq.id}`" class="border border-zinc-200/60 rounded-2xl bg-white p-4 md:p-8 group hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+          <button type="button" class="flex w-full min-h-11 justify-between items-center gap-4 text-left" :aria-expanded="activeFaq === index" :aria-controls="`support-answer-${faq.id}`" @click="toggleFaq(index, faq)">
+            <span class="font-bold text-base md:text-lg text-black group-hover:text-blue-600 transition-colors leading-snug">{{ faq.question }}</span>
+            <span aria-hidden="true" class="text-2xl text-zinc-600 group-hover:text-black transition-transform duration-300" :class="activeFaq === index ? 'rotate-45' : ''">+</span>
+          </button>
           <Transition name="faq-expand">
-          <div v-if="activeFaq === index" class="mt-5 md:mt-6 text-zinc-500 text-sm font-light leading-relaxed border-t border-zinc-100 pt-5 md:pt-6">
+          <div v-if="activeFaq === index" :id="`support-answer-${faq.id}`" class="mt-5 md:mt-6 text-zinc-500 text-sm font-light leading-relaxed border-t border-zinc-100 pt-5 md:pt-6">
               <p>{{ faq.answer }}</p>
               <div class="mt-6 flex flex-wrap items-center gap-3">
-                <span class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">是否解决问题</span>
-                <button type="button" class="min-h-11 rounded-full border border-zinc-200 px-4 py-2 text-[10px] font-bold tracking-widest text-black transition-colors hover:border-black" @click.stop="sendFaqFeedback(faq, true)">已解决</button>
-                <button type="button" class="min-h-11 rounded-full border border-zinc-200 px-4 py-2 text-[10px] font-bold tracking-widest text-black transition-colors hover:border-black" @click.stop="sendFaqFeedback(faq, false)">未解决</button>
+                <span class="text-xs font-bold uppercase tracking-[0.24em] text-zinc-600">是否解决问题</span>
+                <button type="button" class="min-h-11 rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold tracking-widest text-black transition-colors hover:border-black" @click.stop="sendFaqFeedback(faq, true)">已解决</button>
+                <button type="button" class="min-h-11 rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold tracking-widest text-black transition-colors hover:border-black" @click.stop="sendFaqFeedback(faq, false)">未解决</button>
               </div>
             </div>
           </Transition>
@@ -99,16 +99,16 @@
       </div>
 
       <div class="mt-14 md:mt-32 border-t border-zinc-200 pt-10 md:pt-20 flex flex-col items-center">
-        <p class="text-[10px] md:text-xs tracking-[0.28em] md:tracking-[0.3em] text-zinc-400 uppercase mb-6 md:mb-8 font-bold">客服支持</p>
+        <p class="text-xs md:text-xs tracking-[0.28em] md:tracking-[0.3em] text-zinc-600 uppercase mb-6 md:mb-8 font-bold">客服支持</p>
         <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16">
           <button v-if="!supportPhone && !supportEmail" type="button" class="rounded-full border border-zinc-300 px-6 py-3 text-sm" @click="openModal('contact')">在线提交服务需求</button>
           <a v-if="supportPhone" :href="supportPhoneHref" class="flex min-h-11 items-center gap-4 text-black" @click="trackSupportPhone">
-            <svg class="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+            <svg class="w-6 h-6 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
             <span class="font-serif italic text-2xl md:text-3xl tracking-widest">{{ supportPhone }}</span>
           </a>
           <span v-if="supportPhone && supportEmail" class="hidden md:block text-zinc-200">|</span>
           <a v-if="supportEmail" :href="`mailto:${supportEmail}`" class="flex min-h-11 items-center gap-4 text-black" @click="trackSupportEmail">
-            <svg class="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            <svg class="w-6 h-6 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
             <span class="font-serif italic text-lg md:text-xl tracking-wider">{{ supportEmail }}</span>
           </a>
         </div>
@@ -127,13 +127,13 @@
 
             <div class="mb-6 md:mb-10 flex-shrink-0 pr-12" v-if="modal.type !== 'videoPlayer'">
               <h3 class="text-2xl md:text-3xl font-serif italic text-black mb-2">{{ modalTitle }}</h3>
-              <p class="text-zinc-400 text-xs tracking-[0.2em] uppercase font-bold">{{ modalSubtitle }}</p>
+              <p class="text-zinc-600 text-xs tracking-[0.2em] uppercase font-bold">{{ modalSubtitle }}</p>
             </div>
 
             <div class="flex-1 overflow-y-auto pr-1 md:pr-4 custom-scrollbar">
 
               <div v-if="modal.type === 'download'" class="space-y-4">
-                <div v-if="pendingDownloads" class="text-center py-10 text-xs text-zinc-400 tracking-widest uppercase">Syncing...</div>
+                <div v-if="pendingDownloads" class="text-center py-10 text-xs text-zinc-600 tracking-widest uppercase">Syncing...</div>
                 <FrontState
                   v-else-if="errD" type="error" title="资料加载失败" description="请重新加载后再查找资料。" show-retry @retry="refreshDownloads" />
                 <FrontState v-else-if="displayDownloads.length === 0"
@@ -143,14 +143,14 @@
                   :show-retry="false"
                 />
                 <div v-else v-for="file in displayDownloads" :key="file.id" :id="`support-download-${file.id}`" :data-dialog-initial-focus="selectedSupportItem === String(file.id) ? 'true' : undefined" :class="{ 'ring-2 ring-blue-600': selectedSupportItem === String(file.id) }" tabindex="-1" class="flex justify-between items-center p-6 bg-zinc-50/50 hover:bg-zinc-100 transition-colors rounded-2xl border border-zinc-100">
-                  <div><p class="font-bold text-sm text-black mb-1">{{ file.name }}</p><p class="text-[10px] text-zinc-400 uppercase font-mono">{{ file.size }} | {{ file.type }}</p></div>
+                  <div><p class="font-bold text-sm text-black mb-1">{{ file.name }}</p><p class="text-xs text-zinc-600 uppercase font-mono">{{ file.size }} | {{ file.type }}</p></div>
                   <a v-if="file.fileUrl" :href="file.fileUrl" target="_blank" download class="inline-flex min-h-11 items-center text-xs font-bold border-b border-black/20 pb-1 hover:border-black transition-colors text-black" @click="triggerToast('资料即将开始下载...', 'success')">DOWNLOAD</a>
-                  <span v-else class="text-xs font-bold text-zinc-300 cursor-not-allowed">NO FILE</span>
+                  <span v-else class="text-xs font-bold text-zinc-600 cursor-not-allowed">NO FILE</span>
                 </div>
               </div>
 
               <div v-if="modal.type === 'quickstart'" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div v-if="pendingGuides" class="col-span-2 text-center py-10 text-xs text-zinc-400 tracking-widest uppercase">Loading...</div>
+                <div v-if="pendingGuides" class="col-span-2 text-center py-10 text-xs text-zinc-600 tracking-widest uppercase">Loading...</div>
                 <FrontState
                   v-else-if="errG" type="error" title="指南加载失败" description="请重新加载后再查看指南。" show-retry @retry="refreshGuides" />
                 <FrontState v-else-if="displayGuides.length === 0"
@@ -167,14 +167,14 @@
                   </div>
                   <div class="w-4 h-[1px] bg-black/20 mb-3 group-hover:w-8 transition-all duration-500"></div>
                   <h4 class="font-serif text-lg text-black mb-1 leading-snug">{{ guide.title }}</h4>
-                  <p class="text-[10px] text-zinc-400 uppercase font-mono tracking-widest">{{ guide.duration }} | {{ guide.category }}</p>
+                  <p class="text-xs text-zinc-600 uppercase font-mono tracking-widest">{{ guide.duration }} | {{ guide.category }}</p>
                 </div>
               </div>
 
               <div v-if="modal.type === 'videoPlayer'" class="w-full pt-4">
                 <video :src="currentVideo?.videoUrl" controls autoplay class="w-full aspect-video bg-black rounded-2xl shadow-xl outline-none mb-6"></video>
                 <h4 class="text-2xl font-serif text-black">{{ currentVideo?.title }}</h4>
-                <p class="text-xs text-zinc-400 uppercase font-mono tracking-widest mt-2 mb-8">{{ currentVideo?.category }}</p>
+                <p class="text-xs text-zinc-600 uppercase font-mono tracking-widest mt-2 mb-8">{{ currentVideo?.category }}</p>
                 <button @click="modal.type = 'quickstart'" class="min-h-11 text-xs font-bold border-b border-black/20 pb-1 hover:border-black transition-colors text-black">&larr; 返回指南列表</button>
               </div>
 
@@ -186,7 +186,7 @@
                   <fieldset :disabled="isSubmittingContact" :aria-busy="isSubmittingContact" class="min-w-0 space-y-4">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="flex flex-col gap-2">
-                      <label for="support-serviceType" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">服务类型</label>
+                      <label for="support-serviceType" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">服务类型</label>
                       <select id="support-serviceType" v-model="contactForm.serviceType" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all">
                         <option value="repair">故障报修</option>
                         <option value="maintenance">保养维护</option>
@@ -195,40 +195,40 @@
                       </select>
                     </div>
                     <div v-if="!isExperience" class="flex flex-col gap-2">
-                      <label for="support-purchaseChannel" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">购买渠道</label>
+                      <label for="support-purchaseChannel" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">购买渠道</label>
                       <input id="support-purchaseChannel" v-model="contactForm.purchaseChannel" type="text" maxlength="40" placeholder="官网 / 门店 / 经销商" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black focus:bg-white bg-zinc-50 transition-all" />
                     </div>
                   </div>
                   <div class="flex flex-col gap-2">
-                    <label for="support-customerName" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">姓名 <span>*</span></label>
+                    <label for="support-customerName" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">姓名 <span>*</span></label>
                       <input id="support-customerName" v-model="contactForm.customerName" @input="contactForm.customerName = contactForm.customerName.replace(/[^\u4e00-\u9fa5a-zA-Z\s·]/g, '').slice(0, 20)" type="text" maxlength="20" autocomplete="name" required class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black focus:bg-white bg-zinc-50 transition-all" />
                   </div>
                   <div class="flex flex-col gap-2">
-                    <label for="support-contactInfo" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">联系电话 <span>*</span></label>
+                    <label for="support-contactInfo" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">联系电话 <span>*</span></label>
                     <input id="support-contactInfo" v-model="contactForm.contactInfo" @input="contactForm.contactInfo = contactForm.contactInfo.replace(/[^\d]/g, '').slice(0, 11)" type="tel" inputmode="tel" autocomplete="tel" maxlength="11" required class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black focus:bg-white bg-zinc-50 transition-all" />
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="flex flex-col gap-2">
-                      <label for="support-productTitle" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">产品型号</label>
+                      <label for="support-productTitle" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">产品型号</label>
                       <input id="support-productTitle" v-model="contactForm.productTitle" type="text" maxlength="60" placeholder="例如 C3 Studio Grand" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all" />
                     </div>
                     <div v-if="!isExperience" class="flex flex-col gap-2">
-                      <label for="support-serialNumber" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">序列号</label>
+                      <label for="support-serialNumber" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">序列号</label>
                       <input id="support-serialNumber" v-model="contactForm.serialNumber" type="text" maxlength="40" placeholder="机身铭牌或保修卡编号" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all" />
                     </div>
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="flex flex-col gap-2">
-                      <label for="support-city" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">所在城市</label>
+                      <label for="support-city" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">所在城市</label>
                       <input id="support-city" v-model="contactForm.city" type="text" maxlength="30" placeholder="例如 上海" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all" />
                     </div>
                     <div class="flex flex-col gap-2">
-                      <label for="support-preferredTime" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">期望服务时间</label>
+                      <label for="support-preferredTime" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">期望服务时间</label>
                       <input id="support-preferredTime" v-model="contactForm.preferredTime" type="text" maxlength="40" placeholder="例如 工作日下午" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all" />
                     </div>
                   </div>
                   <div class="flex flex-col gap-2">
-                    <label for="support-message" class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">{{ contactCopy.message }} <span v-if="!isExperience">*</span><span v-else>（选填）</span></label>
+                    <label for="support-message" class="text-xs font-bold tracking-[0.2em] text-zinc-500 uppercase">{{ contactCopy.message }} <span v-if="!isExperience">*</span><span v-else>（选填）</span></label>
                     <textarea id="support-message" v-model="contactForm.message" rows="4" :required="!isExperience" :placeholder="contactCopy.placeholder" class="w-full border border-zinc-200 px-5 py-4 rounded-xl outline-none focus:border-black bg-zinc-50 transition-all"></textarea>
                   </div>
                   <input v-model="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
@@ -317,7 +317,7 @@ const modal = reactive({ show: false, type: '' })
 const currentVideo = ref(null)
 const supportDialog = ref(null)
 const selectedSupportItem = ref('')
-useDialogFocus(() => modal.show, supportDialog, () => closeModal())
+useDialogFocus(() => modal.show ? modal.type : false, supportDialog, () => closeModal())
 const faqFeedbackKeys = ref({})
 const supportSubmitError = ref('')
 useOverlayLock('support-modal', () => modal.show)
@@ -610,7 +610,7 @@ useBreadcrumbSchema(() => [
   .support-action-card > div.pointer-events-none > div {
     width: 2.65rem;
     height: 2.65rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     background: #f7f7f8;
   }
 

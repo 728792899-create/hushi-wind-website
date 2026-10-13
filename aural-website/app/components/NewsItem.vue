@@ -4,7 +4,7 @@
       <h3 class="text-xl md:text-2xl font-bold text-gray-900 group-hover:text-gray-600 transition-colors duration-300 pr-4">
         {{ title }}
       </h3>
-      <span class="text-sm text-gray-400 font-mono tracking-tight mt-2 sm:mt-0 flex-shrink-0">
+      <span class="text-sm text-gray-600 font-mono tracking-tight mt-2 sm:mt-0 flex-shrink-0">
         {{ date }}
       </span>
     </div>

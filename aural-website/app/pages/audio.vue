@@ -24,7 +24,7 @@
     <section class="max-w-[85rem] mx-auto px-6 md:px-12 py-32">
       <div class="flex justify-between items-end mb-20 border-b border-zinc-200 pb-6">
         <h2 class="text-4xl font-serif italic text-black tracking-tight">Solutions.</h2>
-        <span class="text-xs text-zinc-400 font-mono uppercase tracking-widest">System Solutions / 01</span>
+        <span class="text-xs text-zinc-600 font-mono uppercase tracking-widest">System Solutions / 01</span>
       </div>
 
       <div v-if="pendingSol" class="grid grid-cols-1 md:grid-cols-2 gap-12 animate-pulse">
@@ -59,10 +59,10 @@
           
           <div class="w-full px-4">
             <div class="w-6 h-[1px] bg-black/30 mb-4 group-hover:w-16 group-hover:bg-black transition-all duration-700 ease-out"></div>
-            <p class="text-[10px] text-zinc-400 tracking-[0.3em] mb-2 uppercase font-semibold">{{ sol.en }}</p>
+            <p class="text-xs text-zinc-600 tracking-[0.3em] mb-2 uppercase font-semibold">{{ sol.en }}</p>
             <h3 class="text-2xl font-serif text-black group-hover:text-zinc-500 transition-colors duration-500 mb-2">{{ sol.title }}</h3>
             <p class="text-sm text-zinc-500 font-light leading-relaxed line-clamp-2 max-w-sm">{{ sol.desc }}</p>
-            <span class="inline-flex mt-5 text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black/20 pb-1 group-hover:border-black transition-colors">了解方案</span>
+            <span class="inline-flex mt-5 text-xs font-bold uppercase tracking-[0.2em] border-b border-black/20 pb-1 group-hover:border-black transition-colors">了解方案</span>
           </div>
         </NuxtLink>
       </div>
@@ -70,7 +70,7 @@
 
     <section class="bg-white py-32 px-4 border-t border-zinc-100">
       <div class="max-w-7xl mx-auto text-center">
-        <h2 class="text-xs font-mono text-zinc-400 uppercase tracking-[0.3em] mb-20">Core Specifications</h2>
+        <h2 class="text-xs font-mono text-zinc-600 uppercase tracking-[0.3em] mb-20">Core Specifications</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-16">
           <div v-if="pendingStat" v-for="i in 3" :key="i" class="animate-pulse"><div class="h-10 bg-zinc-200 w-1/2 mx-auto mb-4 rounded-sm"></div><div class="h-4 bg-zinc-200 w-1/3 mx-auto rounded-sm"></div></div>
           

@@ -17,7 +17,7 @@
       </button>
 
       <div class="mb-8 rounded-3xl border border-zinc-200 bg-white px-6 py-7 shadow-sm md:px-10">
-        <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-400">品牌信息</p>
+        <p class="mb-3 text-xs font-bold uppercase tracking-[0.28em] text-zinc-600">品牌信息</p>
         <h1 class="text-4xl font-bold text-zinc-900">{{ pageData.title }}</h1>
       </div>
       

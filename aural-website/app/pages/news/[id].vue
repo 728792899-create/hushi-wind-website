@@ -9,7 +9,7 @@
       </button>
     </div>
 
-    <div v-if="pending" class="min-h-screen flex flex-col items-center justify-center text-zinc-400">
+    <div v-if="pending" class="min-h-screen flex flex-col items-center justify-center text-zinc-600">
       <div class="w-10 h-10 border-4 border-zinc-100 border-t-black rounded-full animate-spin mb-4"></div>
       <p class="font-mono text-xs uppercase tracking-widest">Loading Article...</p>
     </div>
@@ -37,17 +37,17 @@
         <img :src="article.image" :alt="article.title" loading="eager" fetchpriority="high" decoding="async" sizes="100vw" class="absolute inset-0 w-full h-full object-cover opacity-45" @error="imageFallback" />
         <div class="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10"></div>
         <div class="relative z-10 max-w-5xl mx-auto w-full px-4 pb-16 md:pb-20 text-white">
-          <NuxtLink to="/news" class="mb-6 inline-flex min-h-11 items-center justify-center border border-white/30 bg-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white backdrop-blur transition-colors hover:border-white hover:bg-white hover:text-black">
+          <NuxtLink to="/news" class="mb-6 inline-flex min-h-11 items-center justify-center border border-white/30 bg-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white backdrop-blur transition-colors hover:border-white hover:bg-white hover:text-black">
             ← 返回资讯中心
           </NuxtLink>
-          <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-zinc-400 mb-5">{{ article.category }} / {{ article.date }} / 约 {{ article.readingMinutes }} 分钟阅读</p>
+          <p class="text-xs font-bold tracking-[0.3em] uppercase text-zinc-600 mb-5">{{ article.category }} / {{ article.date }} / 约 {{ article.readingMinutes }} 分钟阅读</p>
           <h1 class="text-4xl md:text-6xl font-serif italic leading-tight mb-6">{{ article.title }}</h1>
           <p class="text-zinc-300 text-base md:text-lg leading-relaxed max-w-3xl">{{ article.desc }}</p>
         </div>
       </section>
 
       <section class="news-detail-body max-w-3xl mx-auto px-4 py-16 md:py-24">
-        <div class="mb-10 flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+        <div class="mb-10 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-[0.24em] text-zinc-600">
           <span>{{ article.category }}</span>
           <span class="h-px w-6 bg-zinc-200"></span>
           <span>{{ article.date }}</span>
@@ -75,10 +75,10 @@
           <a :href="`mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(articleUrl)}`" class="article-share-button">邮件分享</a>
         </div>
         <div class="mt-12 pt-8 border-t border-zinc-200 flex flex-col gap-5 sm:flex-row sm:justify-between sm:items-center">
-          <NuxtLink to="/news" class="text-xs font-bold tracking-[0.2em] uppercase border-b border-black pb-1 text-black hover:text-gray-500 hover:border-gray-400 transition-colors">
+          <NuxtLink to="/news" class="inline-flex min-h-11 items-center text-xs font-bold tracking-[0.2em] uppercase border-b border-black pb-1 text-black hover:text-gray-500 hover:border-gray-400 transition-colors">
             返回资讯中心
           </NuxtLink>
-          <span class="text-[10px] text-zinc-400 uppercase tracking-widest">HUSHI WIND News</span>
+          <span class="text-xs text-zinc-600 uppercase tracking-widest">HUSHI WIND News</span>
         </div>
       </section>
 
@@ -108,7 +108,7 @@
 
       <section v-if="relatedArticles.length" class="max-w-6xl mx-auto px-4 pb-20 md:pb-28">
         <div class="mb-8 border-t border-zinc-200 pt-10">
-          <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-400">Related Reading</p>
+          <p class="mb-3 text-xs font-bold uppercase tracking-[0.28em] text-zinc-600">Related Reading</p>
           <h2 class="text-3xl md:text-4xl font-serif italic text-black">继续阅读</h2>
         </div>
         <div class="grid gap-5 md:grid-cols-3">
@@ -122,7 +122,7 @@
               <img :src="item.image" :alt="item.title" loading="lazy" decoding="async" sizes="(min-width: 768px) 33vw, 100vw" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" @error="imageFallback" />
             </div>
             <div class="p-5">
-              <p class="mb-3 text-[9px] font-bold uppercase tracking-[0.26em] text-zinc-400">{{ item.category }} / {{ item.date }}</p>
+              <p class="mb-3 text-xs font-bold uppercase tracking-[0.26em] text-zinc-600">{{ item.category }} / {{ item.date }}</p>
               <h3 class="mb-3 text-lg font-black leading-snug text-black transition-colors group-hover:text-zinc-500">{{ item.title }}</h3>
               <p class="line-clamp-2 text-sm leading-relaxed text-zinc-500">{{ item.summary }}</p>
             </div>
@@ -134,6 +134,7 @@
 </template>
 
 <script setup>
+import { articlePreviewText } from '../../utils/articlePreviewText'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -269,7 +270,7 @@ const readingMinutes = (value) => {
 }
 
 const shortSummary = (value, size = 96) => {
-  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  const text = articlePreviewText(value)
   return text.length > size ? `${text.slice(0, size)}...` : text
 }
 
@@ -281,7 +282,7 @@ const normalizeArticle = (item) => {
   const imagePath = attrs.image?.data?.attributes?.url || attrs.imageUrl
   const ogImagePath = attrs.ogImageUrl || imagePath
   const body = attrs.description || ''
-  const seoDescription = attrs.seoDescription || shortSummary(body, 160)
+  const seoDescription = attrs.seoDescription ? articlePreviewText(attrs.seoDescription) : shortSummary(body, 160)
   return {
     id,
     slug: attrs.slug || '',
@@ -498,11 +499,12 @@ useBreadcrumbSchema(() => [
 }
 .article-prose figcaption {
   margin-top: 0.75rem;
-  color: #a1a1aa;
+  color: #52525b;
   font-size: 0.75rem;
   line-height: 1.5;
   text-align: center;
 }
+.article-prose .article-video figcaption { color: #d4d4d8; padding: 0 1rem 0.75rem; }
 .article-lead {
   color: #18181b;
   font-size: 1.2rem;
@@ -515,7 +517,7 @@ useBreadcrumbSchema(() => [
   justify-content: center;
   border: 1px solid #e4e4e7;
   padding: 0.75rem 1rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -542,10 +544,10 @@ useBreadcrumbSchema(() => [
   background: #fafafa;
 }
 .article-nav-card span {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.22em;
-  color: #a1a1aa;
+  color: #52525b;
 }
 .article-nav-card strong {
   font-size: 1.15rem;
