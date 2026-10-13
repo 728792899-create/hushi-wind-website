@@ -821,3 +821,29 @@
 
 - 文档执行 BOM 和 diff 检查；普通独立提交推送，随后按新完整 SHA 核对 Quality 的 npm test / npm run quality，CI 结果存于本地并在交付回复报告，不复用之前的 CI 结论。
 - 已执行的是用户授权的官网免口令访问变更。后台保护保持、原设计和内容保持；当前演示资料仍待客户核实或替换，搜索引擎 noindex 不是访问限制。下一步仅继续用户页面验收和客户资源替换，不扩展加固范围。
+
+
+## 后台取消首次验证与客户账号替换（2026-10-14）
+
+### 目标、现场复核与变更
+
+- 用户要求取消后台首次浏览器验证、登录名改为 `admin`。原指定密码不符合生产 12–64 位且包含大小写字母、数字和符号的规则；用户随后授权采用方便输入的密码。采用符合规则的 12 位密码，凭据仅私下交付，没有降低密码规则、修改生产初始化环境或绕过 API 直接写库。
+- 起点为已推送的 `84b8dd621a90af8551c2d74a8f50d7e5c6bd8471`，工作树干净。现场账号只有独立 super_admin 站主和 editor 客户，均 active；目标用户名未占用。现有账号更新接口不支持改名，因此通过已有审计 API 先创建 disabled 的 `admin`，显式指定 editor，核对权限与原客户一致，再启用并验证登录，最后停用旧客户账号。旧账号及其历史保留，站主 ID/角色/状态/权限/2FA 保持。
+- 仅替换 `/etc/caddy/hushi-preview.Caddyfile` 中后台 Host：移除外层门禁，显式重建 API/uploads 匹配器，保留正常应用 Bearer 鉴权、静态 SPA、noindex/no-store 和 robots；剥离浏览器残留 Basic Authorization 与 Cookie。官网 Host 字节保持，官网 API 白名单不变。旧门禁 snippet 仍存在但不再被任一 Host 引用，不再参与请求处理。
+- 跟踪文件仅 `CODEX_HANDOFF.md`、本记录、`docs/temporary-preview-handoff.md`；私有客户/站主资料已同步为单层登录。密码、代理片段、脚本与证据位于忽略目录 `logs/temporary-server-20261013/`，不进入 Git。
+
+### 执行、反向验证与 KingAI 边界
+
+- 目标相同 Caddy 2.6.2 本地离线适配通过，官网与 KingAI 三个 Host 的适配结构完全不变，11 项本地事务/回滚模拟通过，独立复核无待修问题。
+- 持既有升级操作锁，确认 74 个历史升级任务均已终结、无活动升级；核对主配置、片段、候选及事务 helper 固定 SHA，备份旧片段，验证完整配置并平滑 reload。`password-only-admin-activation.json` 记录 opened=true、mainFileModified=false、serviceRestartPerformed=false、无需回滚。
+- 主 Caddy SHA 保持 `81153b46462b0812e4556cfb17b26c560bfef5c1b79ba12892cc2309fa219cd7`，新片段 SHA 为 `8f5464adbab2f1e78c478fc6737ba2a3b07ea44a91bd26aaded03b724857d228`。Caddy PID 376641、四个 KingAI 容器 ID/启动时间均前后一致；KingAI 内外健康与 Canvas 内外页面四探针均 200。没有重启 KingAI、宿主机或胡氏应用服务。
+- `client-account-change.json` 记录新客户登录/权限核对、旧客户登录与旧 Bearer 会话均被 401 拒绝、站主保持、CREATE/UPDATE 审计可查。`password-only-audit-integrity.json` 返回 ok=true，15 条审计记录及链验证通过。账号替换是顺序执行，不宣称是原子改名。
+
+- 真实 HTTPS 最终 **64/64** 通过，`password-only-admin-checks.json` 的 completed/passed 均为 true：后台匿名 SPA/static 无 WWW-Authenticate；残留 Basic 不挑战；生产密码策略 12–64 位复杂度不变；新 editor 客户登录、Bearer 和 30 分钟空闲/12 小时绝对会话策略保持；匿名会话/账号/上传 401，客户账号管理/产品写入/删除 403；官网六页、12 个公开集合 API、图片及 robots 正常，官网管理路径带 Bearer 仍拒绝。首次执行 62 项断言通过后末尾传输中断，未标通过，保留 first-attempt 证据；有界复跑完整通过。
+
+### 记录与剩余边界
+
+- 用户指定用户名 `admin` 会触发现有就绪报告 credentials 的 critical 提示：代码只要存在启用的该用户名即告警，不区分 editor/super_admin 或密码强度。该提示不阻断登录；角色仍为 editor。以后停用该名称还需满足已有默认账号保护（7 天备份、另一超管、操作者 2FA 和敏感确认），本步不修改或隐藏这些规则。
+- 未进行浏览器操作；此前工具明确的 URL policy 拦截仍作为验收限制，不绕过、不声称浏览器页面目视或 UI 上传已通过。当前为完整临时站，正式品牌/素材验收、同机备份和迁移边界保持，没有扩展功能或增加费用。
+- 文档执行 BOM、diff 及秘密泄露检查，独立普通提交推送，按新完整 SHA 确认 Quality 的 npm test / npm run quality；对应 CI 结果存本地并在交付回复报告。本轮无应用源码改动，不把历史测试冒充本轮测试。
+- 下一步仅由用户/客户使用新账号验证页面并替换资料，不继续扩展加固范围。
