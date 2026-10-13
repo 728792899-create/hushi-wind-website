@@ -3,7 +3,7 @@ const { createHash } = require('node:crypto');
 const { createReadStream } = require('node:fs');
 const fs = require('node:fs/promises');
 const { PrismaClient, Prisma } = require('@prisma/client');
-const { verifyAuditIntegrity } = require('./audit-integrity');
+const { verifyAuditSnapshot } = require('./audit-integrity');
 const CHECKPOINT_FIELDS = ['version', 'baselineCount', 'baselineMaxId', 'entryCount', 'logCount', 'headHash', 'sealedAt'];
 const isHash = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -100,19 +100,20 @@ async function assetManifest(root, prefix = '') {
 }
 async function auditSnapshot(file, { requireCurrentSchema = true } = {}) {
   const db = new PrismaClient({ datasourceUrl: `file:${file}` });
+  let names;
   try {
     const rows = await db.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table'");
-    const names = new Set(rows.map((row) => row.name));
-    const hasState = names.has('AuditIntegrityState'), hasEntries = names.has('AuditLogEntry');
-    if (!hasState && !hasEntries) {
-      if (requireCurrentSchema) throw new Error('Audit schema is missing');
-      return { status: 'legacy', reason: 'missing-audit-schema' };
-    }
-    if (!hasState || !hasEntries || !names.has('OperationLog'))
-      throw new Error('Incomplete audit schema');
-    const checked = await verifyAuditIntegrity(db);
-    return { status: 'verified', ...Object.fromEntries(CHECKPOINT_FIELDS.map((key) => [key, checked[key]])) };
+    names = new Set(rows.map((row) => row.name));
   } finally { await db.$disconnect(); }
+  const hasState = names.has('AuditIntegrityState'), hasEntries = names.has('AuditLogEntry');
+  if (!hasState && !hasEntries) {
+    if (requireCurrentSchema) throw new Error('Audit schema is missing');
+    return { status: 'legacy', reason: 'missing-audit-schema' };
+  }
+  if (!hasState || !hasEntries || !names.has('OperationLog'))
+    throw new Error('Incomplete audit schema');
+  const checked = await verifyAuditSnapshot(file);
+  return { status: 'verified', ...Object.fromEntries(CHECKPOINT_FIELDS.map((key) => [key, checked[key]])) };
 }
 function validateManifest(manifest) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
@@ -180,10 +181,21 @@ async function verifyAssetReferences(file, assets, assetOrigins) {
       'RecycleEntry',
     ]) {
       if (!existing.has(model)) continue;
-      const rows = await client.$queryRawUnsafe(`SELECT * FROM "${model}"`);
-      for (const url of extractLocalUploadUrls(rows, assetOrigins))
-        if (!names.has(url))
-          throw new Error(`Backup references missing upload: ${url}`);
+      // These content tables all have an integer primary key. A restored file
+      // is immutable here; keyset pages bound retained payloads even when
+      // version/recycle history grows. Do not assume IDs start at one or have
+      // no gaps, and keep scanning after a page contains no upload references.
+      let lastId;
+      while (true) {
+        const rows = lastId === undefined
+          ? await client.$queryRawUnsafe(`SELECT * FROM "${model}" ORDER BY "id" LIMIT 500`)
+          : await client.$queryRawUnsafe(`SELECT * FROM "${model}" WHERE "id" > ? ORDER BY "id" LIMIT 500`, lastId);
+        if (!rows.length) break;
+        for (const url of extractLocalUploadUrls(rows, assetOrigins))
+          if (!names.has(url))
+            throw new Error(`Backup references missing upload: ${url}`);
+        lastId = rows.at(-1).id;
+      }
     }
   } finally {
     await client.$disconnect();

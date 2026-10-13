@@ -118,6 +118,7 @@ async function fixture(t) {
       if (background) {
         await wait(message => message?.type === 'background-done' && message.task === 'backup', 'initial backup');
         await wait(message => message?.type === 'background-done' && message.task === 'maintenance', 'initial maintenance');
+        await wait(message => message?.type === 'background-done' && message.task === 'audit', 'initial audit');
       }
       return runtime;
     };
@@ -152,7 +153,7 @@ async function beginStop(runtime, signal = 'SIGTERM') {
   const rejected = await bounded(runtime.request('/api/auth/policy').promise, 'new request rejected');
   assert.ok(rejected.error || rejected.status === 503, 'stopping main must not accept new application work');
 }
-async function assertStopped(runtime, { timerCount = 4 } = {}) {
+async function assertStopped(runtime, { timerCount = 5 } = {}) {
   assert.deepEqual(await bounded(runtime.exited, 'clean main exit'), { code: 0, signal: null });
   assert.match(runtime.stdout, /Service stopped/);
   assert.doesNotMatch(runtime.stdout + runtime.stderr, /shutdown_failed|API log failed/);
@@ -162,7 +163,10 @@ async function assertStopped(runtime, { timerCount = 4 } = {}) {
   // IPC may close during process.exit; synchronous fixture transcript is authoritative.
   assert.ok(exit);
   assert.deepEqual(exit.remainingTimers, []);
-  assert.equal(events.filter(message => message?.type === 'timer-cleared').length, timerCount);
+  const created = events.filter(message => message?.type === 'timer-created').map(message => message.id).sort();
+  const cleared = events.filter(message => message?.type === 'timer-cleared').map(message => message.id).sort();
+  assert.equal(created.length, timerCount);
+  assert.deepEqual(cleared, created, 'every real background timer is cleared exactly once');
 }
 
 test('disconnected HTTP client does not release an unfinished write during shutdown', { timeout: 25000 }, async (t) => {
@@ -257,6 +261,43 @@ test('main waits for an in-flight scheduled backup after stopping future ticks',
   await assertNoBackupStaging(f.backups);
 });
 
+for (const corrupt of [false, true]) {
+  test(`main drains an in-flight scheduled audit through ${corrupt ? 'integrity failure and persisted alert' : 'successful verification'} after SIGTERM`, { timeout: 25000 }, async (t) => {
+    const f = await fixture(t);
+    const runtime = await f.start({ SHUTDOWN_FIXTURE_GATE: 'scheduled-audit' }).ready({ background: false });
+    const gate = await runtime.wait(message => message?.type === 'gate' && message.kind === 'scheduled-audit', 'periodic audit snapshot');
+    assert.equal((await f.db.maintenanceRun.findFirst({ where: { task: 'scheduled-audit' } })).status, 'running');
+    const snapshotDirectory = path.dirname(gate.destination);
+    assert.ok(snapshotDirectory.startsWith(f.backups + path.sep));
+    await fs.access(gate.destination);
+    if (corrupt) {
+      // Damage only this private copy. The verifier and failure path remain real.
+      const snapshot = new PrismaClient({ datasourceUrl: `file:${gate.destination}` });
+      try { await snapshot.operationLog.create({ data: { action: 'UPDATE', module: 'fixture', summary: 'unsigned synthetic snapshot' } }); }
+      finally { await snapshot.$disconnect(); }
+    }
+    await beginStop(runtime);
+    await runtime.command('release');
+    await assertStopped(runtime);
+    const records = await f.db.maintenanceRun.findMany({ where: { task: 'scheduled-audit' } });
+    assert.equal(records.length, 1, 'queued ticks do not start a second audit');
+    assert.equal(records[0].status, corrupt ? 'failed' : 'success');
+    const alerts = await f.db.alertRecord.findMany({ where: { type: 'audit_integrity_failed' } });
+    assert.equal(alerts.length, corrupt ? 1 : 0);
+    if (corrupt) {
+      assert.equal(alerts[0].level, 'critical');
+      assert.match(records[0].details, /未自动重签/);
+      assert.doesNotMatch(JSON.stringify([records, alerts]), /database\.db|\.audit-check-|unsigned synthetic snapshot/);
+    }
+    assert.equal(await f.db.notificationDelivery.count(), 0);
+    assert.equal((await verifyAuditIntegrity(f.db)).ok, true, 'source remains valid and was not resealed');
+    await assert.rejects(fs.access(snapshotDirectory), { code: 'ENOENT' });
+    const done = runtime.messages.findIndex(message => message?.type === 'background-done' && message.task === 'audit');
+    const disconnect = runtime.messages.findIndex(message => message?.type === 'disconnecting');
+    assert.ok(done >= 0 && disconnect > done, 'audit result, alert and cleanup settle before disconnect');
+  });
+}
+
 test('main reports an undrained deadline and exits nonzero instead of claiming a clean stop', { timeout: 20000 }, async (t) => {
   const f = await fixture(t), runtime = await f.start({ SHUTDOWN_TIMEOUT_MS: '250' }).ready();
   await runtime.command('arm', { kind: 'transaction' });
@@ -286,6 +327,22 @@ test('actual main rejects an occupied port before initialization or background s
   assert.equal(await f.db.backupRecord.count(), 0);
   assert.equal(await f.db.maintenanceRun.count(), 0);
   assert.deepEqual(await fs.readdir(f.backups), []);
+});
+
+test('actual initialization integrity failure starts no periodic audit or other background producer', { timeout: 20000 }, async (t) => {
+  const f = await fixture(t);
+  await f.db.operationLog.create({ data: { action: 'UPDATE', module: 'fixture', summary: 'unsigned startup fixture' } });
+  await f.db.$disconnect();
+  const runtime = f.start();
+  assert.deepEqual(await bounded(runtime.exited, 'audit initialization failure'), { code: 1, signal: null });
+  assert.match(runtime.stderr, /AUDIT_INTEGRITY_FAILED/);
+  assert.equal(runtime.messages.includes('ready'), false);
+  assert.equal(runtime.messages.some(message => ['background-start', 'timer-created'].includes(message?.type)), false);
+  assert.equal(await f.db.maintenanceRun.count(), 0);
+  assert.equal(await f.db.alertRecord.count(), 0, 'startup failure exits without silently running alert producers');
+  assert.equal(await f.db.backupRecord.count(), 0);
+  assert.deepEqual(await fs.readdir(f.backups), []);
+  assert.equal(await f.db.operationLog.count(), 1, 'damaged source is never automatically repaired');
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) {

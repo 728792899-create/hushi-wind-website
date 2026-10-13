@@ -82,6 +82,26 @@ audit.initializeAuditIntegrity = async (...args) => {
   event('initialized');
   return result;
 };
+const verifySnapshot = audit.verifyAuditSnapshot;
+audit.verifyAuditSnapshot = async (file, ...args) => {
+  // The main periodic job has already captured its private snapshot here.
+  // Pausing before real verification keeps the complete job/finally observable.
+  if (String(file).includes(`${path.sep}.audit-check-`))
+    await gate('scheduled-audit', { destination: file });
+  return verifySnapshot(file, ...args);
+};
+const auditScheduler = require(path.join(apiRoot, 'lib/scheduled-audit'));
+const createAuditScheduler = auditScheduler.createAuditScheduler;
+auditScheduler.createAuditScheduler = (...args) => {
+  const instance = createAuditScheduler(...args);
+  const run = instance.run;
+  instance.run = async (...runArgs) => {
+    event('background-start', { task: 'audit' });
+    try { return await run(...runArgs); }
+    finally { event('background-done', { task: 'audit' }); }
+  };
+  return instance;
+};
 const scheduler = require(path.join(apiRoot, 'lib/scheduled-backup'));
 const createScheduler = scheduler.createBackupScheduler;
 scheduler.createBackupScheduler = (...args) => {

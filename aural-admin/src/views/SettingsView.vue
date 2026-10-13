@@ -350,26 +350,30 @@
           ></el-table
         ></template
       >
-      <template v-if="tab === 'maintenance'"
-        ><h2>自动维护记录</h2>
-        <p class="field-hint">
-          每日清理过期访问日志、投递记录与过期备份，不会自动删除产品或客户咨询。
-        </p>
-        <el-table :data="rows"
-          ><el-table-column prop="task" label="任务" /><el-table-column
-            prop="status"
-            label="结果"
-          /><el-table-column
-            prop="details"
-            label="详情"
-            min-width="240"
-          /><el-table-column label="时间" min-width="170"
-            ><template #default="{ row }">{{
-              formatTime(row.createdAt)
-            }}</template></el-table-column
-          ></el-table
-        ></template
-      >
+      <template v-if="tab === 'maintenance'">
+        <div class="panel-heading">
+          <div><h2>自动维护记录</h2><p>查看留存清理与周期审计结果，失败时请核查安全告警。</p></div>
+          <el-button :loading="loading" @click="loadTab">刷新维护记录</el-button>
+        </div>
+        <p class="field-hint">周期审计仅核验快照时点，不会自动重签记录。进行中或未完成不代表已经通过。</p>
+        <el-table :data="rows" class="wide-table mobile-hidden-table" empty-text="暂无维护记录">
+          <el-table-column label="任务" min-width="180"><template #default="{ row }">{{ maintenanceTaskLabel(row.task) }}</template></el-table-column>
+          <el-table-column label="结果" width="150"><template #default="{ row }">{{ maintenanceStatusLabel(row.status) }}</template></el-table-column>
+          <el-table-column prop="details" label="详情" min-width="300" />
+          <el-table-column label="时间" width="170"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
+        </el-table>
+        <div class="mobile-admin-list">
+          <article v-for="row in rows" :key="row.id" class="mobile-admin-card">
+            <div class="mobile-list-body">
+              <strong>{{ maintenanceTaskLabel(row.task) }}</strong>
+              <p>{{ maintenanceStatusLabel(row.status) }}</p>
+              <small>{{ formatTime(row.createdAt) }}</small>
+              <div class="field-hint wrap-text">{{ row.details }}</div>
+            </div>
+          </article>
+          <div v-if="!rows.length && !loading" class="empty-panel">暂无维护记录</div>
+        </div>
+      </template>
       <div
         v-if="
           [
@@ -520,6 +524,8 @@ const user = ref(getCurrentUser() || {}),
   secret = ref(''),
   code = ref(''),
   memberOpen = ref(false)
+const maintenanceTaskLabel = (task) => ({ 'scheduled-audit': '周期审计完整性核验', 'scheduled-backup': '自动备份', 'backup-retention': '备份留存清理', retention: '过期记录清理' })[task] || task
+const maintenanceStatusLabel = (status) => ({ success: '已完成', failed: '失败', running: '进行中或尚未完成' })[status] || status
 const integrityResult = ref(null),
   integrityLoading = ref(false),
   integrityError = ref(''),

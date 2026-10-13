@@ -1,5 +1,6 @@
 const { createHash } = require('node:crypto');
 const fs = require('node:fs');
+const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { runSqliteTransaction } = require('./sqlite-transaction');
 
@@ -158,6 +159,42 @@ async function initializeAuditIntegrity(db) {
 async function verifyAuditIntegrity(db) {
   return inTransaction(db, verifyInTransaction);
 }
+
+async function snapshotIdentity(file) {
+  const stat = await fsp.lstat(file, { bigint: true });
+  ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0n,
+    'snapshot must be a nonempty regular file');
+  for (const suffix of ['-wal', '-shm', '-journal']) {
+    try { await fsp.lstat(file + suffix); }
+    catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+    throw integrityError('snapshot has an active SQLite sidecar');
+  }
+  const digest = createHash('sha256');
+  for await (const chunk of fs.createReadStream(file)) digest.update(chunk);
+  return [stat.dev, stat.ino, stat.size, stat.mtimeNs, digest.digest('hex')].map(String).join(':');
+}
+
+// Only for a private, quiescent snapshot: callers must not write to this file
+// during verification. It is deliberately a file API, not a queue-bypass option
+// on the live client. Fixed-size pages and a query-only single connection avoid
+// a long write transaction or occupancy of the application's write FIFO.
+// The before/after fingerprint also rejects accidental mutation/replacement.
+async function verifyAuditSnapshot(file) {
+  if (typeof file !== 'string' || !path.isAbsolute(file))
+    throw new TypeError('Audit snapshot path must be absolute');
+  const before = await snapshotIdentity(file);
+  const { PrismaClient } = require('@prisma/client');
+  const db = new PrismaClient({ datasourceUrl: `file:${file}?connection_limit=1` });
+  let result;
+  try {
+    await db.$executeRawUnsafe('PRAGMA query_only = ON');
+    result = await verifyInTransaction(db);
+  } finally {
+    await db.$disconnect();
+  }
+  ensure(await snapshotIdentity(file) === before, 'snapshot changed during verification');
+  return result;
+}
 async function appendOperationLog(db, data) {
   return inTransaction(db, async (tx) => {
     let state = await lockState(tx);
@@ -186,4 +223,4 @@ async function appendOperationLog(db, data) {
   });
 }
 
-module.exports = { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity };
+module.exports = { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity, verifyAuditSnapshot };

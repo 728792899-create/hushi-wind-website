@@ -9,7 +9,9 @@ require('./scripts/load-env').loadEnvFile();
 const { runMaintenance } = require('./lib/maintenance');
 const { inquiryScope } = require('./lib/crm-scope');
 const { monitorContactAccess } = require('./lib/contact-monitor');
-const { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity } = require('./lib/audit-integrity');
+const { appendOperationLog, initializeAuditIntegrity } = require('./lib/audit-integrity');
+const { verifyLiveAuditSnapshot } = require('./lib/audit-snapshot');
+const { createAuditScheduler, auditVerifyInterval } = require('./lib/scheduled-audit');
 const { createBackupScheduler } = require('./lib/scheduled-backup');
 const { createWorkTracker } = require('./lib/work-tracker');
 const { createServiceLifecycle, shutdownTimeout } = require('./lib/service-lifecycle');
@@ -165,6 +167,7 @@ const ALERT_DEDUPE_TYPES = new Set(
         'admin_ip_blocked',
         'api_5xx',
         'backup_failed',
+        'audit_integrity_failed',
         'disk_space_low',
         'form_submit_failed',
         'frontend_error',
@@ -4512,7 +4515,9 @@ app.get(
   asyncHandler(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      res.json({ data: await verifyAuditIntegrity(database) });
+      res.json({ data: await verifyLiveAuditSnapshot(resolveSqliteDatabaseFile(), {
+        scratchRoot: path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups')),
+      }) });
     } catch (error) {
       if (error.code === 'AUDIT_INTEGRITY_FAILED')
         throw createError(409, error.code, '审计记录完整性校验未通过，请联系管理员检查');
@@ -6470,8 +6475,22 @@ function createScheduledBackups() {
     })),
   });
 }
+function createScheduledAudit() {
+  return createAuditScheduler(prisma, {
+    intervalMs: auditVerifyInterval(process.env.AUDIT_VERIFY_INTERVAL_MS),
+    isPaused: () => stopping() || deploymentPaused(),
+    verify: () => verifyLiveAuditSnapshot(resolveSqliteDatabaseFile(), {
+      scratchRoot: path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups')),
+    }),
+    onFailure: ({ message }) => transaction(() => createAlert({
+      level: 'critical', type: 'audit_integrity_failed', title: '周期审计完整性核验失败', message,
+      metadata: { path: 'scheduled-audit' },
+    })),
+  });
+}
 function startBackgroundTasks() {
   const backups = createScheduledBackups();
+  const audit = createScheduledAudit();
   let stopped = false;
   const timers = [];
   const schedule = (label, action, interval, immediate = false) => {
@@ -6492,6 +6511,7 @@ function startBackgroundTasks() {
   schedule('maintenance', () => runMaintenance(prisma,
     path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'))), 3600000, true);
   schedule('notification', () => notificationWorker.run(), 30000);
+  schedule('scheduled-audit', () => audit.run(), Math.min(audit.intervalMs, 60000), true);
   schedule('bucket-cleanup', () => {
     rateBuckets.sweep();
     publicFormBuckets.sweep();
@@ -6555,5 +6575,6 @@ module.exports = {
   hashPassword,
   totpCode,
   createScheduledBackups,
+  createScheduledAudit,
   startServer,
 };

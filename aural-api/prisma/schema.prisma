@@ -337,7 +337,9 @@ model ContentVersion {
 model BackupRecord {
   id          Int      @id @default(autoincrement())
   filename    String
-  size        Int      @default(0)
+  // File byte counts exceed signed Int32 at 2 GiB. SQLite REAL preserves every
+  // integer in JavaScript's safe range; the migration enforces that range.
+  size        Float    @default(0)
   status      String   @default("success")
   message     String?
   verificationStatus String @default("never")

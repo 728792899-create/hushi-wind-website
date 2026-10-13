@@ -41,19 +41,30 @@ function drain() {
     drain();
   };
   Promise.resolve()
-    .then(() => job.db.$transaction(job.action, job.options))
+    .then(job.run)
     .then((value) => finish(job.resolve, value), (error) => finish(job.reject, error));
 }
 function runSqliteTransaction(db, action, options = {}) {
   // Prisma transaction clients omit $transaction. Reuse the current transaction
   // without queuing behind itself; unit-of-work scopes retain their own tasks.
   if (typeof db.$transaction !== 'function') return Promise.resolve().then(() => action(db));
+  return enqueue(() => db.$transaction(action, options), options);
+}
+
+// VACUUM INTO cannot run inside a transaction. Serialize its source read with
+// application writers without opening an interactive transaction around it.
+// Like a transaction callback, this action is never replayed or interrupted.
+function runSqliteExclusive(action, options = {}) {
+  return enqueue(action, options);
+}
+
+function enqueue(run, options) {
   if (pending.length >= MAX_PENDING)
     return Promise.reject(queueError('SQLITE_TRANSACTION_QUEUE_FULL'));
   const waitMs = Number.isFinite(options.maxWait) && options.maxWait >= 0
     ? options.maxWait : 10000;
   return new Promise((resolve, reject) => {
-    const job = { db, action, options, resolve, reject, timer: null };
+    const job = { run, resolve, reject, timer: null };
     job.timer = setTimeout(() => {
       const index = pending.indexOf(job);
       if (index === -1) return;
@@ -66,4 +77,4 @@ function runSqliteTransaction(db, action, options = {}) {
   });
 }
 
-module.exports = { runSqliteTransaction, whenSqliteIdle };
+module.exports = { runSqliteTransaction, runSqliteExclusive, whenSqliteIdle };

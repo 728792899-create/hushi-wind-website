@@ -3,7 +3,7 @@ const { constants } = require('node:fs');
 const path = require('node:path');
 const { PrismaClient } = require('@prisma/client');
 const { verifyBackupBundle } = require('./database-backup');
-const { appendOperationLog, verifyAuditIntegrity } = require('./audit-integrity');
+const { appendOperationLog, verifyAuditSnapshot } = require('./audit-integrity');
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const within = (child, parent) => child === parent || child.startsWith(parent + path.sep);
@@ -54,13 +54,15 @@ async function restoreBackupDrill(file, { scratchRoot } = {}) {
       operator: 'local-restore-drill', action: 'RESTORE_DRILL', module: 'security',
       summary: '隔离恢复副本的虚构审计追加验证',
     });
-    const appended = await verifyAuditIntegrity(client);
+    // The continuation is committed. Close its writer before the isolated,
+    // read-only full scan; never reserve the live business write queue here.
+    await client.$disconnect();
+    client = null;
+    const appended = await verifyAuditSnapshot(target);
     if (appended.entryCount !== restored.audit.entryCount + 1 ||
         appended.logCount !== restored.audit.logCount + 1 ||
         appended.baselineCount !== restored.audit.baselineCount ||
         appended.sealedAt !== restored.audit.sealedAt) throw new Error('Restored audit continuation mismatch');
-    await client.$disconnect();
-    client = null;
     // The source is only read. Reverify its database, manifest and every asset
     // after the copy/append exercise so no source change can be reported as success.
     const unchanged = await verifyBackupBundle(file, options);

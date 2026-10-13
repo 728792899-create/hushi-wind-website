@@ -10,6 +10,7 @@
     "check:db": "node scripts/check-database.js",
     "check:audit": "node scripts/verify-audit-integrity.js",
     "drill:restore": "node scripts/restore-drill.js",
+    "drill:capacity": "node scripts/drill-capacity.js",
     "deploy:guard": "node scripts/deploy-guard.js",
     "deploy:safe": "node scripts/safe-deploy.js",
     "deploy:history": "node scripts/deploy-history.js",
