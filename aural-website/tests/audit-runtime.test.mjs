@@ -1,12 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import {
   parseAuditResult,
   validateExceptions,
-  collectExternalPackages,
   evaluateAdvisories
 } from '../scripts/audit-runtime-core.mjs'
 
@@ -166,70 +162,58 @@ test('exceptions allow ninety days and the expiry day but reject ninety-one days
   assert.throws(() => validatedExceptions([exception(), exception()]), /duplicate exception/)
 })
 
-const scratchRoot = fileURLToPath(new URL('../../logs/step10-20261013/', import.meta.url))
-function withInventory(action) {
-  fs.mkdirSync(scratchRoot, { recursive: true })
-  const directory = fs.mkdtempSync(path.join(scratchRoot, 'audit-runtime-test-'))
-  try { return action(directory) } finally { fs.rmSync(directory, { recursive: true, force: true }) }
-}
-function packageAt(directory, name) {
-  fs.mkdirSync(directory, { recursive: true })
-  fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name, version: '1.0.0' }))
-}
-
-test('external inventory finds scoped, nested and symlinked packages without looping', () => withInventory(directory => {
-  const modules = path.join(directory, 'node_modules')
-  packageAt(path.join(modules, 'plain'), 'plain')
-  packageAt(path.join(modules, '@scope', 'outer'), '@scope/outer')
-  packageAt(path.join(modules, '@scope', 'outer', 'node_modules', '@nested', 'tool'), '@nested/tool')
-  const linked = path.join(directory, 'store', 'linked')
-  packageAt(linked, 'linked')
-  fs.symlinkSync(linked, path.join(modules, 'linked'), 'dir')
-  fs.symlinkSync(modules, path.join(linked, 'node_modules'), 'dir')
-  fs.mkdirSync(path.join(modules, '.bin'))
-  fs.writeFileSync(path.join(modules, 'README'), 'fixture non-package file')
-  assert.deepEqual([...collectExternalPackages(modules)].sort(), ['@nested/tool', '@scope/outer', 'linked', 'plain'])
-}))
-
-test('external inventory fails closed on missing, empty, broken or invalid package manifests', () => {
-  const cases = [
-    ['missing directory', () => {}],
-    ['empty directory', modules => fs.mkdirSync(modules)],
-    ['missing manifest', modules => fs.mkdirSync(path.join(modules, 'bad'), { recursive: true })],
-    ['empty manifest', modules => {
-      fs.mkdirSync(path.join(modules, 'bad'), { recursive: true })
-      fs.writeFileSync(path.join(modules, 'bad', 'package.json'), '')
-    }],
-    ['truncated manifest', modules => {
-      fs.mkdirSync(path.join(modules, 'bad'), { recursive: true })
-      fs.writeFileSync(path.join(modules, 'bad', 'package.json'), '{"name":')
-    }],
-    ['missing package name', modules => packageAt(path.join(modules, 'bad'), undefined)],
-    ['blank package name', modules => packageAt(path.join(modules, 'bad'), ' ')],
-    ['broken symlink', modules => {
-      fs.mkdirSync(modules)
-      fs.symlinkSync(path.join(modules, 'absent'), path.join(modules, 'broken'), 'dir')
-    }]
-  ]
-  for (const [label, create] of cases) withInventory(directory => {
-    const modules = path.join(directory, 'node_modules')
-    create(modules)
-    assert.throws(() => collectExternalPackages(modules), Error, label)
-  })
-})
-
 test('reviewed advisories still block vulnerable external packages and require matching exceptions', () => {
   const advisories = parseAuditResult(auditResult(activeReport(), 1))
-  assert.deepEqual(evaluateAdvisories(advisories, validatedExceptions(), new Set(['safe'])), { errors: [], stale: [] })
-  const shipped = evaluateAdvisories(advisories, validatedExceptions(), new Set(['tool']))
+  assert.deepEqual(evaluateAdvisories(advisories, validatedExceptions(), [{ name: 'safe', version: '1.0.0', targets: ['external'] }]), { errors: [], stale: [] })
+  const shipped = evaluateAdvisories(advisories, validatedExceptions(), [{ name: 'tool', version: '1.0.0', targets: ['external'] }])
   assert.equal(shipped.errors.length, 1)
-  assert.match(shipped.errors[0], /shipped as an external package/)
-  const missing = evaluateAdvisories(advisories, validatedExceptions([]), new Set(['safe']))
+  assert.match(shipped.errors[0], /affected package in build\/artifact inventory/)
+  const missing = evaluateAdvisories(advisories, validatedExceptions([]), [{ name: 'safe', version: '1.0.0', targets: ['external'] }])
   assert.equal(missing.errors.length, 1)
   assert.match(missing.errors[0], /not reviewed/)
-  const wrongPackage = evaluateAdvisories(advisories, validatedExceptions([exception({ package: 'different-tool' })]), new Set(['safe']))
+  const wrongPackage = evaluateAdvisories(advisories, validatedExceptions([exception({ package: 'different-tool' })]), [{ name: 'safe', version: '1.0.0', targets: ['external'] }])
   assert.equal(wrongPackage.errors.length, 1)
   assert.match(wrongPackage.errors[0], /package mismatch/)
   const staleEntry = exception({ advisory: 'https://github.com/advisories/GHSA-fixture-old', package: 'old-tool' })
-  assert.deepEqual(evaluateAdvisories(advisories, validatedExceptions([exception(), staleEntry]), new Set(['safe'])).stale, [staleEntry])
+  assert.deepEqual(evaluateAdvisories(advisories, validatedExceptions([exception(), staleEntry]), [{ name: 'safe', version: '1.0.0', targets: ['external'] }]).stale, [staleEntry])
+})
+
+
+test('advisories block client, SSR, Nitro and external affected versions even with a reviewed exception', () => {
+  const advisories = parseAuditResult(auditResult(activeReport(), 1))
+  for (const target of ['client', 'ssr', 'nitro', 'external']) {
+    const packages = [{ name: 'tool', version: '1.9.0', targets: [target] }]
+    const result = evaluateAdvisories(advisories, validatedExceptions(), packages)
+    assert.equal(result.errors.length, 1, target)
+    assert.ok(result.errors[0].includes(`tool@1.9.0 [${target}]`))
+  }
+})
+
+test('matching uses direct advisory ranges, precise nested versions and prereleases', () => {
+  const report = activeReport()
+  report.vulnerabilities.tool.range = '*'
+  const advisories = parseAuditResult(auditResult(report, 1))
+  const packages = [{ name: 'tool', version: '2.0.0', targets: ['external'] }]
+  assert.deepEqual(evaluateAdvisories(advisories, validatedExceptions(), packages).errors, [])
+  packages.push({ name: 'tool', version: '1.9.0', targets: ['nitro'] })
+  assert.equal(evaluateAdvisories(advisories, validatedExceptions(), packages).errors.length, 1)
+  assert.equal(evaluateAdvisories(advisories, validatedExceptions(), [{ name: 'tool', version: '1.5.0-beta.1', targets: ['client'] }]).errors.length, 1)
+  assert.equal(evaluateAdvisories(advisories, validatedExceptions(), [{ name: 'tool', version: '2.1.0-beta.1', targets: ['client'] }]).errors.length, 0)
+})
+
+test('malformed version ranges and conflicting advisories cannot silently skip matching', () => {
+  for (const range of ['not-a-range', 'https://example.invalid/package', '1.2.3.4']) {
+    const report = activeReport()
+    report.vulnerabilities.tool.via[0].range = range
+    assert.throws(() => parseAuditResult(auditResult(report, 1)), /invalid advisory/)
+  }
+  for (const changes of [{ range: '<3' }, { severity: 'critical' }]) {
+    const report = activeReport()
+    report.vulnerabilities.tool.via.push({ ...sourceAdvisory(), ...changes })
+    assert.throws(() => parseAuditResult(auditResult(report, 1)), /conflicting/)
+  }
+  const advisories = parseAuditResult(auditResult(activeReport(), 1))
+  for (const version of [null, undefined, 1, '', '1.2', 'v1.2.3', 'bogus']) {
+    assert.throws(() => evaluateAdvisories(advisories, validatedExceptions(), [{ name: 'tool', version, targets: ['client'] }]), /invalid versioned/)
+  }
 })

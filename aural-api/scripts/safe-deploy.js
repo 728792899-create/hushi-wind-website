@@ -172,6 +172,10 @@ async function main() {
     run('npm', ['test'], admin, env);
     run('npm', ['run', 'build'], admin, env);
     run('npm', ['run', 'build'], website, env);
+    run('npm', ['run', 'audit:prod'], website, {
+      ...env,
+      WEBSITE_OUTPUT_DIR: path.join(website, '.output'),
+    });
     // Stop all database writers before the migration; backup contains the final committed state.
     fs.writeFileSync(gate, id, { flag: 'wx', mode: 0o600 });
     run('pm2', ['stop', apiName], release);

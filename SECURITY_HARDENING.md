@@ -492,3 +492,44 @@
 - 本步单独提交、普通推送既有分支，随后按实际完整 SHA 确认 Quality completed/success，并保存本地/远端/CI SHA 与 annotations。最终提交与 run 链接在交付回复及忽略目录 `ci-result.json` 提供；本地通过不代替最终 CI。
 - **未部署、无生产数据操作、真实通知、新外部服务或费用支出；业务权限、审批规则、品牌内容与状态颜色不变。**
 - 六项工具链例外仍在，2027-01-09 到期；等待兼容修复，不能声明依赖漏洞全部清零。下一步建议先复核并补齐可本地验证的构建内联来源清单及审计覆盖；完整官网可用性、周期审计/可信锚点/异地不可变留存、生产停机预算与真实 RPO/RTO 仍为独立验收项。涉及外部服务、费用或业务规则继续先问用户。
+
+## 第 11 步：构建内联来源与产物审计覆盖（2026-10-13）
+
+### 目标与现场复核
+
+- 在唯一授权目录、指定分支复读交接与全部修复记录，起点工作区干净。现场确认第 10 步完整 SHA `7e9b8b45a2822f3ecc86e36295ad8556704e20d5` 的 [Quality 38374534319](https://github.com/728792899-create/hushi-wind-website/actions/runs/38374534319) 为 completed/success，未把历史记录代替实时核对。
+- 原门禁只有 24 个外置包名称。实际 Nitro 已内联 h3，外置清单没有它；对该包注入合成 high 公告和有效例外，旧核心返回 errors 空数组。此用例证明覆盖缺口，不声称 h3 存在该合成漏洞。
+- 实装 Vite 8.3.4 使用 Rolldown 1.2.13，Nitro 2.13.4 使用 Rollup 4.64.5。客户端无 sourcemap；Nitro 看到部分已预捆绑的 SSR chunk，仅扫描 Nitro 或 sourcemap 不能恢复三段来源。真实微型构建还证明 Rolldown 跨模块折叠常量后，原包从 chunk.modules 消失，但仍在本次已加载模块图中。
+- npm audit 显式 include dev 时有 20 个依赖风险节点（14 high、2 critical、4 moderate），直接 high/critical 仍为原 6 条。开发依赖不能仅因其 dev 标记被排除；公告必须按自身 via.range 匹配版本，而非父依赖聚合范围。现有安全发布脚本构建后直接进入维护，未调用官网审计。
+
+### 改动文件与行为变化
+
+- 新增官网 `scripts/provenance-module.mjs`、`scripts/artifact-inventory.mjs`，在 `nuxt.config.ts` 注册。以当次客户端、SSR、Nitro 的输出模块与实际加载图并集记录包名/版本/精确锁路径，保守保留零长度和后续摇除模块；未导入包不会因已安装就列为产物来源。生成/虚拟/项目模块显式分类，不把开发机绝对路径写进清单。
+- 按最内层 node_modules 解析 scoped/nested 包；物理包与锁身份相符、文件不能逃出包目录。消费端再次校验 kind、ID 前缀、非空包身份与精确最内层归属。生产关闭 Nuxt build cache，缺段、重复生成、图 API 异常即失败。Nitro 原构建全部回调结束后封存；三处实际双斜线 chunk 路径作安全规范化，仍拒绝绝对路径及原始 `..`。
+- `.output/audit-manifest.json` 放在输出根目录，绑定 package/lock 字节 SHA-256，记录所有输出文件路径/长度/哈希以及外置包的精确版本。消费端重扫，清单缺失/格式错误/锁变化/文件增删改/符号链接/隐藏外置布局均拒绝。清单自身不循环哈希；不支持的布局明确失败。
+- `audit-runtime.js` / `audit-runtime-core.mjs` 显式 include dev/optional/peer，保留原报告和例外严格校验，使用直接公告的 semver 范围匹配（含 prerelease）。已例外的受影响版本进入任一来源图或外置清单仍阻断。`package.json` / lock 只将已安装的 semver 7.8.5 声明为显式开发依赖，没有升级依赖树。
+- `aural-api/scripts/safe-deploy.js` 在维护标记、停服、备份、迁移之前调用官网审计，固定新 release 的 `.output`，不接受继承的预览目录。operations 新测试完全模拟所有子进程、PM2 和备份，不执行真实部署。
+- 静态 `generate` 保留并提示跳过 Node 专用清单；不能用静态输出通过 Node 发布审计。更新 `audit-exceptions.json` 的覆盖说明与本步来源证据，6 条例外仍保持 **2027-01-09**，未更改权限、审批、品牌内容或状态颜色。新增/更新三个官网测试文件和 operations 测试；运行、限制和故障处理见新增 `docs/website-artifact-audit.md`，同步本记录与交接。
+
+### 测试、反向验证与审查
+
+- 双线程全量 **360/360**（API 174、后台 51、官网 135），0 失败/跳过；最终 `npm run quality` 通过，API/后台生产依赖 0 漏洞，官网构建无 `NUXT_B7027`。最终 admin-ui（distChecked=yes）、admin-colors、暂存后 BOM 和 diff 门禁全部通过并保存日志。
+- 真实 Vite 客户端/SSR 与 Rollup 测试验证常量折叠包仍进入审计、同名嵌套多版本分别归属、未导入包不误列、生成/虚拟路径不泄漏宿主路径、Nuxt 真实配置注册、三阶段及封存顺序。静态路径通过 Nuxt 程序式 generate 模式的实际隔离构建完成首页/payload，未生成清单，Node 审计拒绝；build/close 已返回但测试进程事件循环未自然结束，精确核对本次 PID 无监听/连接后仅对其 SIGTERM 清理（143），不记作自然退出 0，未扩展修复上游 Nuxt CLI 的退出策略。
+- 文件清单定向 **96/96**：真实隔离文件夹的缺失/损坏/过期元数据、各阶段缺失/空图、精确版本/锁路径、空包名/非字符串版本、输入/产物增删改、重复/穿越路径、非法哈希/长度、外置清单伪造、隐藏目录、符号链接，以及 npm 错误 JSON。仅在 client 加载图中保留的高危 dev 包，有有效例外也阻断；损坏产物在调用 npm 前失败。
+- 独立首轮审查发现 package:null 可漏记以及嵌套包可错归外层。先补负例再修复：前一组 10 子用例、后一组 4 子用例在旧实现全部漏拒；修复后 96/96，无断言放宽。来源种类、ID 与精确包目录必须一致。第 2 轮冻结 diff 完成门审查返回 `NO_ACTIONABLE_FINDINGS`，无剩余 P1/P2，并独立复验标准/预览清单与测试、浏览器证据。
+- 发布门禁旧实现新增 2 用例均失败，修复后 operations **7/7**。审计失败不写维护标记、不停服务、不备份迁移、不切换版本，原数据库/素材字节与指针不变，记录失败并释放部署锁；成功保持既有顺序。
+- 独立完整构建首次因 Nitro 的 `chunks/routes//...` 路径在封存处被拒；生产方规范化并新增实际路径回归后完成，未放宽文件清单路径校验。首轮完整日志未保留，明确保存的是工具输出错误摘录，不冒充完整原始证据。
+
+### 产物与浏览器证据
+
+- 标准构建 **255 个文件**全部哈希通过；client 31 chunks / 182 输出模块引用 / 232 已加载模块，SSR 42/141/152，Nitro 48/175/191。并集 **50 个锁路径包身份 + 24 个外置包实例**，六项例外涉及的四个直接包在三段输出/加载图及外置清单均为 0。不能把 npm 父包传递风险节点重复当作直接公告。
+- 本地独立预览 API `18344` / 后台 `15181` / 官网 `13103`，合成数据与通知空配置。独立产物 256 文件，比标准多一个 Nuxt 缓存的 build meta JSON，全部纳入哈希；build() 与 close() 后再次验证通过。`/audit-manifest.json` 返回 404，未放入 public。旧/新 14 个 CSS 共 89,905 字节按逻辑文件名与 SHA-256 完全相同。
+- 浏览器 390×844 coarse pointer 与 1440×1000：产品页、搜索面板、后台工作台均无整页横溢出；两种宽度搜索“本地”显示 4 个合成结果，可键盘导航并关闭搜索，手机菜单开关正常，返回 44×44。下载链接仍指向隔离 API。官网及后台控制台无 error/warn，临时视口/触控模拟已恢复。范围是构建变动回归，不是全站对比度或真机触摸验收。
+- 证据在 `logs/step11-20261013/`：`coverage-before.json`、`rolldown-constant-graph-probe.json`、`provenance-{before,after,build,verification,static-*}`、`nitro-chunk-files.json`、`artifact-{inventory-tests,attribution-before,attribution-after,nested-attribution-before,nested-attribution-after}.log`、`deployment-audit-{before,after}.log`、`test-final.log`、`quality-final.log`、门禁日志、`css-comparison.json`、`browser-evidence.json`、手机搜索/桌面产品截图。日志、产物、夹具及凭据全部忽略，不提交。
+
+### 提交、生产状态、未决风险与下一步
+
+- 本步独立提交、普通推送既有分支，随后核对新完整 SHA 的 Quality completed/success、annotations 和本地/远端一致性，最终 commit/run 在交付回复及 `ci-result.json` 提供；不能用本地通过替代 CI。
+- **未部署、无生产数据操作、真实通知、新外部服务或费用支出。** 原演示库和既有服务未重启、未迁移。
+- 来源清单不是签名 SBOM，不能防止有权限者同时重写清单与产物；虚拟/插件生成代码、复制的预编译脚本/WASM、运行时动态外部代码仍有归因边界，完整性哈希不等于漏洞扫描。已加载图有意保守，不作函数级可达性承诺。工具链例外待兼容上游修复，原到期日不延长。
+- 下一步建议第 12 步完整公开站可用性复核，再单独进行周期审计及大数据量备份/停机预算验证。品牌资料、外部可信锚点/异地不可变留存、生产预算和真实 RPO/RTO 仍待相应决策与授权，本步不自动扩大范围。

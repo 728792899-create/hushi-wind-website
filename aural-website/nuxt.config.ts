@@ -40,7 +40,7 @@ const connectSourceList = ["'self'", 'https:', ...assetOrigins].join(' ')
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
-  modules: ['@nuxtjs/tailwindcss'],
+  modules: ['@nuxtjs/tailwindcss', './scripts/provenance-module.mjs'],
   postcss: {
     plugins: {
       // Nuxt's ESM resolver needs the explicit Tailwind 3 nesting entry file.

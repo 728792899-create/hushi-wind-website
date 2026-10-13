@@ -1,5 +1,4 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import semver from 'semver'
 
 const severities = ['info', 'low', 'moderate', 'high', 'critical']
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -28,10 +27,10 @@ export function parseAuditResult(result) {
         requireValue(Object.hasOwn(report.vulnerabilities, via), `missing advisory dependency: ${via}`)
         continue
       }
-      requireValue(isObject(via) && via.name === pkg && hasText(via.title) && hasText(via.range) && isHttpsUrl(via.url) && severities.includes(via.severity), `invalid advisory for ${pkg}`)
+      requireValue(isObject(via) && via.name === pkg && hasText(via.title) && hasText(via.range) && semver.validRange(via.range) !== null && isHttpsUrl(via.url) && severities.includes(via.severity), `invalid advisory for ${pkg}`)
       if (!['high', 'critical'].includes(via.severity)) continue
       const existing = advisories.get(via.url)
-      requireValue(!existing || existing.pkg === pkg, `conflicting package for advisory: ${via.url}`)
+      requireValue(!existing || (existing.pkg === pkg && existing.range === via.range && existing.severity === via.severity), `conflicting package, range or severity for advisory: ${via.url}`)
       advisories.set(via.url, { pkg, severity: via.severity, title: via.title, range: via.range })
     }
   }
@@ -75,37 +74,16 @@ export function validateExceptions(document, today = new Date().toISOString().sl
   return byUrl
 }
 
-// This inventories external packages only. Bundled code requires separate
-// build provenance review; a node_modules scan is not a complete bundle SBOM.
-export function collectExternalPackages(directory) {
-  const packages = new Set()
-  const visited = new Set()
-  const visit = (dir) => {
-    const resolved = fs.realpathSync(dir)
-    if (visited.has(resolved)) return
-    visited.add(resolved)
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith('.')) continue
-      const full = path.join(dir, entry.name)
-      if (!fs.statSync(full).isDirectory()) continue
-      if (entry.name.startsWith('@')) { visit(full); continue }
-      const manifest = JSON.parse(fs.readFileSync(path.join(full, 'package.json'), 'utf8'))
-      requireValue(hasText(manifest.name), `invalid external package manifest: ${full}`)
-      packages.add(manifest.name)
-      const nested = path.join(full, 'node_modules')
-      if (fs.existsSync(nested)) visit(nested)
-    }
-  }
-  visit(directory)
-  requireValue(packages.size > 0, 'server external package inventory is empty; build the website first')
-  return packages
-}
-
-export function evaluateAdvisories(advisories, exceptions, externalPackages) {
+export function evaluateAdvisories(advisories, exceptions, artifactPackages) {
+  requireValue(Array.isArray(artifactPackages) && artifactPackages.every(pkg => isObject(pkg) && hasText(pkg.name) && typeof pkg.version === 'string' && semver.valid(pkg.version) === pkg.version && Array.isArray(pkg.targets) && pkg.targets.length > 0), 'invalid versioned artifact inventory')
   const errors = []
   for (const [url, advisory] of advisories) {
     const label = `${advisory.severity} ${advisory.pkg}@${advisory.range} ${url}`
-    if (externalPackages.has(advisory.pkg)) errors.push(`shipped as an external package in .output: ${label}`)
+    requireValue(hasText(advisory.range) && semver.validRange(advisory.range) !== null, `invalid advisory range: ${label}`)
+    // Use the direct advisory range, not npm's aggregate/meta-vulnerability range.
+    // Include prereleases, matching npm's advisory evaluation semantics.
+    const affected = artifactPackages.filter(pkg => pkg.name === advisory.pkg && semver.satisfies(pkg.version, advisory.range, { includePrerelease: true }))
+    if (affected.length) errors.push(`affected package in build/artifact inventory: ${label}; ${affected.map(pkg => `${pkg.name}@${pkg.version} [${pkg.targets.join(',')}]`).join('; ')}`)
     const exception = exceptions.get(url)
     if (!exception) errors.push(`not reviewed (add an exception or upgrade): ${label}`)
     else if (exception.package !== advisory.pkg) errors.push(`exception package mismatch: ${label}`)
