@@ -82,6 +82,47 @@ async function deploymentFixture(scenario, check) {
   }
 }
 
+test('publication mode mismatch is rejected before deployment; starter builds keep full regression fixtures isolated', async () => {
+  for (const env of [
+    { PUBLIC_SITE_MODE: 'strater' },
+    { PUBLIC_SITE_MODE: 'starter', NUXT_PUBLIC_SITE_MODE: 'full' },
+  ]) {
+    await deploymentFixture({ env }, async ({ main, calls, gate, current, old, database }) => {
+      await assert.rejects(main, /PUBLIC_SITE_MODE|site modes must match/);
+      assert.equal(calls.length, 0);
+      assert.equal(fs.existsSync(gate), false);
+      assert.equal(fs.realpathSync(current), old);
+      assert.equal(fs.readFileSync(database, 'utf8'), 'before migration');
+    });
+  }
+  await deploymentFixture({ env: { PUBLIC_SITE_MODE: 'starter' } }, async ({ main, calls }) => {
+    await main();
+    const tests = calls.filter(call => call.command === 'npm' && call.args[0] === 'test');
+    assert.equal(tests.length, 3);
+    for (const call of tests) {
+      assert.equal(call.env.PUBLIC_SITE_MODE, 'full');
+      assert.equal(call.env.NUXT_PUBLIC_SITE_MODE, 'full');
+    }
+    const build = calls.find(call => call.command === 'npm' && call.args.join(' ') === 'run build' && path.basename(call.cwd) === 'aural-website');
+    assert.equal(build.env.PUBLIC_SITE_MODE, 'starter');
+    assert.equal(build.env.NUXT_PUBLIC_SITE_MODE, 'starter');
+  });
+});
+
+test('default full mode is explicit in build and both PM2 restart environments', async () => {
+  await deploymentFixture({}, async ({ main, calls }) => {
+    await main();
+    const builds = calls.filter(call => call.command === 'npm' && call.args.join(' ') === 'run build');
+    const restarts = calls.filter(call => call.command === 'pm2' && call.args[0] === 'restart');
+    assert.equal(builds.length, 2);
+    assert.equal(restarts.length, 2);
+    for (const call of [...builds, ...restarts]) {
+      assert.equal(call.env.PUBLIC_SITE_MODE, 'full');
+      assert.equal(call.env.NUXT_PUBLIC_SITE_MODE, 'full');
+    }
+  });
+});
+
 for (const failGate of ['aural-api:run audit:prod', 'aural-admin:run audit:prod', 'aural-website:test']) {
   test(`${failGate} failure leaves running deployment and shared data untouched`, async () => {
     await deploymentFixture({ failGate }, async ({ main, record, events, current, old, database, uploads, gate, releases }) => {

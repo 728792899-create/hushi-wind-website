@@ -1,7 +1,9 @@
+import { parseSiteMode, STARTER_DESCRIPTION } from './app/utils/siteMode.js'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 // Nuxt runs `prepare` during npm postinstall with production semantics. Allow that
 // install-time type generation to use local fallbacks; an actual production build
 // still requires explicit public URLs and keeps the deployment fuse intact.
+const siteMode = parseSiteMode(process.env.NUXT_PUBLIC_SITE_MODE)
 const isInstallPrepare = process.env.npm_lifecycle_event === 'postinstall'
 const isProductionBuild = process.env.NODE_ENV === 'production' && !isInstallPrepare
 
@@ -85,7 +87,7 @@ export default defineNuxtConfig({
       title: '胡氏管乐 | HUSHI WIND',
       titleTemplate: '%s',
       meta: [
-        { name: 'description', content: '胡氏管乐提供原声钢琴、吉他、合成器与专业音响系统，覆盖演奏、录音、教学与现场扩声场景。' },
+        { name: 'description', content: siteMode === 'starter' ? STARTER_DESCRIPTION : '胡氏管乐提供原声钢琴、吉他、合成器与专业音响系统，覆盖演奏、录音、教学与现场扩声场景。' },
         { name: 'theme-color', content: '#050505' },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: '胡氏管乐 HUSHI WIND' },
@@ -96,6 +98,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiInternalBase: internalApiBase,
     public: {
+      siteMode,
       apiBase: publicApiBase,
       siteUrl: publicSiteUrl,
       brandImageBase: publicBrandImageBase

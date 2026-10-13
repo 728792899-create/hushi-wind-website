@@ -8,14 +8,14 @@
         {{ isNotFound ? '页面暂时没有找到' : '服务暂时无法响应' }}
       </h1>
       <p class="mx-auto mb-10 max-w-xl text-sm leading-relaxed text-zinc-400 md:text-base">
-        {{ isNotFound ? '链接可能已更新、内容已隐藏，或您输入的地址有误。可以返回首页继续浏览产品与支持内容。' : '当前服务出现短暂异常，请稍后重试；如需预约试奏或售后支持，也可以先进入支持页面提交需求。' }}
+        {{ isStarter ? '请返回首页，或继续阅读管乐知识。' : isNotFound ? '链接可能已更新、内容已隐藏，或您输入的地址有误。可以返回首页继续浏览产品与支持内容。' : '当前服务出现短暂异常，请稍后重试；如需预约试奏或售后支持，也可以先进入支持页面提交需求。' }}
       </p>
       <div class="flex flex-col justify-center gap-3 sm:flex-row">
         <button type="button" class="bg-white px-8 py-4 text-xs font-bold uppercase tracking-widest text-black transition-colors hover:bg-zinc-200" @click="goHome">
           返回首页
         </button>
-        <NuxtLink to="/support" class="border border-white/20 px-8 py-4 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:border-white">
-          联系支持
+        <NuxtLink :to="isStarter ? '/news' : '/support'" class="border border-white/20 px-8 py-4 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:border-white">
+          {{ isStarter ? '管乐知识' : '联系支持' }}
         </NuxtLink>
       </div>
     </div>
@@ -30,6 +30,7 @@ const props = defineProps({
   }
 })
 
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
 const isNotFound = computed(() => Number(props.error?.statusCode) === 404)
 
 const goHome = () => clearError({ redirect: '/' })

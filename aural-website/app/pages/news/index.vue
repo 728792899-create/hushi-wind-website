@@ -11,8 +11,8 @@
     </div>
 
     <div class="max-w-7xl mx-auto px-4 pt-32 mb-20 gsap-fade-up">
-      <h1 class="text-6xl md:text-8xl font-serif italic tracking-tighter text-black mb-6">News & Events</h1>
-      <p class="text-xl text-gray-500 max-w-2xl font-light">掌握 胡氏管乐 最前沿的声学科技、品牌动向与艺术家访谈。</p>
+      <h1 class="text-6xl md:text-8xl font-serif italic tracking-tighter text-black mb-6">{{ isStarter ? 'Wind Notes' : 'News & Events' }}</h1>
+      <p class="text-xl text-gray-500 max-w-2xl font-light">{{ isStarter ? STARTER_DESCRIPTION : '掌握 胡氏管乐 最前沿的声学科技、品牌动向与艺术家访谈。' }}</p>
     </div>
 
     <div v-if="pending" class="py-40 text-center">
@@ -31,7 +31,7 @@
     />
 
     <div v-else class="max-w-7xl mx-auto px-4">
-      <div v-if="allData.length" class="news-filter-panel mb-12 rounded-sm border border-zinc-200 bg-zinc-50/80 p-4 md:mb-16 md:p-6">
+      <div v-if="!isStarter && allData.length" class="news-filter-panel mb-12 rounded-sm border border-zinc-200 bg-zinc-50/80 p-4 md:mb-16 md:p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div class="min-w-0 flex-1">
             <label class="mb-2 block text-xs font-bold uppercase tracking-[0.24em] text-zinc-500" for="news-search-input">搜索资讯</label>
@@ -94,7 +94,7 @@
           @click="trackNewsClick(displayFeatured, 'featured-news-link')"
           class="inline-flex min-h-11 items-center mb-6 text-xs font-bold tracking-[0.24em] uppercase text-zinc-500 border-b border-zinc-200 pb-1 hover:text-black hover:border-black transition-colors"
         >
-          查看完整资讯
+          {{ isStarter ? '阅读全文' : '查看完整资讯' }}
         </NuxtLink>
         <div class="news-featured-media aspect-video md:aspect-[21/9] bg-zinc-100 mb-8 overflow-hidden rounded-sm relative border border-zinc-100 shadow-sm">
           <img :src="displayFeatured.image" :alt="displayFeatured.title" loading="eager" fetchpriority="high" decoding="async" sizes="(min-width: 768px) 55vw, 100vw" class="w-full h-full object-cover" @error="imageFallback" />
@@ -120,7 +120,7 @@
       />
 
       <div v-if="remainingNews.length > 0" class="border-t border-gray-200 pt-16">
-        <h3 class="text-sm font-bold uppercase tracking-widest text-black mb-12">更多资讯</h3>
+        <h3 class="text-sm font-bold uppercase tracking-widest text-black mb-12">{{ isStarter ? '更多管乐知识' : '更多资讯' }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-16">
           <NuxtLink v-for="news in remainingNews" :key="news.id" :to="newsDetailPath(news)" class="gsap-news-card group block cursor-pointer" @click="trackNewsClick(news, 'news-list-card')">
             <div class="news-card-media aspect-[4/3] bg-zinc-100 mb-6 overflow-hidden rounded-sm relative shadow-sm border border-zinc-100">
@@ -137,6 +137,8 @@
 </template>
 
 <script setup>
+import { publicStarterArticles } from '../../utils/starterContent.js'
+import { STARTER_DESCRIPTION } from '../../utils/siteMode.js'
 import { articlePreviewText } from '../../utils/articlePreviewText'
 import { createPageMotion } from '../../utils/pageMotion'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -144,6 +146,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
 const route = useRoute(); const router = useRouter()
 const smartBack = useSmartBack('/')
 const pageRoot = ref(null)
@@ -156,10 +159,10 @@ const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.brandCraft)
 const articlesUrl = useApiUrl('/api/articles?populate=*')
 const { track } = useAuralTrack()
-const { data: strapiNews, pending, error, refresh } = await useCompleteApiList(articlesUrl, { lazy: true, key: 'news-index' })
+const { data: strapiNews, pending, error, refresh } = await useCompleteApiList(articlesUrl, { lazy: true, key: 'news-index', transform: isStarter ? publicStarterArticles : undefined })
 
-const searchKeyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
-const activeCategory = ref(typeof route.query.category === 'string' ? route.query.category : 'all')
+const searchKeyword = ref(!isStarter && typeof route.query.q === 'string' ? route.query.q : '')
+const activeCategory = ref(!isStarter && typeof route.query.category === 'string' ? route.query.category : 'all')
 
 const allData = computed(() => {
   if (strapiNews.value?.data && strapiNews.value.data.length > 0) {
@@ -207,6 +210,7 @@ const displayFeatured = computed(() => {
 })
 
 const newsSeoDescription = computed(() => {
+  if (isStarter) return STARTER_DESCRIPTION
   const desc = String(displayFeatured.value?.desc || '').trim()
   if (desc.length >= 20) return desc
   if (displayFeatured.value?.title) {
@@ -224,6 +228,7 @@ const emptyStateTitle = computed(() => {
 })
 
 const emptyStateDescription = computed(() => {
+  if (isStarter) return '新的管乐知识正在整理中，欢迎稍后再来。'
   if (route.query.id) return '可能已隐藏、删除或链接参数不正确。你可以返回资讯中心继续浏览最新内容。'
   if (allData.value.length && hasActiveFilters.value) return '可以清除筛选条件，或尝试使用产品、活动、艺术家等关键词继续搜索。'
   return '品牌资讯内容正在整理中，内容确认后会在资讯中心展示。'
@@ -238,6 +243,7 @@ watch([() => route.query.id, allData, pending], ([legacyId]) => {
 }, { immediate: true })
 
 watch(() => route.query, (query) => {
+  if (isStarter) return
   const nextSearch = typeof query.q === 'string' ? query.q : ''
   const nextCategory = typeof query.category === 'string' ? query.category : 'all'
   if (searchKeyword.value !== nextSearch) searchKeyword.value = nextSearch
@@ -346,7 +352,7 @@ onBeforeUnmount(() => {
 })
 
 useSiteSeo({
-  title: () => `${displayFeatured.value?.title || '资讯中心'} | 胡氏管乐`,
+  title: () => isStarter ? '管乐知识 | 胡氏管乐' : `${displayFeatured.value?.title || '资讯中心'} | 胡氏管乐`,
   description: newsSeoDescription,
   path: '/news',
   image: () => displayFeatured.value?.image
@@ -354,7 +360,7 @@ useSiteSeo({
 
 useBreadcrumbSchema(() => [
   { name: '首页', path: '/' },
-  { name: '新闻动态', path: '/news' }
+  { name: isStarter ? '管乐知识' : '新闻动态', path: '/news' }
 ])
 </script>
 

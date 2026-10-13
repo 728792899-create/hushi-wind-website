@@ -14,15 +14,16 @@
           <span v-for="(line, index) in heroTitleLines" :key="`${line}-${index}`" class="home-hero-title-line block md:inline">{{ line }}</span>
         </h1>
         <p class="gsap-hero home-hero-copy text-sm md:text-xl text-zinc-300 mb-7 md:mb-14 max-w-2xl mx-auto font-light tracking-wide leading-relaxed drop-shadow-md">
-          {{ sysConfig.aboutText || '探索融合百年工匠精神与现代声学科技的全新演奏体验。' }}
+          {{ sysConfig.aboutText || (isStarter ? STARTER_INTRO : '探索融合百年工匠精神与现代声学科技的全新演奏体验。') }}
         </p>
         <div class="gsap-hero flex flex-wrap items-center justify-center gap-4">
-          <NuxtLink to="/products" class="inline-flex min-h-11 items-center gap-3 px-7 py-4 md:px-10 md:py-5 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold uppercase tracking-[0.16em] md:tracking-[0.2em] hover:bg-white hover:text-black transition-all duration-500 rounded-full group" @click="trackHomeCta('hero-products')">
-            <span>查看乐器</span>
+          <NuxtLink :to="isStarter ? '/news' : '/products'" class="inline-flex min-h-11 items-center gap-3 px-7 py-4 md:px-10 md:py-5 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold uppercase tracking-[0.16em] md:tracking-[0.2em] hover:bg-white hover:text-black transition-all duration-500 rounded-full group" @click="trackHomeCta('hero-products')">
+            <span>{{ isStarter ? '阅读管乐知识' : '查看乐器' }}</span>
             <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
           </NuxtLink>
-          <NuxtLink to="/support?type=experience" class="inline-flex min-h-11 items-center rounded-full border border-white/60 px-7 py-4 text-sm font-medium text-white hover:bg-white/15" @click="trackHomeCta('hero-appointment')">预约试奏 →</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/support?type=experience" class="inline-flex min-h-11 items-center rounded-full border border-white/60 px-7 py-4 text-sm font-medium text-white hover:bg-white/15" @click="trackHomeCta('hero-appointment')">预约试奏 →</NuxtLink>
         </div>
+        <p v-if="isStarter" class="mt-6 text-xs text-zinc-300">音乐场景配图，非本品牌产品或场地展示。</p>
       </div>
 
       <div class="gsap-hero absolute bottom-12 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center text-zinc-400">
@@ -31,7 +32,7 @@
       </div>
     </section>
 
-    <section class="py-20 md:py-40 px-5 md:px-12 relative z-10" data-scroll-fx>
+    <section v-if="!isStarter" class="py-20 md:py-40 px-5 md:px-12 relative z-10" data-scroll-fx>
       <div class="max-w-[90rem] mx-auto">
         <div class="gsap-fade-up flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-20 pb-6 md:pb-8 border-b border-zinc-200/80 gap-4 md:gap-6">
           <div>
@@ -70,7 +71,7 @@
       </div>
     </section>
 
-    <section class="py-16 md:py-28 lg:py-32 px-5 md:px-12 relative overflow-hidden text-white flex items-center min-h-[auto] md:min-h-[68vh] lg:min-h-[72vh]" data-scroll-fx>
+    <section v-if="!isStarter" class="py-16 md:py-28 lg:py-32 px-5 md:px-12 relative overflow-hidden text-white flex items-center min-h-[auto] md:min-h-[68vh] lg:min-h-[72vh]" data-scroll-fx>
       <div v-if="sysConfig.coreTechBgImageUrl" class="absolute inset-0 z-0">
         <img :src="mediaUrl(sysConfig.coreTechBgImageUrl)" alt="Core Technology Background" loading="lazy" decoding="async" sizes="100vw" class="w-full h-full object-cover" @error="heroFallback" />
       </div>
@@ -96,7 +97,7 @@
       </div>
     </section>
 
-    <section class="home-quote-section relative min-h-[300px] md:min-h-[440px] lg:min-h-[500px] py-16 md:py-28 lg:py-32 flex items-center justify-center overflow-hidden bg-black border-y border-black/90" data-scroll-fx>
+    <section v-if="!isStarter" class="home-quote-section relative min-h-[300px] md:min-h-[440px] lg:min-h-[500px] py-16 md:py-28 lg:py-32 flex items-center justify-center overflow-hidden bg-black border-y border-black/90" data-scroll-fx>
       <div class="gsap-parallax-bg absolute inset-0 z-0 h-[112%] -top-[6%]">
         <img v-if="sysConfig.quoteBgImageUrl" :src="mediaUrl(sysConfig.quoteBgImageUrl)" alt="Brand Quote Background" loading="lazy" decoding="async" sizes="100vw" class="w-full h-full object-cover opacity-75" @error="heroFallback" />
         <div v-else class="w-full h-full bg-zinc-900"></div>
@@ -110,7 +111,7 @@
       </div>
     </section>
 
-    <section class="py-20 md:py-40 px-5 md:px-12 relative bg-[#f5f5f7]" data-scroll-fx>
+    <section v-if="!isStarter" class="py-20 md:py-40 px-5 md:px-12 relative bg-[#f5f5f7]" data-scroll-fx>
       <div class="max-w-[90rem] mx-auto">
         <div class="text-center mb-10 md:mb-24 gsap-fade-up">
           <span class="text-xs font-mono tracking-[0.26em] md:tracking-[0.3em] text-zinc-600 uppercase font-bold block mb-3 md:mb-4">Ecosystem</span>
@@ -153,10 +154,10 @@
         <div class="gsap-fade-up flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-20 pb-6 md:pb-8 border-b border-zinc-200/80 gap-4 md:gap-6">
           <div>
             <span class="text-xs font-mono text-zinc-600 tracking-[0.25em] md:tracking-[0.3em] uppercase mb-3 md:mb-4 block font-bold">Journals</span>
-            <h2 class="text-4xl md:text-5xl lg:text-6xl font-serif text-black tracking-tighter">Brand Vision.</h2>
+            <h2 class="text-4xl md:text-5xl lg:text-6xl font-serif text-black tracking-tighter">{{ isStarter ? 'Wind Notes.' : 'Brand Vision.' }}</h2>
           </div>
           <NuxtLink to="/news" class="inline-flex min-h-11 items-center text-xs text-zinc-500 uppercase tracking-widest hover:text-black border-b border-transparent hover:border-black transition-all font-bold pb-1" @click="trackHomeCta('news-view-all')">
-            Read All News &rarr;
+            {{ isStarter ? '阅读全部管乐知识 →' : 'Read All News →' }}
           </NuxtLink>
         </div>
 
@@ -166,9 +167,9 @@
 
         <FrontState
           v-else-if="localNews.length === 0"
-          eyebrow="Brand Vision"
-          title="暂无已发布资讯"
-          description="品牌新闻、产品发布和活动动态正在整理中。"
+          :eyebrow="isStarter ? 'Wind Notes' : 'Brand Vision'"
+          :title="isStarter ? '管乐知识正在整理中' : '暂无已发布资讯'"
+          :description="isStarter ? '欢迎稍后再来阅读。' : '品牌新闻、产品发布和活动动态正在整理中。'"
           :show-retry="false"
         />
 
@@ -193,10 +194,13 @@
 </template>
 
 <script setup>
+import { STARTER_TITLE, STARTER_INTRO, publicStarterArticles } from '../utils/starterContent.js'
+import { STARTER_DESCRIPTION } from '../utils/siteMode.js'
 import { createPageMotion } from '../utils/pageMotion'
 import { ref, computed, onMounted, onBeforeUnmount, watch, onActivated } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
 const pageRoot = ref(null)
 let ctx;
 let animationGeneration = 0
@@ -219,7 +223,7 @@ const { track } = useAuralTrack()
 
 const { data: configRes, error: errC, refresh: refreshC } = await useFetch(configUrl, { lazy: true, key: 'home-config' })
 const sysConfig = computed(() => configRes.value || {})
-const heroTitle = computed(() => String(sysConfig.value.aboutTitle || '纯粹之音，始于指尖。').trim())
+const heroTitle = computed(() => String(sysConfig.value.aboutTitle || (isStarter ? STARTER_TITLE : '纯粹之音，始于指尖。')).trim())
 const splitHeroTitleLine = (value, maxLength = 9) => {
   const line = String(value || '').trim()
   if (!line || line.length <= maxLength) return line ? [line] : []
@@ -236,8 +240,8 @@ const heroTitleLines = computed(() => {
 })
 
 useSiteSeo({
-  title: '胡氏管乐 | 纯粹之音，始于指尖',
-  description: '探索胡氏管乐的原声钢琴、吉他、电子合成器与专业音响系统，了解品牌技术、艺术家生态与最新资讯。',
+  title: isStarter ? '胡氏管乐 | 认识声音，从管乐开始' : '胡氏管乐 | 纯粹之音，始于指尖',
+  description: isStarter ? STARTER_DESCRIPTION : '探索胡氏管乐的原声钢琴、吉他、电子合成器与专业音响系统，了解品牌技术、艺术家生态与最新资讯。',
   path: '/',
   image: () => sysConfig.value.heroImageUrl ? mediaUrl(sysConfig.value.heroImageUrl) : undefined
 })
@@ -257,17 +261,17 @@ useHead(() => {
 })
 
 const localProducts = ref([])
-const { data: productsRes, pending: productsPending, error: errP, refresh: refreshP } = await useFetch(productsUrl, { lazy: true, key: 'home-products' })
+const { data: productsRes, pending: productsPending, error: errP, refresh: refreshP } = isStarter ? { data: ref(null), pending: ref(false), error: ref(null), refresh: async () => {} } : await useFetch(productsUrl, { lazy: true, key: 'home-products' })
 watch(productsRes, (newVal) => { if (newVal?.data && newVal.data.length > 0) localProducts.value = newVal.data.slice(0, 4) }, { immediate: true })
 
 const localNews = ref([])
-const { data: strapiNews, pending: newsPending, error: errN, refresh: refreshN } = await useFetch(articlesUrl, { lazy: true, key: 'home-articles' })
+const { data: strapiNews, pending: newsPending, error: errN, refresh: refreshN } = await useFetch(articlesUrl, { lazy: true, key: 'home-articles', transform: isStarter ? publicStarterArticles : undefined })
 watch(strapiNews, (newVal) => {
   if (newVal?.data?.length > 0) localNews.value = newVal.data.slice(0, 3).map(item => ({ id: item.id, slug: item.attributes.slug || '', date: item.attributes.date || 'NEW', title: item.attributes.title, image: item.attributes.image?.data ? mediaUrl(item.attributes.image.data.attributes.url) : null }))
   else localNews.value = []
 }, { immediate: true })
 
-const { data: rawServices, error: errS, refresh: refreshS } = await useFetch(servicesUrl, { lazy: true, key: 'home-services' })
+const { data: rawServices, error: errS, refresh: refreshS } = isStarter ? { data: ref(null), error: ref(null), refresh: async () => {} } : await useFetch(servicesUrl, { lazy: true, key: 'home-services' })
 const fallbackServices = [
   { icon: 'CARE', title: '胡氏管乐 Care+', desc: '覆盖保修登记、维修工单、调律预约和配件咨询，为乐器和音频设备提供持续服务。', link: '/support' },
   { icon: 'LIVE', title: '演出与扩声方案', desc: '为剧场、学校、Livehouse 和录音棚提供设备选型、系统调试与应用建议。', link: '/audio' },
@@ -392,6 +396,7 @@ const initAnimations = async () => {
     gsap.to('.home-hero-title', { yPercent: -10, ease: 'none', scrollTrigger: { trigger: '.home-hero', start: 'top top', end: 'bottom top', scrub: 1.1 } })
     gsap.to('.home-hero-copy', { yPercent: -6, ease: 'none', scrollTrigger: { trigger: '.home-hero', start: 'top top', end: 'bottom top', scrub: 1.1 } })
     gsap.utils.toArray('.gsap-fade-up').forEach(elem => gsap.from(elem, { scrollTrigger: { trigger: elem, start: 'top 88%', toggleActions: 'play none none none' }, y: 34, opacity: 0, duration: 0.8, ease: 'power3.out' }))
+    if (!isStarter) {
     gsap.from('.gsap-card', { scrollTrigger: { trigger: '.gsap-card-container', start: 'top 88%', toggleActions: 'play none none none' }, y: 32, opacity: 0, duration: 0.7, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' })
     gsap.from('.gsap-slide-right', { scrollTrigger: { trigger: '.gsap-slide-right', start: 'top 84%', toggleActions: 'play none none none' }, x: -34, opacity: 0, duration: 0.9, ease: 'power3.out' })
     gsap.from('.gsap-slide-left', { scrollTrigger: { trigger: '.gsap-slide-left', start: 'top 84%', toggleActions: 'play none none none' }, x: 34, opacity: 0, duration: 0.9, ease: 'power3.out', delay: 0.08 })
@@ -399,6 +404,7 @@ const initAnimations = async () => {
     gsap.to('.gsap-slide-left', { yPercent: 3, ease: 'none', scrollTrigger: { trigger: '.gsap-slide-left', start: 'top bottom', end: 'bottom top', scrub: 1 } })
     gsap.to('.gsap-parallax-bg', { yPercent: 10, ease: "none", scrollTrigger: { trigger: ".gsap-parallax-bg", start: "top bottom", end: "bottom top", scrub: 1.1 } })
     gsap.from('.gsap-service-card', { scrollTrigger: { trigger: '.gsap-card-container-2', start: 'top 88%', toggleActions: 'play none none none' }, y: 34, opacity: 0, duration: 0.8, stagger: 0.08, ease: 'power3.out', clearProps: 'transform,opacity' })
+    }
     gsap.from('.gsap-news-card', { scrollTrigger: { trigger: '.gsap-news-card', start: 'top 88%', toggleActions: 'play none none none' }, y: 34, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out', clearProps: 'transform,opacity' })
     gsap.utils.toArray('.scroll-media').forEach((elem) => {
       gsap.to(elem, { yPercent: -2, ease: 'none', scrollTrigger: { trigger: elem, start: 'top bottom', end: 'bottom top', scrub: 1.1 } })

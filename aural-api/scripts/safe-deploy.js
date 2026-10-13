@@ -7,6 +7,7 @@ const { randomUUID } = require('node:crypto');
 const { loadEnvFile } = require('./load-env');
 const { shutdownTimeout } = require('../lib/service-lifecycle');
 const { deploymentReadinessConfig } = require('../lib/deployment-readiness-config');
+const { publicSiteMode } = require('../lib/public-site-mode');
 const {
   createDatabaseBackup,
   resolveDatabaseFile,
@@ -111,6 +112,9 @@ function validateProcessLinks(current, env = process.env) {
 }
 async function main() {
   deploymentReadinessConfig(process.env);
+  const siteMode = publicSiteMode(process.env.PUBLIC_SITE_MODE);
+  if (process.env.NUXT_PUBLIC_SITE_MODE !== undefined && process.env.NUXT_PUBLIC_SITE_MODE !== siteMode)
+    throw new Error('API and website public site modes must match');
   const { releases, current, stage } = validateLayout(
     process.env,
     process.argv[2],
@@ -167,14 +171,19 @@ async function main() {
       VITE_SITE_URL: process.env.PUBLIC_SITE_URL,
       NUXT_PUBLIC_API_BASE: process.env.API_PUBLIC_URL,
       NUXT_PUBLIC_SITE_URL: process.env.PUBLIC_SITE_URL,
+      PUBLIC_SITE_MODE: siteMode,
+      NUXT_PUBLIC_SITE_MODE: siteMode,
     };
     run(process.execPath, ['scripts/preflight.js'], api, env);
     run('npx', ['prisma', 'generate'], api, env);
-    run('npm', ['test'], api, env);
+    // Existing regression fixtures exercise full mode; starter fixtures opt in
+    // explicitly. Production publication settings must not alter test fixtures.
+    const testEnv = { ...env, PUBLIC_SITE_MODE: 'full', NUXT_PUBLIC_SITE_MODE: 'full' };
+    run('npm', ['test'], api, testEnv);
     run('npm', ['run', 'audit:prod'], api, env);
-    run('npm', ['test'], admin, env);
+    run('npm', ['test'], admin, testEnv);
     run('npm', ['run', 'audit:prod'], admin, env);
-    run('npm', ['test'], website, env);
+    run('npm', ['test'], website, testEnv);
     run('npm', ['run', 'build'], admin, env);
     run('npm', ['run', 'build'], website, env);
     run('npm', ['run', 'audit:prod'], website, {

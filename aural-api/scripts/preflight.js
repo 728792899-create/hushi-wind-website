@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 require('./load-env').loadEnvFile();
+require('../lib/public-site-mode').publicSiteMode(process.env.PUBLIC_SITE_MODE);
 const { resolveDatabaseFile } = require('../lib/database-backup');
 const { parseProductionUrl, isProductionUrl } = require('../lib/production-url');
 const { deploymentReadinessConfig } = require('../lib/deployment-readiness-config');

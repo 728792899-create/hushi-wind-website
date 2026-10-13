@@ -27,7 +27,7 @@ const gsap = {
   to: (items, vars) => core.to(items, coreOptions(vars))
 }
 
-async function pageFixture(file, delayed = false) {
+async function pageFixture(file, delayed = false, isStarter = false) {
   const source = await fs.readFile(new URL(`../app/pages/${file}`, import.meta.url), 'utf8')
   const start = source.indexOf('const initAnimations ='), end = source.indexOf('\n}', start) + 2
   assert.ok(start >= 0 && end > start, 'actual page animation initializer is required')
@@ -39,7 +39,7 @@ async function pageFixture(file, delayed = false) {
   let release, dispose
   const gate = delayed ? new Promise(resolve => { release = resolve }) : Promise.resolve()
   const scope = {
-    gsap, ScrollTrigger: { refresh() {}, getAll: () => [] }, scrollTriggerLib: null,
+    isStarter, gsap, ScrollTrigger: { refresh() {}, getAll: () => [] }, scrollTriggerLib: null,
     loadGsap: async () => { await gate; return { gsap, ScrollTrigger: { refresh() {} } } },
     process: { server: false, client: false }, pageRoot: { value: root }, product: { value: {} },
     createPageMotion, useGsapCleanup: context => context?.revert(),
@@ -98,4 +98,18 @@ test('page motion disposal leaves another scoped context running', () => {
     assert.equal(two.opacity, 0)
     assert.ok(core.getTweensOf(two).length > 0)
   } finally { first.revert(); second.revert(); core.ticker.sleep() }
+})
+
+
+test('starter home keeps scoped original hero/news animation and reverts when reduced motion turns on', async () => {
+  const page = await pageFixture('index.vue', false, true)
+  try {
+    setReduced(false); await page.run()
+    assert.equal(page.inside.opacity, 0)
+    assert.equal(page.foreign.opacity, 1)
+    setReduced(true)
+    assert.equal(page.inside.opacity, 1)
+    assert.equal(core.getTweensOf(page.inside).length, 0)
+    page.dispose()
+  } finally { page.dispose(); core.globalTimeline.clear(); core.ticker.sleep() }
 })

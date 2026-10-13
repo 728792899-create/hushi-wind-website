@@ -15,7 +15,7 @@
     </div>
 
     <FrontState
-      v-else-if="error"
+      v-else-if="error && (!isStarter || Number(error.statusCode || error.status) !== 404)"
       type="error"
       eyebrow="News Connection"
       title="资讯详情暂时无法加载"
@@ -38,7 +38,7 @@
         <div class="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10"></div>
         <div class="relative z-10 max-w-5xl mx-auto w-full px-4 pb-16 md:pb-20 text-white">
           <NuxtLink to="/news" class="mb-6 inline-flex min-h-11 items-center justify-center border border-white/30 bg-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white backdrop-blur transition-colors hover:border-white hover:bg-white hover:text-black">
-            ← 返回资讯中心
+            ← {{ isStarter ? '返回管乐知识' : '返回资讯中心' }}
           </NuxtLink>
           <p class="text-xs font-bold tracking-[0.3em] uppercase text-zinc-600 mb-5">{{ article.category }} / {{ article.date }} / 约 {{ article.readingMinutes }} 分钟阅读</p>
           <h1 class="text-4xl md:text-6xl font-serif italic leading-tight mb-6">{{ article.title }}</h1>
@@ -76,9 +76,9 @@
         </div>
         <div class="mt-12 pt-8 border-t border-zinc-200 flex flex-col gap-5 sm:flex-row sm:justify-between sm:items-center">
           <NuxtLink to="/news" class="inline-flex min-h-11 items-center text-xs font-bold tracking-[0.2em] uppercase border-b border-black pb-1 text-black hover:text-gray-500 hover:border-gray-400 transition-colors">
-            返回资讯中心
+            {{ isStarter ? '返回管乐知识' : '返回资讯中心' }}
           </NuxtLink>
-          <span class="text-xs text-zinc-600 uppercase tracking-widest">HUSHI WIND News</span>
+          <span class="text-xs text-zinc-600 uppercase tracking-widest">{{ isStarter ? 'HUSHI WIND / WIND NOTES' : 'HUSHI WIND News' }}</span>
         </div>
       </section>
 
@@ -134,10 +134,13 @@
 </template>
 
 <script setup>
+import { publicStarterArticles, starterArticle } from '../../utils/starterContent.js'
+import { STARTER_DESCRIPTION } from '../../utils/siteMode.js'
 import { articlePreviewText } from '../../utils/articlePreviewText'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
 const route = useRoute()
 const router = useRouter()
 const mediaUrl = useMediaUrl()
@@ -155,15 +158,17 @@ const canNativeShare = ref(false)
 const { data: strapiNews, pending: listPending, error: listError, refresh: refreshList } = await useFetch(articlesUrl, {
   lazy: true,
   key: 'news-detail-source',
+  transform: isStarter ? publicStarterArticles : undefined,
   default: () => ({ data: [] })
 })
 
 const articleDetailUrl = useApiUrl(() => `/api/articles/${requestedKey.value}`)
 const { data: articleDetailResponse, pending: detailPending, error: detailError, refresh: refreshDetail } = await useAsyncData(
-  () => `news-detail-direct-${requestedKey.value || 'empty'}-${route.query.previewToken || ''}`,
+  () => `news-detail-direct-${requestedKey.value || 'empty'}-${isStarter ? '' : route.query.previewToken || ''}`,
   async () => {
     if (!isNumericArticleId.value) return { data: null }
-    return await $fetch(articleDetailUrl.value)
+    const response = await $fetch(articleDetailUrl.value)
+    return isStarter && !starterArticle(response?.data) ? { data: null } : response
   },
   {
     watch: [requestedKey, articleDetailUrl],
@@ -326,6 +331,10 @@ const error = computed(() => {
   if (!isNumericArticleId.value && listError.value && !article.value) return listError.value
   return null
 })
+if (process.server && isStarter && !article.value) {
+  const event = useRequestEvent()
+  if (event) setResponseStatus(event, !error.value || Number(error.value.statusCode || error.value.status) === 404 ? 404 : 503)
+}
 const chronologicalArticles = computed(() => [...allData.value].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || b.id - a.id))
 const articleNavigation = computed(() => {
   if (!article.value) return { prev: null, next: null }
@@ -404,7 +413,7 @@ onMounted(() => {
 
 useSiteSeo({
   title: () => article.value?.seoTitle || `${article.value?.title || '资讯详情'} | 胡氏管乐`,
-  description: () => article.value?.seoDescription || article.value?.desc || '浏览胡氏管乐最新品牌资讯、产品发布、活动动态与艺术家访谈。',
+  description: () => article.value?.seoDescription || article.value?.desc || (isStarter ? STARTER_DESCRIPTION : '浏览胡氏管乐最新品牌资讯、产品发布、活动动态与艺术家访谈。'),
   path: () => currentArticlePath.value,
   image: () => article.value?.ogImage || article.value?.image,
   type: 'article'
@@ -417,7 +426,7 @@ useHead(() => ({
 }))
 
 useHead(() => ({
-  script: article.value ? [
+  script: !isStarter && article.value ? [
     {
       type: 'application/ld+json',
       children: JSON.stringify({

@@ -8,7 +8,7 @@ const source = fs.readFileSync(new URL('../app/composables/useAuralTrack.js', im
 const secret = 'synthetic-preview-ticket-credential'
 const preview = `/products/1?utm_source=newsletter&previewToken=${secret}&source=campaign`
 
-function harness({ path = preview, sourceQuery, referrer = '' } = {}) {
+function harness({ path = preview, sourceQuery, referrer = '', siteMode = 'full' } = {}) {
   const sent = []
   const values = new Map()
   const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) }
@@ -17,14 +17,14 @@ function harness({ path = preview, sourceQuery, referrer = '' } = {}) {
     innerWidth: 390, innerHeight: 844, localStorage: storage, sessionStorage: storage,
     matchMedia: () => ({ matches: false })
   }
-  const useTrack = Function('computed', 'useRoute', 'useApiUrl', '$fetch', 'window', 'process', 'sanitizeTelemetry',
+  const useTrack = Function('computed', 'useRoute', 'useApiUrl', '$fetch', 'window', 'process', 'sanitizeTelemetry', 'useRuntimeConfig',
     source + '; return useAuralTrack')(
     fn => ({ get value() { return fn() } }),
     () => ({ fullPath: path, path: '/products/1', query: { source: sourceQuery } }),
     () => ({ value: '/api/events' }), async (url, options) => sent.push(options.body),
-    window, { server: false }, sanitizeTelemetry
+    window, { server: false }, sanitizeTelemetry, () => ({ public: { siteMode } })
   )
-  return { ...useTrack(), sent }
+  return { ...useTrack(), sent, values }
 }
 
 test('page tracking and form context remove preview credentials but preserve campaign parameters', async () => {
@@ -59,4 +59,14 @@ test('source and external referrer URLs remove encoded credentials without losin
     assert.match(decodeURIComponent(h.sent[0].source), /utm_source=partner/)
     assert.match(h.sent[0].source, /source=referral/)
   }
+})
+
+
+test('starter tracking neither sends events nor creates visitor/session storage', async () => {
+  const h = harness({ siteMode: 'starter' })
+  await h.track('page_view', { pagePath: preview })
+  await h.track('frontend_error', { metadata: { previewToken: secret } })
+  assert.deepEqual(h.sent, [])
+  assert.equal(h.values.size, 0)
+  assert.deepEqual(h.guardPayload(), {})
 })

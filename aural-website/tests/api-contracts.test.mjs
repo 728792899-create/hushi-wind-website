@@ -103,3 +103,12 @@ test('actual download page computations never expose rejected URLs as download l
   assert.equal(productHref(product[0]),'/support?type=download')
  }
 })
+
+
+test('starter content requests omit preview credentials and local launch assets stay on the website origin', () => {
+ const h=harness({previewToken:'synthetic-ticket'},undefined,{public:{siteMode:'starter',apiBase:'https://api.fixture.invalid'}})
+ for(const path of ['/api/config','/api/articles','/api/articles/17']) assert.equal(h.useApiUrl(path).value,`https://api.fixture.invalid${path}`)
+ assert.equal(h.useMediaUrl()('/launch-assets/music-studio.jpg'),'/launch-assets/music-studio.jpg')
+ assert.equal(h.useMediaUrl()('/launch-assets/clarinet.svg'),'/launch-assets/clarinet.svg')
+ assert.equal(h.useMediaUrl()('/uploads/photo.jpg'),'https://api.fixture.invalid/uploads/photo.jpg')
+})

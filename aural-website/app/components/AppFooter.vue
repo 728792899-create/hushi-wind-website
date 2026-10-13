@@ -5,7 +5,7 @@
         <div class="col-span-2 lg:col-span-2 pr-8">
           <span class="text-3xl font-serif font-bold tracking-widest text-white mb-6 block uppercase">胡氏管乐</span>
           <p class="text-sm text-zinc-400 mb-6 leading-relaxed">
-            致力于用卓越的声学技术和制造工艺，激发全球音乐爱好者的创造力与灵感。
+            {{ isStarter ? '认识管乐的声音与结构，让聆听与练习融入日常。' : '致力于用卓越的声学技术和制造工艺，激发全球音乐爱好者的创造力与灵感。' }}
           </p>
         </div>
 
@@ -21,17 +21,17 @@
 
       <div class="pt-8 border-t border-zinc-800 flex flex-col md:flex-row md:flex-wrap gap-x-8 gap-y-4 justify-between items-center space-y-4 md:space-y-0 text-xs text-zinc-400 tracking-[0.14em] font-bold">
         <div class="flex flex-wrap justify-center gap-x-6 gap-y-3 md:justify-start">
-          <NuxtLink to="/products?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">产品中心</NuxtLink>
-          <NuxtLink to="/support?type=experience&source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">预约体验</NuxtLink>
-          <NuxtLink to="/support?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">服务支持</NuxtLink>
-          <NuxtLink to="/info/brand-story?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">品牌故事</NuxtLink>
-          <NuxtLink to="/news?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">新闻动态</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/products?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">产品中心</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/support?type=experience&source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">预约体验</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/support?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">服务支持</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/info/brand-story?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">品牌故事</NuxtLink>
+          <NuxtLink to="/news?source=footer-bottom" class="inline-flex min-h-11 items-center hover:text-zinc-300">{{ isStarter ? '管乐知识' : '新闻动态' }}</NuxtLink>
         </div>
         <div class="flex flex-wrap justify-center gap-x-4 gap-y-3 md:justify-end">
           <span>&copy; {{ new Date().getFullYear() }} 胡氏管乐</span>
-          <NuxtLink to="/info/privacy?source=footer" class="inline-flex min-h-11 items-center hover:text-white">隐私政策</NuxtLink>
-          <NuxtLink to="/info/terms?source=footer" class="inline-flex min-h-11 items-center hover:text-white">使用条款</NuxtLink>
-          <NuxtLink to="/info/warranty?source=footer" class="inline-flex min-h-11 items-center hover:text-white">售后与保修说明</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/info/privacy?source=footer" class="inline-flex min-h-11 items-center hover:text-white">隐私政策</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/info/terms?source=footer" class="inline-flex min-h-11 items-center hover:text-white">使用条款</NuxtLink>
+          <NuxtLink v-if="!isStarter" to="/info/warranty?source=footer" class="inline-flex min-h-11 items-center hover:text-white">售后与保修说明</NuxtLink>
         </div>
       </div>
     </div>
@@ -40,7 +40,8 @@
 
 <script setup>
 // 这里所有的 url 都加上了 ?source=footer 或 &source=footer
-const footerNav = {
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
+const footerNav = isStarter ? { '探索': [{ name: '首页', url: '/' }, { name: '管乐知识', url: '/news' }] } : {
   '产品世界': [
     { name: '全部乐器', url: '/products?source=footer' },
     { name: '专业音响', url: '/audio?source=footer' },

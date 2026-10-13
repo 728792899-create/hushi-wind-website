@@ -1,3 +1,4 @@
+import { STARTER_HERO, STARTER_ARTICLE_IMAGE } from '../utils/starterContent.js'
 import { siteConfig } from '~/config/site.config'
 
 const DEFAULT_BRAND_IMAGE_BASE = '/uploads/real-assets'
@@ -15,6 +16,7 @@ export const useBrandAsset = () => {
 }
 
 export const useBrandAssets = () => {
+  if (useRuntimeConfig().public.siteMode === 'starter') return { heroPiano: STARTER_HERO, productPiano: STARTER_ARTICLE_IMAGE, supportHero: STARTER_ARTICLE_IMAGE, brandCraft: STARTER_ARTICLE_IMAGE }
   const asset = useBrandAsset()
   const assets = siteConfig.brandAssets
 

@@ -18,7 +18,7 @@
         </nav>
 
         <div class="flex items-center gap-3 text-sm">
-          <button @click="openSearch" class="search-trigger flex h-11 items-center gap-2 rounded-full px-3 font-medium text-gray-600 transition-colors hover:text-black" aria-label="打开搜索">
+          <button v-if="!isStarter" @click="openSearch" class="search-trigger flex h-11 items-center gap-2 rounded-full px-3 font-medium text-gray-600 transition-colors hover:text-black" aria-label="打开搜索">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <span class="hidden sm:inline">搜索</span>
             <kbd class="hidden lg:inline-flex items-center rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-xs font-bold text-zinc-600">/</kbd>
@@ -52,7 +52,7 @@
               胡氏管乐
             </NuxtLink>
             <div class="flex items-center gap-3">
-              <button type="button" class="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500" aria-label="打开搜索" @click="openSearch">
+              <button v-if="!isStarter" type="button" class="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500" aria-label="打开搜索" @click="openSearch">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </button>
               <button type="button" class="flex h-14 w-14 items-center justify-center rounded-full bg-black text-white" aria-label="关闭菜单" @click="closeMobileMenuWithHistory">
@@ -62,7 +62,7 @@
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-            <div class="grid grid-cols-2 gap-3">
+            <div v-if="!isStarter" class="grid grid-cols-2 gap-3">
               <NuxtLink to="/products" class="mobile-quick-link bg-black text-white" @click="closeMobileMenu">
                 产品中心
               </NuxtLink>
@@ -90,7 +90,7 @@
     <Teleport to="body">
       <Transition name="search-fade">
         <div
-          v-if="isSearchOpen"
+          v-if="!isStarter && isSearchOpen"
           ref="searchDialog" tabindex="-1"
           class="mobile-search-overlay fixed inset-0 z-[240] flex h-[100dvh] flex-col overflow-hidden bg-zinc-950/96 px-4 pb-[env(safe-area-inset-bottom)] pt-[calc(0.75rem+env(safe-area-inset-top))] text-white backdrop-blur-2xl md:px-12 md:pb-12 md:pt-12"
           role="dialog"
@@ -118,7 +118,7 @@
               &times;
             </button>
           </div>
-          <LazyAppSearchPanel v-if="isSearchOpen" :initial-query="initialSearchQuery" @close="closeSearch" />
+          <LazyAppSearchPanel v-if="!isStarter && isSearchOpen" :initial-query="initialSearchQuery" @close="closeSearch" />
         </div>
       </Transition>
     </Teleport>
@@ -129,11 +129,12 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+const isStarter = useRuntimeConfig().public.siteMode === 'starter'
 const route = useRoute()
 const router = useRouter()
 const { track } = useAuralTrack()
 
-const navItems = [
+const navItems = isStarter ? [{ label: '首页', to: '/' }, { label: '管乐知识', to: '/news' }] : [
   { label: '产品中心', to: '/products' },
   { label: '专业音响', to: '/audio' },
   { label: '艺术家', to: '/artists' },
@@ -160,6 +161,7 @@ const closeSearchHistory = useOverlayHistory('header-search', isSearchOpen, () =
 })
 
 const openSearch = async () => {
+  if (isStarter) return
   isSearchOpen.value = true
   isMobileMenuOpen.value = false
   track('cta_click', { ctaName: 'open-search', metadata: { source: 'header' } })
@@ -211,7 +213,7 @@ watch(() => route.fullPath, (newVal, oldVal) => {
 })
 
 watch(() => route.query.openSearch, (newVal) => {
-  if (newVal) {
+  if (!isStarter && newVal) {
     initialSearchQuery.value = String(newVal)
     isSearchOpen.value = true
     if (!process.client) return

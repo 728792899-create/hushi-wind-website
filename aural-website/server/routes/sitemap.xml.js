@@ -1,3 +1,4 @@
+import { parseSiteMode } from '../../app/utils/siteMode.js'
 import {fetchSitemapCollection} from '../utils/fetchSitemapCollection'
 const escapeXml = (value = '') => String(value)
   .replace(/&/g, '&amp;')
@@ -38,11 +39,35 @@ const latestDate = (items = [], fallback = '') => {
 const fetchCollection = url => fetchSitemapCollection(url,$fetch)
 const fetchSingle = url => $fetch(url)
 
+const renderSitemap = (event, siteUrl, routes) => {
+  const uniqueRoutes = [...new Map(routes.map((route) => [route.loc, route])).values()]
+  const body = uniqueRoutes.map((route) => [
+    '  <url>',
+    `    <loc>${escapeXml(`${siteUrl}${route.loc}`)}</loc>`,
+    `    <lastmod>${escapeXml(route.lastmod)}</lastmod>`,
+    `    <changefreq>${escapeXml(route.changefreq)}</changefreq>`,
+    `    <priority>${escapeXml(route.priority)}</priority>`,
+    '  </url>'
+  ].join('\n')).join('\n')
+
+  setHeader(event, 'content-type', 'application/xml; charset=utf-8')
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`
+}
+
 export default defineCachedEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const siteUrl = normalizeBase(config.public.siteUrl, '')
   const apiBase = normalizeBase(config.apiInternalBase || config.public.apiBase, '')
   const today = new Date().toISOString().split('T')[0]
+
+  if (parseSiteMode(config.public.siteMode) === 'starter') {
+    const articles = (await fetchCollection(`${apiBase}/api/articles`)).filter(item => ['published', 'active'].includes(getAttrs(item).status))
+    return renderSitemap(event, siteUrl, [
+      { loc: '/', priority: '1.0', changefreq: 'weekly', lastmod: latestDate(articles, today) },
+      { loc: '/news', priority: '0.8', changefreq: 'weekly', lastmod: latestDate(articles, today) },
+      ...articles.filter(item => /^[1-9]\d*$/.test(String(item.id))).map(item => ({ loc: `/news/${item.id}`, priority: '0.6', changefreq: 'monthly', lastmod: formatDate(itemDate(item)) }))
+    ])
+  }
 
   const [
     siteConfig,
@@ -119,20 +144,9 @@ export default defineCachedEventHandler(async (event) => {
     })
   ]
 
-  const uniqueRoutes = [...new Map(routes.map((route) => [route.loc, route])).values()]
-  const body = uniqueRoutes.map((route) => [
-    '  <url>',
-    `    <loc>${escapeXml(`${siteUrl}${route.loc}`)}</loc>`,
-    `    <lastmod>${escapeXml(route.lastmod)}</lastmod>`,
-    `    <changefreq>${escapeXml(route.changefreq)}</changefreq>`,
-    `    <priority>${escapeXml(route.priority)}</priority>`,
-    '  </url>'
-  ].join('\n')).join('\n')
-
-  setHeader(event, 'content-type', 'application/xml; charset=utf-8')
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`
+  return renderSitemap(event, siteUrl, routes)
 }, {
   maxAge: 60 * 60,
   swr: true,
-  getKey: () => 'sitemap'
+  getKey: event => { const config = useRuntimeConfig(event); return `${parseSiteMode(config.public.siteMode)}:${config.public.siteUrl}` }
 })

@@ -39,6 +39,7 @@ const deviceCategory = () => {
 }
 
 export const useAuralTrack = () => {
+  if (useRuntimeConfig().public.siteMode === 'starter') return { track: async () => {}, guardPayload: () => ({}) }
   const route = useRoute()
   const eventUrl = useApiUrl('/api/events')
 

@@ -13,12 +13,14 @@ export const usePublicApiBase = () => {
 }
 
 export const useApiUrl = (path = '') => {
+  const isStarter = useRuntimeConfig().public.siteMode === 'starter'
   const apiBase = useApiBase()
   const route = useRoute()
   return computed(() => {
     const resolved = typeof path === 'function' ? path() : unref(path)
     const normalizedPath = String(resolved).startsWith('/') ? resolved : `/${resolved}`
     const preview =
+      !isStarter &&
       typeof route.query.previewToken === 'string' &&
       !/\/(events|inquiries|artist-applications)(\?|$)/.test(normalizedPath)
         ? route.query.previewToken
@@ -28,12 +30,14 @@ export const useApiUrl = (path = '') => {
 }
 
 export const useMediaUrl = () => {
+  const isStarter = useRuntimeConfig().public.siteMode === 'starter'
   const apiBase = usePublicApiBase()
   return (path, fallback = '') => {
     // Reject characters browsers can reinterpret before resolving a media URL.
     if (typeof path !== 'string' || /[\u0000-\u001f\u007f-\u009f\\]/.test(path)) return fallback
     const value = path.trim()
     if (!value || value.startsWith('//')) return fallback
+    if (isStarter && /^\/launch-assets\/[a-z-]+\.(?:svg|jpg)$/.test(value)) return value
     if (/^[a-z][a-z\d+.-]*:/i.test(value)) {
       if (!/^https?:\/\/[^/?#]/i.test(value)) return fallback
       try {

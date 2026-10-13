@@ -1,4 +1,6 @@
 import { computed, unref } from 'vue'
+import { STARTER_DESCRIPTION } from '../utils/siteMode.js'
+import { STARTER_HERO } from '../utils/starterContent.js'
 
 const DEFAULT_TITLE = '胡氏管乐 | HUSHI WIND'
 const DEFAULT_DESCRIPTION = '胡氏管乐提供原声钢琴、吉他、合成器与专业音响系统，覆盖演奏、录音、教学与现场扩声场景。'
@@ -22,14 +24,15 @@ export const useSiteUrl = () => {
 }
 
 export const useSiteSeo = ({ title, description, path, image, type = 'website' } = {}) => {
+  const isStarter = useRuntimeConfig().public.siteMode === 'starter'
   const route = useRoute()
   const siteUrl = useSiteUrl()
   const mediaUrl = useMediaUrl()
   const seoTitle = computed(() => resolveValue(title, DEFAULT_TITLE))
-  const seoDescription = computed(() => resolveValue(description, DEFAULT_DESCRIPTION))
+  const seoDescription = computed(() => resolveValue(description, isStarter ? STARTER_DESCRIPTION : DEFAULT_DESCRIPTION))
   const seoPath = computed(() => resolveValue(path, route.path || '/'))
   const seoUrl = computed(() => absoluteUrl(siteUrl.value, seoPath.value))
-  const seoImage = computed(() => absoluteUrl(siteUrl.value, mediaUrl(resolveValue(image, DEFAULT_IMAGE))))
+  const seoImage = computed(() => absoluteUrl(siteUrl.value, mediaUrl(resolveValue(image, isStarter ? STARTER_HERO : DEFAULT_IMAGE))))
 
   useSeoMeta({
     title: seoTitle,

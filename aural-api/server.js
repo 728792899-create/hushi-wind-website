@@ -6,6 +6,8 @@ const {
 } = require('./lib/record-version');
 const { reconcileCatalogSnapshot, contentHistory } = require('./lib/content-history');
 require('./scripts/load-env').loadEnvFile();
+const { publicSiteMode, starterPublicRequestAllowed, publicStarterConfig } = require('./lib/public-site-mode');
+const PUBLIC_SITE_MODE = publicSiteMode(process.env.PUBLIC_SITE_MODE);
 const { runMaintenance } = require('./lib/maintenance');
 const { inquiryScope } = require('./lib/crm-scope');
 const { monitorContactAccess } = require('./lib/contact-monitor');
@@ -1810,6 +1812,24 @@ app.use(
     if (token) {
       req.admin = await loadAdminFromRequest(req);
       if (req.admin) requireAdminIpAllowed(req);
+    }
+    if (
+      PUBLIC_SITE_MODE === 'starter' &&
+      !req.admin &&
+      !starterPublicRequestAllowed(req.method, req.path)
+    ) {
+      res.setHeader('Cache-Control', 'no-store');
+      if (token) {
+        requireAdminIpAllowed(req);
+        throw createError(
+          401,
+          req.authErrorCode || 'UNAUTHORIZED',
+          req.authErrorCode === 'TOKEN_EXPIRED'
+            ? '登录已过期，请重新登录后台'
+            : '请先登录后台',
+        );
+      }
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: '此内容尚未公开' } });
     }
     return next();
   }),
@@ -5619,7 +5639,7 @@ app.get(
   asyncHandler(async (req, res) => {
     let config = await prisma.systemConfig.findUnique({ where: { id: 1 } });
     if (!config) config = await prisma.systemConfig.create({ data: { id: 1 } });
-    res.json(config);
+    res.json(PUBLIC_SITE_MODE === 'starter' && !req.admin ? publicStarterConfig(config) : config);
   }),
 );
 app.put(
