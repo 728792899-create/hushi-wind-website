@@ -1,52 +1,52 @@
 {
-  "$comment": "仅登记经人工评估、确认不随 .output 发布的 high/critical 漏洞。由 scripts/audit-runtime.js 校验：未登记、已过期或出现在 .output/server/node_modules 中都会失败。上游发布修复后应升级并删除对应条目。",
+  "$comment": "仅登记经人工评估的工具链 high/critical 漏洞。门禁验证审计报告、包名对应、必填字段与真实日期，例外最长 90 天；未登记、已过期或出现在外置 server/node_modules 清单中均失败。外置包扫描不覆盖内联代码，须另行复核构建来源。上游兼容修复可用后升级并删除条目。",
   "exceptions": [
     {
       "package": "simple-git",
       "advisory": "https://github.com/advisories/GHSA-x6jw-m9v5-85vh",
       "path": "nuxt > @nuxt/devtools > simple-git",
-      "reason": "仅 Nuxt DevTools 在本地 nuxt dev 时读取 git 信息；nuxt.config.ts 在 production 关闭 devtools，构建产物不含 simple-git。修复版 simple-git@4 为大版本，等待 @nuxt/devtools 上游升级。",
-      "reviewed": "2026-10-11",
+      "reason": "仅 Nuxt DevTools 开发期使用，production 关闭 devtools。simple-git 4.0.2 已修复，但 v4 移除默认导出；当前 @nuxt/devtools 3.4.2 仍依赖 ^3.36.0 并使用默认导入，不能直接跨大版本覆盖。当前外置包及服务端 sourcemap 均未发现 simple-git；等待兼容上游更新，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     },
     {
       "package": "simple-git",
       "advisory": "https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
       "path": "nuxt > @nuxt/devtools > simple-git",
-      "reason": "同上，仅开发期 DevTools 使用，不随 .output 发布。",
-      "reviewed": "2026-10-11",
+      "reason": "仅 Nuxt DevTools 开发期使用，production 关闭 devtools。simple-git 4.0.2 已修复，但 v4 移除默认导出；当前 @nuxt/devtools 3.4.2 仍依赖 ^3.36.0 并使用默认导入，不能直接跨大版本覆盖。当前外置包及服务端 sourcemap 均未发现 simple-git；等待兼容上游更新，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     },
     {
       "package": "simple-git",
       "advisory": "https://github.com/advisories/GHSA-858h-whjf-mvg5",
       "path": "nuxt > @nuxt/devtools > simple-git",
-      "reason": "同上，仅开发期 DevTools 使用，不随 .output 发布。",
-      "reviewed": "2026-10-11",
+      "reason": "仅 Nuxt DevTools 开发期使用，production 关闭 devtools。simple-git 4.0.2 已修复，但 v4 移除默认导出；当前 @nuxt/devtools 3.4.2 仍依赖 ^3.36.0 并使用默认导入，不能直接跨大版本覆盖。当前外置包及服务端 sourcemap 均未发现 simple-git；等待兼容上游更新，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     },
     {
       "package": "@simple-git/argv-parser",
       "advisory": "https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
       "path": "nuxt > @nuxt/devtools > simple-git > @simple-git/argv-parser",
-      "reason": "simple-git 的子依赖，评估结论同 simple-git。",
-      "reviewed": "2026-10-11",
+      "reason": "simple-git 的子依赖；2.0.1 已修复，但当前 simple-git 3.36.0 使用 1.x。随兼容的 DevTools/simple-git 更新解决，未经兼容验证不单独覆盖大版本。当前外置包及服务端 sourcemap 均未发现该包，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     },
     {
       "package": "node-forge",
       "advisory": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
       "path": "nuxt > @nuxt/nitro-server > nitropack > listhen > node-forge",
-      "reason": "listhen 仅在 nuxt dev 生成自签名 HTTPS 证书；生产由 Nginx 终止 TLS，构建产物不含 listhen/node-forge。上游暂无修复版本。",
-      "reviewed": "2026-10-11",
+      "reason": "listhen 的开发期自签名 HTTPS 工具；当前 node-forge 1.4.0 仍为最新，公告无修复版。当前外置包及服务端 sourcemap 均未发现 listhen/node-forge；未对生产 TLS 配置作验收，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     },
     {
       "package": "braces",
       "advisory": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
       "path": "tailwindcss / nitropack > micromatch | chokidar > braces",
-      "reason": "仅构建期文件匹配与 dev 文件监听使用，输入为仓库内固定 glob，不接收用户输入；构建产物不含 braces。上游暂无修复版本。",
-      "reviewed": "2026-10-11",
+      "reason": "用于工具链文件 glob 匹配；当前 braces 3.0.3 仍为最新，公告无修复版。Tailwind 和 Nitro 均有依赖路径；当前外置包及服务端 sourcemap 均未发现 braces，原到期日不延长。",
+      "reviewed": "2026-10-13",
       "expires": "2027-01-09"
     }
   ]

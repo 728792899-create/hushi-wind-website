@@ -452,3 +452,43 @@
 - 追加修改仅 `aural-api/tests/audit-integrity.test.js`：`bypassGuard` 全生命周期通过已有 `runSqliteTransaction` 固定同一事务客户端，全部回调显式使用 `tx`；无 `IF NOT EXISTS`、吞错、重试放宽或生产实现变更。新增错误路径确认原错误对象、触发器 SQL 保持、非法写仍拒绝、篡改与审计链回滚。新测试在旧非事务 helper 上确定性失败（留下篡改），修后审计测试 **12/12**；这证明夹具回滚缺口修复，不等于复现了 Linux 底层缓存故障。
 - 最终双线程全量 **239/239**（API 172、后台 51、官网 16），0 失败/跳过；quality、admin-ui（distChecked=yes）、admin-colors、暂存后 BOM、改动文件 BOM 与 diff 检查通过。独立追加范围审查返回 `NO_ACTIONABLE_FINDINGS`；公开页面源码/运行实现未变，浏览器刷新后名称与两个实际下载 URL 仍正确，沿用前述 16 组完整验收。
 - 证据追加 `audit-focused-initial.log`、`audit-repeat-before.json`、`audit-helper-{before,after}.log`、`ci-failed.log`、`ci-first-annotations.json`、`test-final.log`、`quality-final.log` 和最终门禁日志。保留首个已推送提交，另行普通追加提交，再按新完整 SHA 验证 CI；不改写历史，不把首次失败掩盖成通过。
+
+## 第 10 步：官网构建警告与工具链审计门禁（2026-10-13）
+
+### 目标与现场复核
+
+- 在唯一授权目录和 `codex/admin-core-redesign` 分支完整复读交接、修复记录和 Git 状态/日志，起点干净；现场核对第 9 步 `466e967173732c7c84f9525aececb6e5429213d2` 的 [Quality 38370477638](https://github.com/728792899-create/hushi-wind-website/actions/runs/38370477638) 为 completed/success。
+- Nuxt 4.6.1、Tailwind module 6.14.0、Tailwind 3.4.19、PostCSS 8.5.29 实装和锁一致。模块自动注入 `tailwindcss/nesting`；Vite-builder 的真实 `@nuxt/kit` ESM 解析器返回 undefined，但 `tailwindcss/nesting/index.js` 返回插件函数。不是缺包；仅禁用 nesting 会掩盖功能丢失。[Nuxt loader](https://github.com/nuxt/nuxt/blob/v4.6.1/packages/vite/src/css.ts)、[模块源码](https://github.com/nuxt-modules/tailwindcss/blob/v6.14.0/src/module.ts)、[Tailwind wrapper 文档](https://v3.tailwindcss.com/docs/using-with-preprocessors#nesting)。
+- 原门禁接受任何非零退出的 npm stdout，并将缺失 vulnerabilities 默认为空。用忽略目录中的假 npm 返回错误 JSON、退出 1，实际 CLI 仍退出 0 并报告零漏洞。例外只有到期字符串比较，缺字段、错包名和任意长的有效期都可能放行。
+- 实时 `npm audit --omit=dev --json`：14 个受影响依赖节点（12 high、2 critical），对应 4 个直接包的 6 条公告，其他是传递风险节点，不重复计作公告。Nuxt 4.6.1 / Nitro 2.13.4 / listhen 1.10.1 已是最新；[simple-git v4](https://github.com/steveukx/git-js/releases) 修复版 4.0.2 移除默认导出，而 DevTools 3.4.2 仍使用默认导入及 ^3.36.0；[argv-parser 2.0.1](https://github.com/advisories/GHSA-v5rq-49vh-5v5c) 同属跨大版本路径。DevTools 新版为 4.0.0-beta.5，不作为兼容小升级。[node-forge 公告](https://github.com/advisories/GHSA-86w9-cpqp-85rv)、[braces 公告](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) 仍无修复版；这也纠正第 1 步“全部无修复版本”的笼统表述。
+
+### 改动文件与行为变化
+
+- `aural-website/nuxt.config.ts`：旧 nesting key 设 false，启用明确 index.js 入口；真实 wrapper 保持在 Tailwind 之前，Autoprefixer / CSSNano 仍在之后。没有改依赖、锁文件或页面业务文案。
+- `scripts/audit-runtime.js` / 新增 `scripts/audit-runtime-core.mjs`：只接受完整 npm v2 报告，拒绝 error、无效 JSON、非 0/1 状态、signal/启动失败、缺字段、计数矛盾、悬空或无直接公告的循环依赖；给 npm 进程 120 秒上限，失败非零退出。
+- 例外必填 package/advisory/path/reason/reviewed/expires，校验 HTTPS 公告 URL、真实日期、非未来复核日期、期限顺序、最多 90 天、到期及重复；与当前公告包名绑定。沿用到期日当天有效的原行为，次日失败；陈旧条目提示移除，陈旧但无效/过期的配置也拒绝。
+- 外置清单扫描 scoped、nested 与符号链接并防环，损坏/缺失 manifest、空清单失败；即使有有效例外，漏洞包进入外置清单仍阻断。输出明确这不是完整内联模块清单，不夸大为全产物安全证明。
+- `audit-exceptions.json` 更新 6 项技术复核依据和 reviewed 日期，**全部保留 2027-01-09 原到期日**。新增 `tests/audit-runtime.test.mjs` / `tests/postcss-pipeline.test.mjs`；同步本记录与 `CODEX_HANDOFF.md`。
+
+### 测试与反向验证
+
+- `TOKIO_WORKER_THREADS=2 npm test` **254/254**（API 172、后台 51、官网 31），0 失败/跳过。`npm run quality`、`check:admin-ui`（distChecked=yes）、`check:admin-colors`、暂存后 `check:bom` 和 `git diff --check` 全部通过。标准构建及独立浏览器构建均无 `NUXT_B7027`，API/后台生产依赖审计仍 0 漏洞。
+- PostCSS 真实加载 Nuxt 配置、Tailwind 模块及 Vite-builder 使用的解析器；只渲染独立测试 config，不 build/listen 或改共享 .nuxt。旧配置负例无法编译嵌套 `@screen` + `@apply`，修后 3/3：验证 `&:hover`、子选择器、768px 响应式、1rem/2rem padding、无未处理指令及真实加载/插件顺序。
+- 审计 12/12：错误响应/截断/缺字段/计数不一致、合法零漏洞、直接与传递公告去重、依赖循环、缺字段/错误日历/闰日/未来/倒序/90 与 91 天/过期/到期日/重复/错包/未登记、真实临时目录的 scoped/nested/symlink 环及损坏 manifest、已例外仍拒绝外置漏洞包。临时夹具只在仓库忽略目录创建并清理。
+- 同一 CLI 假 npm 错误响应修前退出 0、修后退出 1；真实网络审计修后退出 0，仍需 6 条有效例外。不存在强制 audit fix、跨大版本 override、修改审计严重级别或延长例外。
+- 独立只读实现/测试审查返回 `NO_ACTIONABLE_FINDINGS`；交付前再复核冻结 diff 和实际证据。没有用静态检查替代最终 GitHub CI。
+
+### 浏览器与本地证据
+
+- 隔离合成 API `18343` / 官网构建预览 `13102`；独立构建目录和输出位于本步 cache/logs，通知为空。没有迁移、重启或修改原演示库及原服务。
+- 390×844 coarse pointer / 1440×1000 桌面：新旧构建产品页与搜索面板四状态采集的 header/back/h1/search 控件几何与字体、颜色、背景、padding、display 数据完全一致，四状态均无整页横向溢出。手机返回 44×44。范围为本次 CSS 修复的定向回归，不代表全站可用性/对比度验收。
+- 搜索“本地”两种宽度均显示 4 条合成结果；手机结果可键盘进入详情并关闭搜索，手机菜单打开/关闭正常。控制台无 error/warn。浏览器缩放下定位点击存在偏移，交互验证改用实际语义控件的键盘激活；不声称真机触摸验收。截图使用 CDP 实际视口裁切，避免面板截图缩放造成空白区域。
+- 本步审计自动扫描 24 个外置包；两套新产物各 48 个服务端 sourcemap、179 条来源引用、177 个唯一路径、19 个依赖包来源，当前四个直接漏洞包的来源路径和 map 文本均 0 命中。map 不含 sourcesContent，只作为本次归因复核，不代表未映射代码的完整证明。旧预览/新预览/标准产物均为 14 个 CSS、89,905 字节，按逻辑文件名 + SHA-256 对比逐字节相同。完整构建来源/内联模块清单尚未建立。
+
+证据在忽略目录 `logs/step10-20261013/`：`postcss-{before,after}.log`、`audit-error-{before,after}.log`、`audit-live-after.log`、`npm-audit-before.json`、`audit-runtime-tests.log`、`test.log`、`quality.log`、`check-admin-ui.log`、最终 BOM/颜色检查、`sourcemap-css-inspection.json`、浏览器 before/after/comparison JSON、手机搜索及菜单截图、隔离构建与服务日志。合成库、测试凭据和证据产物不提交。
+
+### 提交、生产状态、未决风险与下一步
+
+- 本步单独提交、普通推送既有分支，随后按实际完整 SHA 确认 Quality completed/success，并保存本地/远端/CI SHA 与 annotations。最终提交与 run 链接在交付回复及忽略目录 `ci-result.json` 提供；本地通过不代替最终 CI。
+- **未部署、无生产数据操作、真实通知、新外部服务或费用支出；业务权限、审批规则、品牌内容与状态颜色不变。**
+- 六项工具链例外仍在，2027-01-09 到期；等待兼容修复，不能声明依赖漏洞全部清零。下一步建议先复核并补齐可本地验证的构建内联来源清单及审计覆盖；完整官网可用性、周期审计/可信锚点/异地不可变留存、生产停机预算与真实 RPO/RTO 仍为独立验收项。涉及外部服务、费用或业务规则继续先问用户。

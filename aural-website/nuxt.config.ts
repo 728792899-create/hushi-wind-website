@@ -41,6 +41,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
   modules: ['@nuxtjs/tailwindcss'],
+  postcss: {
+    plugins: {
+      // Nuxt's ESM resolver needs the explicit Tailwind 3 nesting entry file.
+      // Keep the compatibility wrapper before Tailwind instead of skipping it.
+      'tailwindcss/nesting': false,
+      'tailwindcss/nesting/index.js': {},
+    },
+  },
   nitro: {
     routeRules: {
       '/_nuxt/**': {
