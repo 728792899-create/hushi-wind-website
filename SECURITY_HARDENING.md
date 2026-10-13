@@ -798,3 +798,26 @@
 - 应用原完整 SHA 对应 [Quality 38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功；本次没有重跑应用测试。本轮三份文档检查 BOM、diff 与引用后，独立普通提交/推送并核对新完整 SHA 的 CI，结果由交付回复及本地 CI 证据记录，不能沿用应用历史 CI 作为新文档提交的结果。
 - **受保护临时完整站已完成部署、DNS/HTTPS 与 API 访问验收，可使用独立凭据访问；匿名正式品牌上线和最终浏览器界面验收未完成。** 原根域解析保持，不新增收费服务，不回到旧主机排障或扩展新阶段。
 - 剩余事项为可获准的浏览器页面/上传验收、私有资料交付与客户正式资料替换确认，以及本轮文档提交/推送/CI。共享 Caddy、同机备份、未做整机重启/故障演练和素材/品牌真实性的既有边界保留。后续迁移取临时站最新一致性数据库与成套 uploads，不以初始展示包覆盖客户新写入。
+
+
+## 官网取消首次访问验证（2026-10-14）
+
+### 目标与变更
+
+- 用户明确要求去掉第一次打开官网的验证，范围仅 `preview.dayouyusd.com`。后台 `admin.preview.dayouyusd.com` 的外层门禁、应用账号和既有 RBAC 保持；KingAI、原根域解析、内容数据库和素材内容未改。官网展示内容与资源现在匿名可访问，保留 noindex/no-store；这不是素材许可或品牌宣称已核实的证明。
+- 现场核对起点 `fe2e506dc3dd8e606be4c1f474e1e42a9daab057`、工作树干净。线上仅替换 `/etc/caddy/hushi-preview.Caddyfile` 中官网 Host：公开页面及其实际使用的 GET/HEAD API、events/inquiries/artist-applications 三类既有公开 POST 与 uploads 读取；其余管理、认证、上传及内容写入 API 在官网 Host 拒绝。
+- 公开请求清除 Authorization/Cookie，避免公开读取因后台凭据变为管理视图。保留后台原门禁与 Bearer 传递。白名单按精确路径层级匹配，未使用会同时匹配 versions/restore 的宽泛文章或页面通配符。
+- 跟踪文件仅本记录、`CODEX_HANDOFF.md`、`docs/temporary-preview-handoff.md`；私有客户/站主资料同步注明官网免口令、后台仍使用原有凭据。代理配置、事务脚本和证据在忽略目录，不包含在公开提交中。
+
+### 现场执行与验证
+
+- 目标相同 Caddy 2.6.2 在本地离线适配通过，后台及 KingAI 三域的适配后路由结构完全一致，无须忽略自动 group 标识；11 项本地事务/失败回滚模拟通过。独立复核无待修问题。
+- 持既有升级操作锁，确认无活动升级，校验原主配置与片段 SHA，备份旧片段，再验证完整配置并平滑 reload。主配置 SHA 仍为 `81153b46462b0812e4556cfb17b26c560bfef5c1b79ba12892cc2309fa219cd7`；新片段 SHA 为 `3e310aed25293c37cc2ebf65cce171ae76fd40d736e878368a199e15c2434edd`。`public-preview-activation.json` 记录 opened=true、mainFileModified=false、serviceRestartPerformed=false、无需回滚。
+- Caddy PID 和四个 KingAI 容器 ID/启动时间前后一致，KingAI 内外健康、Canvas 内外页面四个探针均 200；没有重启现有服务或宿主机。Canvas 页面可访问不等于完整业务 API 验收。
+- 本机正常 CA/主机名验证的真实 HTTPS 回归 **50/50 通过**：六个官网栏目匿名 200，无 WWW-Authenticate；12 个公开集合 API、展示图片和 robots 正常；缓存/索引响应头保留；官网管理 API 即使带门禁 Cookie/应用令牌也拒绝；后台无门禁仍 401，通过门禁后仍须应用账号，客户登录/Bearer会话及账号管理 403 正常。早期检查遇到连接重置，最终采用限定次数传输重试，只有完整执行后才标记通过；详见 `public-preview-checks.json` 的 completed 和 transportRetries。
+- 本次没有浏览器操作，仍保留此前工具访问策略阻塞的限制，不绕过、不声称页面目视或 UI 上传验收通过；用户可刷新官网直接查看。本轮不新增资料、表单规则、权限、付费服务或功能。
+
+### 记录、提交与剩余边界
+
+- 文档执行 BOM 和 diff 检查；普通独立提交推送，随后按新完整 SHA 核对 Quality 的 npm test / npm run quality，CI 结果存于本地并在交付回复报告，不复用之前的 CI 结论。
+- 已执行的是用户授权的官网免口令访问变更。后台保护保持、原设计和内容保持；当前演示资料仍待客户核实或替换，搜索引擎 noindex 不是访问限制。下一步仅继续用户页面验收和客户资源替换，不扩展加固范围。

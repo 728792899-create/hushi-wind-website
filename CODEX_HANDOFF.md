@@ -40,10 +40,11 @@
 - 应用版本 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；本轮后续文档提交不改变该运行产物版本。
 - 远端 `/srv/hushi-preview`，独立系统用户 `hushi-preview`、API/web 服务与受限 slice。API `127.0.0.1:19337`，官网 `127.0.0.1:19310`；仅 `hushi-preview-api.service` 与 `hushi-preview-web.service` 已设置开机启动，现场均为 enabled/active。本轮没有重启宿主机验证开机启动。
 - 新库完成 7 个迁移，仅导入 14 个内容模型的 49 条展示记录和 23 个资源；不迁入原管理员、咨询、会话、审计或告警。新 owner/customer 凭据仅在忽略目录的私有交付文件中，绝不可输出或提交。客户沿用 editor：能上传及编辑文章/CMS，不能修改产品、删除资源或管理账号。
-- 两个入口 [官网](https://preview.dayouyusd.com) / [后台](https://admin.preview.dayouyusd.com) 已完成 DNS 与 HTTPS 接入，可凭独立门禁资料访问。阿里云新增 `preview`、`admin.preview` 两条 A 记录至 `64.83.10.90`，原 `@ → 38.76.203.179` 不变；`dns13.hichina.com`、`dns14.hichina.com` 均核对通过，三条记录的 UI 截图为 `dns-records-confirmed.jpg`。这是受保护的完整临时站，不是匿名正式品牌上线。
+- 两个入口 [官网](https://preview.dayouyusd.com) / [后台](https://admin.preview.dayouyusd.com) 已完成 DNS 与 HTTPS 接入；用户随后要求取消官网首次验证，官网现可匿名访问，后台仍用原门禁和后台账号。阿里云新增 `preview`、`admin.preview` 两条 A 记录至 `64.83.10.90`，原 `@ → 38.76.203.179` 不变；`dns13.hichina.com`、`dns14.hichina.com` 均核对通过，三条记录的 UI 截图为 `dns-records-confirmed.jpg`。这是保留完整原设计的临时站；官网内容已匿名可见，正式品牌资料尚未验收。
 - Caddy 接入已在升级操作锁内完成：核对无活动升级、备份完整主配置、追加胡氏片段 import、验证完整配置后平滑 reload。`activation-result.json` 记录 activated=true，原三个 Host 路由保持，Caddy PID 376641、KingAI 四容器 ID/启动时间不变，KingAI 内外健康及 Canvas 内外页面探针均 200；未重启现有服务。Canvas 页面 200 不等于其业务 API 健康验证。
-- 两域 Let's Encrypt YE1 证书的 CA/主机名验证通过、TLS1.3；官网/后台证书分别至北京时间 2027-01-12 00:01:45 / 00:01:27。真实 HTTPS 下重新完成 **38/38** 项门禁、登录、Bearer、API 上传下载、权限、六页及响应头检查，测试 PNG 已由管理员清理，证据为 `https-preview-checks.json`、`https-acceptance-summary.json` 和 `https-certificates-local.json`。先前备份/隔离恢复调用 1.062s / 1.309s、35 表和 23 资源核验仍为小库演练证据；不代表整机故障 RTO。
+- 两域 Let's Encrypt YE1 证书的 CA/主机名验证通过、TLS1.3；官网/后台证书分别至北京时间 2027-01-12 00:01:45 / 00:01:27。初次双域门禁接入在真实 HTTPS 下完成 **38/38** 项门禁、登录、Bearer、API 上传下载、权限、六页及响应头检查，测试 PNG 已由管理员清理，证据为 `https-preview-checks.json`、`https-acceptance-summary.json` 和 `https-certificates-local.json`。先前备份/隔离恢复调用 1.062s / 1.309s、35 表和 23 资源核验仍为小库演练证据；不代表整机故障 RTO。
 - 浏览器工具对两域根路径与 robots 导航均出现 `net::ERR_BLOCKED_BY_CLIENT`，读取错误页时明确返回 browser URL policy blocks；已停止尝试，不绕过工具策略。最终页面目视及浏览器 UI 上传尚未完成，API 上传成功不能替代它们。下一步仅补齐可获准的浏览器验收、单独交付访问资料并完成本次文档提交/推送/CI。`客户访问资料.txt`、`站主专用资料.txt` 已生成，权限均为 0600；凭据、配置和证据在忽略目录 `logs/temporary-server-20261013/`，绝不可加入 Git。
+- 最新变更只更新 `/etc/caddy/hushi-preview.Caddyfile` 的官网 Host：取消官网门禁，按实际前端调用白名单开放公开 API/资源，其他管理 API 拒绝；后台与 KingAI 三站路由结构不变。证据 `public-preview-activation.json` / `public-preview-checks.json`，具体结果见修复记录末节。原主配置 SHA 仍为 `81153b46462b0812e4556cfb17b26c560bfef5c1b79ba12892cc2309fa219cd7`。不要重新载入旧双域门禁候选。
 - 本地完整站使用1337/3100/5175与 `logs/restore-full-local-20261013/` 的隔离副本，先查当前PID与启动记录；旧starter13110仅历史候选，不能当作用户选定版本。原 `dev.db` 保留，不直接连接新代码。
 
 ## 3. 第 4 步「布局与可用性」已完成本地验收
@@ -163,10 +164,10 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
    - 日志只增触发器、历史基线与新日志 SHA-256 链已接入；后台设置可处理安全告警、校验记录完整性。启动及手动/CLI 做全量验证，追加仅核对链尾；第 13 步按用户批准新增周期自动全量核验，仍无外部可信锚点。
    - 后续阶段范围待用户确认。数据库特权者全链重写、整库回滚与基线前历史真实性不在本地哈希链保证范围；外部留存/可信锚点需另行设计，不可声称绝对防篡改。
 3. **已确认无需再问**：保留现有咨询状态含义和颜色、权限及审计规则，不将颜色调整列为首发前决策。用户已选现有单机、无新服务/费用，不合并 `codex/commercial-readiness` 的扩展架构。
-4. **最新内容方向为完整受保护临时站**：用户已拒绝 starter 精简预览，当前官网/API 均为 full，保留原设计与栏目。原展示产品、人物、品牌文字和未完成许可核验的素材仅供门禁后的客户验收、替换，不宣称其真实或已获商业授权；正式匿名公开范围另行确认。`docs/starter-content.md` 仅保留历史候选的素材来源，不代表当前选定模式。
+4. **最新内容方向为完整受保护临时站**：用户已拒绝 starter 精简预览，当前官网/API 均为 full，保留原设计与栏目。原展示产品、人物、品牌文字和未完成许可核验的素材待客户验收、替换；用户已要求官网免口令，这些展示材料现可匿名访问，不宣称其真实或已获商业授权。`docs/starter-content.md` 仅保留历史候选的素材来源，不代表当前选定模式。
 5. **下一工作入口**：按 `docs/temporary-preview-handoff.md` 完成浏览器验收与私有资料交付。当前临时站的 DNS、HTTPS、门禁和 API 上传已验证，原根域解析不变；不重复安装或 reload，不继续排查旧 `154.222.19.51`。旧单机方案用于后续迁移参考，不能把其 starter 范围套到当前 full 临时站。客户开始写入后迁移须携带最新一致性数据库、配套 uploads 和独立配置，不用初始内容包覆盖。
 6. **范围与证据**：`docs/production-readiness.md` 保留 G01–G11，D01–D07 已区分确认项和待填资料。不把合成演练认作实际 RPO/RTO、管理器宽限期、强杀/断电或真机验收。外部可信锚点、异地服务和扩容不属于本期必做功能；没有外部通知时由待指定人员查看后台告警。同盘恢复风险和责任列入最终确认单，不新增采购要求。六项工具链例外保留原 2027-01-09 期限，生成代码来源仍未签名。
 
 ## 7. 每步汇报格式
 
-目标、改动文件、行为变化、测试证据、浏览器证据、commit/push/CI 状态、线上/生产状态、未决风险、下一步。当前是已接入 DNS/HTTPS 的受保护临时完整站，最终浏览器界面验收未完成，不能称匿名正式品牌上线。源码完成、测试通过、页面验收、推送、生产验收分开写。
+目标、改动文件、行为变化、测试证据、浏览器证据、commit/push/CI 状态、线上/生产状态、未决风险、下一步。当前是官网免口令、后台仍受保护的完整临时站；最终浏览器界面与品牌内容验收未完成，官网匿名可访问这一事实需明确报告。源码完成、测试通过、页面验收、推送、生产验收分开写。
