@@ -6,6 +6,7 @@ const { spawnSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { loadEnvFile } = require('./load-env');
 const { shutdownTimeout } = require('../lib/service-lifecycle');
+const { deploymentReadinessConfig } = require('../lib/deployment-readiness-config');
 const {
   createDatabaseBackup,
   resolveDatabaseFile,
@@ -109,6 +110,7 @@ function validateProcessLinks(current, env = process.env) {
   }
 }
 async function main() {
+  deploymentReadinessConfig(process.env);
   const { releases, current, stage } = validateLayout(
     process.env,
     process.argv[2],
@@ -169,7 +171,10 @@ async function main() {
     run(process.execPath, ['scripts/preflight.js'], api, env);
     run('npx', ['prisma', 'generate'], api, env);
     run('npm', ['test'], api, env);
+    run('npm', ['run', 'audit:prod'], api, env);
     run('npm', ['test'], admin, env);
+    run('npm', ['run', 'audit:prod'], admin, env);
+    run('npm', ['test'], website, env);
     run('npm', ['run', 'build'], admin, env);
     run('npm', ['run', 'build'], website, env);
     run('npm', ['run', 'audit:prod'], website, {
@@ -197,7 +202,9 @@ async function main() {
     switched = true;
     run('pm2', ['restart', apiName, '--update-env'], release, env);
     run('pm2', ['restart', webName, '--update-env'], release, env);
-    run(process.execPath, ['scripts/post-deploy-check.js'], api, env);
+    run(process.execPath, ['scripts/post-deploy-check.js'], api, {
+      ...env, ADMIN_DIST_DIR: path.join(admin, 'dist'),
+    });
     fs.rmSync(gate);
     record.status = 'success';
   } catch (error) {
@@ -218,11 +225,16 @@ async function main() {
         if (old) {
           run('pm2', ['restart', apiName, '--update-env'], old);
           run('pm2', ['restart', webName, '--update-env'], old);
+          // Use the prepared verifier: the old release may predate bounded readiness checks.
+          run(process.execPath, [path.join(release, 'aural-api/scripts/post-deploy-check.js')], path.join(old, 'aural-api'), {
+            ...process.env, NODE_ENV: 'production', ADMIN_DIST_DIR: path.join(old, 'aural-admin/dist'),
+          });
           record.rollback = 'restored';
           fs.rmSync(gate, { force: true });
         } else record.rollback = 'manual-start-required';
       } catch (rollbackError) {
-        record.rollback = rollbackError.message;
+        record.rollback = 'failed';
+        record.rollbackError = rollbackError.message;
       }
     }
     throw error;

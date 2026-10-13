@@ -6,6 +6,8 @@ const path = require('path');
 
 require('./load-env').loadEnvFile();
 const { resolveDatabaseFile } = require('../lib/database-backup');
+const { parseProductionUrl, isProductionUrl } = require('../lib/production-url');
+const { deploymentReadinessConfig } = require('../lib/deployment-readiness-config');
 const isProduction = process.env.NODE_ENV === 'production';
 const required = [
   'DATABASE_URL',
@@ -22,18 +24,13 @@ const fail = (message) => {
   process.exit(1);
 };
 
-const normalizeBase = (value) =>
-  String(value || '')
-    .trim()
-    .replace(/\/$/, '');
+try { deploymentReadinessConfig(process.env); } catch (error) { fail(error.message); }
+
 const splitEnvList = (value) =>
   String(value || '')
     .split(',')
-    .map((item) => normalizeBase(item))
+    .map((item) => item.trim())
     .filter(Boolean);
-const isProductionUrl = (value) =>
-  /^https:\/\//i.test(String(value || '')) &&
-  !/localhost|127\.0\.0\.1/i.test(String(value || ''));
 const isStrongPassword = (value) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,64}$/.test(
     String(value || ''),
@@ -74,10 +71,9 @@ if (isProduction) {
     if (!isProductionUrl(process.env[key]))
       fail(`${key} must be an HTTPS production URL`);
   });
-  splitEnvList(process.env.ALLOWED_ORIGINS).forEach((origin) => {
-    if (!isProductionUrl(origin))
-      fail(`ALLOWED_ORIGINS contains a non-production origin: ${origin}`);
-  });
+  const origins = splitEnvList(process.env.ALLOWED_ORIGINS);
+  if (!origins.length || origins.some((origin) => !parseProductionUrl(origin, { originOnly: true })))
+    fail('ALLOWED_ORIGINS must contain only HTTPS production origins');
 }
 
 if (process.env.DATABASE_URL?.startsWith('file:')) {

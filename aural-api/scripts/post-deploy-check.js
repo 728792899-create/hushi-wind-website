@@ -3,7 +3,9 @@
 const {checkAuthBoundary}=require('../lib/deployment-auth-check')
 const fs = require('fs')
 const path = require('path')
+const { performance } = require('node:perf_hooks')
 const { loadEnvFile } = require('./load-env')
+const { deploymentReadinessConfig } = require('../lib/deployment-readiness-config')
 
 loadEnvFile()
 
@@ -26,6 +28,8 @@ const adminDistDir = path.resolve(process.env.ADMIN_DIST_DIR || path.join(worksp
 const adminUsername = process.env.ADMIN_USERNAME || ''
 const adminPassword = process.env.ADMIN_PASSWORD || ''
 
+const { requestTimeout, readyTimeout, readyInterval } = deploymentReadinessConfig(process.env)
+
 const checks = []
 const failures = []
 
@@ -35,28 +39,59 @@ const pushResult = (name, ok, detail = '') => {
   if (!ok) failures.push({ name, detail })
 }
 
-const request = async (url, options = {}) => {
+const request = async (url, options = {}, timeoutMs = requestTimeout) => {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), Number(process.env.POST_DEPLOY_TIMEOUT_MS || 10000))
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    return await fetch(url, { ...options, signal: controller.signal })
+    const res = await fetch(url, { ...options, signal: controller.signal })
+    // Keep the timeout active until the body finishes, not merely until headers arrive.
+    const body = await res.text()
+    return { ok: res.ok, status: res.status, text: async () => body, json: async () => JSON.parse(body) }
   } finally {
     clearTimeout(timeout)
   }
 }
 
-const checkHealth = async () => {
-  const res = await request(`${apiUrl}/health`)
-  const json = await res.json().catch(() => null)
-  const tables = json?.database?.coreTables || []
-  const required = new Set(['Product', 'AdminUser', 'Article', 'SystemConfig'])
-  const missing = [...required].filter((name) => !tables.some((item) => item.name === name && item.status === 'ok'))
-  const fileSize = json?.database?.file?.size || 0
-  pushResult('API health', res.ok && json?.status === 'ok' && fileSize > 0 && missing.length === 0, `status=${json?.status || res.status}, dbSize=${fileSize}, missing=${missing.join(',') || '-'}`)
+const transientRequestError = (error) => error.name === 'AbortError' || error.name === 'TimeoutError' ||
+  ['ECONNREFUSED', 'ECONNRESET', 'EPIPE', 'EAI_AGAIN', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET'].includes(error.cause?.code || error.code)
+
+const waitForReady = async (probe, deadline) => {
+  let result = { ok: false, detail: 'no ready response' }
+  while (performance.now() < deadline) {
+    try { result = await probe(Math.max(1, Math.min(requestTimeout, Math.ceil(deadline - performance.now())))) }
+    catch (error) { result = { ok: false, retry: transientRequestError(error), detail: error.message } }
+    if (performance.now() >= deadline) break
+    if (result.ok || !result.retry) return result
+    const remaining = deadline - performance.now()
+    if (remaining > 0) await new Promise(resolve => setTimeout(resolve, Math.min(readyInterval, remaining)))
+  }
+  return { ok: false, detail: `readiness deadline exceeded (${readyTimeout}ms); ${result.detail}` }
 }
 
-const checkLogin = async () => {
-  const boundary=await checkAuthBoundary(request,apiUrl)
+const checkHealth = async (deadline) => {
+  const result = await waitForReady(async timeoutMs => {
+    const res = await request(`${apiUrl}/health`, {}, timeoutMs)
+    const json = await res.json().catch(() => null)
+    const tables = Array.isArray(json?.database?.coreTables) ? json.database.coreTables : []
+    const required = new Set(['Product', 'AdminUser', 'Article', 'SystemConfig'])
+    const missing = [...required].filter((name) => !tables.some((item) => item.name === name && item.status === 'ok'))
+    const fileSize = json?.database?.file?.size || 0
+    const ok = res.ok && json?.status === 'ok' && fileSize > 0 && missing.length === 0
+    // A ready process reporting database errors is a terminal failure, not slow startup.
+    const retry = [502, 504].includes(res.status) || (res.status === 503 && (!json || json?.error?.code === 'SERVICE_STARTING'))
+    return { ok, retry, detail: `status=${json?.status || res.status}, dbSize=${fileSize}, missing=${missing.join(',') || '-'}` }
+  }, deadline)
+  pushResult('API health', result.ok, result.detail)
+  return result.ok
+}
+
+const checkLogin = async (deadline) => {
+  const readyRequest = (url, options) => {
+    const remaining = deadline - performance.now()
+    if (remaining <= 0) throw new Error(`readiness deadline exceeded (${readyTimeout}ms)`)
+    return request(url, options, Math.min(requestTimeout, Math.ceil(remaining)))
+  }
+  const boundary=await checkAuthBoundary(readyRequest,apiUrl)
   pushResult('Admin authentication boundary',boundary.ok,boundary.detail)
   if(process.env.POST_DEPLOY_CHECK_LOGIN !== '1') {
     console.log('INFO Human login/MFA acceptance is separate; unattended checks do not log in as an administrator.')
@@ -66,7 +101,7 @@ const checkLogin = async () => {
     pushResult('Admin login API', false, 'ADMIN_USERNAME and ADMIN_PASSWORD are required for login check')
     return
   }
-  const res = await request(`${apiUrl}/api/auth/login`, {
+  const res = await readyRequest(`${apiUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: adminUsername, password: adminPassword, totpCode: process.env.POST_DEPLOY_TOTP_CODE })
@@ -75,10 +110,13 @@ const checkLogin = async () => {
   pushResult('Admin login API', res.ok && json?.success === true && Boolean(json?.token), `status=${res.status}, success=${json?.success}`)
 }
 
-const checkPage = async (label, url, expected) => {
-  const res = await request(url)
-  const text = await res.text().catch(() => '')
-  pushResult(label, res.ok && text.includes(expected), `status=${res.status}`)
+const checkPage = async (label, url, expected, deadline) => {
+  const result = await waitForReady(async timeoutMs => {
+    const res = await request(url, {}, timeoutMs)
+    const text = await res.text()
+    return { ok: res.ok && text.includes(expected), retry: [502, 503, 504].includes(res.status), detail: `status=${res.status}` }
+  }, deadline)
+  pushResult(label, result.ok, result.detail)
 }
 
 const checkAdminDist = () => {
@@ -113,11 +151,13 @@ const checkAdminDist = () => {
 
 ;(async () => {
   try {
-    await checkHealth()
-    await checkLogin()
-    await checkPage('Frontend homepage', siteUrl, '<!DOCTYPE html')
-    await checkPage('Admin homepage', adminUrl, '<!DOCTYPE html')
-    checkAdminDist()
+    const deadline = performance.now() + readyTimeout
+    if (await checkHealth(deadline)) {
+      await checkLogin(deadline)
+      await checkPage('Frontend homepage', siteUrl, '<!DOCTYPE html', deadline)
+      await checkPage('Admin homepage', adminUrl, '<!DOCTYPE html', deadline)
+      checkAdminDist()
+    }
   } catch (error) {
     pushResult('Post deploy check runtime', false, error.message)
   }

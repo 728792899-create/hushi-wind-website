@@ -11,7 +11,7 @@
 
 ## 2. 当前状态
 
-第 0–12 步已推送且 GitHub Actions（`.github/workflows/quality.yml`）通过；第 13 步随本交接更新独立提交。继续前以实际 `git log`、远端 SHA 与对应 CI 为准：
+第 0–13 步已推送且 GitHub Actions（`.github/workflows/quality.yml`）通过；第 14 步随本交接更新独立提交。继续前以实际 `git log`、远端 SHA 与对应 CI 为准：
 
 | 提交 | 内容 |
 |---|---|
@@ -30,8 +30,9 @@
 | `7e9b8b4` | 第 10 步构建警告与工具链审计；Quality `38374534319` 已按完整 SHA 核对成功 |
 | `a973ca0` | 第 11 步构建来源与产物审计；Quality `38378331509` 已按完整 SHA 核对成功 |
 | `5329f58` | 第 12 步完整公开站可用性；Quality `38383512338` 已按完整 SHA 核对成功 |
+| `b08268b` | 第 13 步周期审计与容量演练；Quality `38387765843` 已按完整 SHA 核对成功 |
 
-每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：两个引擎线程下 `npm test` 共 434 项（API 213、后台 51、官网 170）全部通过。第 13 步最终测试与 CI 核对方式见修复记录；不要把历史基线当作最新结果。
+每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：第 14 步两个引擎线程下 `npm test` 共 481 项（API 260、后台 51、官网 170）全部通过。第 14 步最终测试与 CI 核对方式见修复记录；不要把历史基线当作最新结果。
 
 ## 3. 第 4 步「布局与可用性」已完成本地验收
 
@@ -44,13 +45,9 @@
 
 ## 4. 本地运行与验证方法
 
-3000 端口被 OrbStack 容器占用，官网改用 3100。三个服务分别后台启动：
+既有 API `1337` / 官网 `3100` / 后台 `5175` 是旧演示服务，保留其进程和数据，**不要用下面的新代码重启这些服务或连接 `aural-api/prisma/dev.db`**。3000 被 OrbStack 占用。历史启动命令已移除，避免误接未迁移库。
 
-```bash
-cd ~/Projects/hushi-wind-website/aural-api && NODE_ENV=development DATABASE_URL=file:./dev.db PORT=1337 ADMIN_USERNAME=demo_admin ADMIN_PASSWORD='DemoPass_2026!' ADMIN_TOKEN_SECRET=hushi-demo-local-token-secret-2026-change-me PUBLIC_SITE_URL=http://127.0.0.1:3100 PUBLIC_ADMIN_URL=http://127.0.0.1:5175 API_PUBLIC_URL=http://127.0.0.1:1337 UPLOAD_PUBLIC_BASE=http://127.0.0.1:1337 ALLOWED_ORIGINS=http://127.0.0.1:3100,http://localhost:3100,http://127.0.0.1:5175,http://localhost:5175 npm start
-cd ~/Projects/hushi-wind-website/aural-website && NUXT_PUBLIC_API_BASE=http://127.0.0.1:1337 NUXT_API_INTERNAL_BASE=http://127.0.0.1:1337 NUXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 NUXT_PUBLIC_BRAND_IMAGE_BASE=http://127.0.0.1:1337/uploads/real-assets npm run dev -- --host 127.0.0.1 --port 3100
-cd ~/Projects/hushi-wind-website/aural-admin && VITE_API_BASE=http://127.0.0.1:1337 VITE_SITE_URL=http://127.0.0.1:3100 npm run dev -- --host 127.0.0.1 --port 5175
-```
+本地验收使用各步骤 `logs/step*/` 的合成夹具，先核对该步骤启动脚本、数据库迁移状态、通知为空与端口/PID 归属。需要新环境时在本仓库 `logs/` 下建独立库/素材/备份目录，显式指定 `DATABASE_URL`、三个本机端口及 URL；不要直接运行默认 `npm start` 或默认开发脚本连接旧库。容量演练有独立隔离入口，见 `docs/periodic-audit-capacity.md`。
 
 `quality` 用法：
 
@@ -58,9 +55,9 @@ cd ~/Projects/hushi-wind-website/aural-admin && VITE_API_BASE=http://127.0.0.1:1
 cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=https://api.example.invalid VITE_SITE_URL=https://www.example.invalid NUXT_PUBLIC_API_BASE=https://api.example.invalid NUXT_PUBLIC_SITE_URL=https://www.example.invalid npm run quality
 ```
 
-后台演示账号见 `scripts/dev.mjs`（仅本机）。`aural-api/prisma/dev.db` 是用户演示数据的副本：任何迁移前先 `sqlite3 dev.db ".backup '<路径>'"`，迁移后逐表比对原字段。验证中改动的演示数据要改回。
+后台历史演示账号见 `scripts/dev.mjs`（仅本机，不作为新版启动入口）。`aural-api/prisma/dev.db` 是用户演示数据的副本，本步不迁移、不写入。以后如获准迁移，应先停止旧写入、创建完整恢复点并在副本逐表比对原字段。
 
-**第 5 步迁移注意**：上面的 `dev.db` 与三个既有服务本次未迁移/重启；新版代码不能直接使用未迁移库。第 5 步已用数据库备份副本演练，32 张原表原字段逐行一致、44 条历史日志封存成功。以后迁移任何环境，先停止旧 API 写入并备份，再 `prisma migrate deploy`、`prisma generate`、启动新版 API；启动会一次性封存历史基线并校验，此后只验证、不自动重签。不要在迁移后继续运行旧写日志程序。只读核验命令：`cd aural-api && DATABASE_URL=file:/绝对路径/副本.db npm run check:audit`，失败非零退出；此命令不会初始化未封存基线。
+**第 5 步迁移注意**：旧 `dev.db` 与三个既有服务本次未迁移/重启；新版代码不能直接使用未迁移库。第 5 步已用数据库备份副本演练，32 张原表原字段逐行一致、44 条历史日志封存成功。以后迁移任何环境，先停止旧 API 写入并备份，再 `prisma migrate deploy`、`prisma generate`、启动新版 API；启动会一次性封存历史基线并校验，此后只验证、不自动重签。不要在迁移后继续运行旧写日志程序。只读核验命令：`cd aural-api && DATABASE_URL=file:/绝对路径/副本.db npm run check:audit`，失败非零退出；此命令不会初始化未封存基线。
 
 本步浏览器另用合成数据的独立 API `18337` / 后台 `15175`，库与脚本在忽略目录 `logs/step5-20261012/`。通知渠道均为空；不能把这个本地测试库当作演示数据或生产。验收页面可用于查看结果，下一次重启需先检查端口进程归属。
 
@@ -126,6 +123,14 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 - 后台维护记录手机卡片化并提供中文状态。隔离 API `18346` / 后台 `15183`，证据在 `logs/step13-20261013/`；短周期故障演练完成后撤销故障，重启本次 API 恢复默认 24h。62 成功/7 失败、1 条去重后已处理告警、0 通知；浏览器手动备份已演练通过。原 1337/3100/5175 及旧预览服务保持。
 - 最终双线程 434/434，quality、admin-ui、admin-colors、BOM/diff 门禁通过；390/1440 受影响页面 11 个稳定状态共 782 文字/207 控件，最低可计算对比度 4.70，无小字/点击区/溢出失败，控件名称另查 AX。最终提交和 CI 见本步交付回复及 `ci-result.json`，继续前重查完整 SHA。
 
+### 第 14 步生产准入与剩余风险收口
+
+- 统一准入入口为 `docs/production-readiness.md`：11 项证据条件、7 项待决策，明确本地/CI与生产验收边界。旧官网部署指南改为历史入口，已知边界按实际实现更新；不自动引入新服务、费用或审批规则。移除旧演示库重启命令，纠正自动备份检查频率说明。
+- API 启动与 preflight 共享生产 URL 解析，拒绝无主机、凭证、回环变体及不合法 CORS origin，保留合法 HTTPS 站点/上传子路径。无需 DNS 或外部请求，不改变开发环境、RBAC与公开素材链接规则。
+- 安全发布在维护门禁前补 API/admin 生产依赖审计和官网测试。发布与回滚均核验健康/鉴权/页面，初始化和瞬态连接可有界重试，正文也计入超时；明确数据库健康错误直接失败，回滚失败保留维护门禁。三项预算共享解析并在停机前拒绝非法配置，默认就绪60秒不改变停机预算。
+- 本步全部发布动作通过模拟验证；URL真实入口测试禁止监听/后台任务和数据库创建。浏览器只读复核沿用合成后台15183/API18346与官网13104/API18345，390/1440备份、维护、产品六状态无整页横溢出；未重演真实生产发布或声称重跑全站对比度。证据 `logs/step14-20261013/`。
+- 无新增迁移、业务权限/品牌/状态颜色修改；未部署、未动原库/原服务、未发真实通知。最终测试、单独提交推送、完整 SHA 的 CI 与审查完成门见修复记录/交付回复及本步 `ci-result.json`。
+
 ## 5. 已踩过的坑
 
 - 浏览器面板/窗口不可见时 `requestAnimationFrame` 不触发，Element Plus 弹窗、抽屉停在动画起点（如 `translateX(390px)`），关闭的弹窗也残留在 DOM。判断真实状态请读组件状态（`modelValue` / `visible`）或计算最终 CSS，不要凭位置下结论。
@@ -138,7 +143,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 ## 6. 后续计划（每步先现场复核再动手）
 
-1. **先核对第 13 步提交与对应完整 SHA 的 CI**（执行证据见修复记录、交付回复及 `logs/step13-20261013/ci-result.json`）。第 12 步完整 SHA `5329f58f1540aae216903bf68f70c94bfab1297e` 的 Quality `38383512338` 已现场核对成功。第 11 步完整 SHA `a973ca07a77ca4b443a40d45f6f526975e2c2a92` 的 Quality `38378331509` 已现场核对成功。第 10 步完整 SHA `7e9b8b45a2822f3ecc86e36295ad8556704e20d5` 的 Quality `38374534319` 已现场核对成功。第 9 步完整 SHA `466e967173732c7c84f9525aececb6e5429213d2` 的 Quality `38370477638` 已现场核对成功。第 8 步完整 SHA `0356f0f84643201d90b86d700bbecbb45063dd29` 对应 Quality `38367612013` 已核对成功。第 7 步完整 SHA `d7c50e134f38a2a47841189f750e1af6cdd57dcd` 对应 Quality `38353412835` 已核对成功。第 6 步完整 SHA `bb5cb402a550175468c46c5b3172798932b5ece5` 对应 Quality `38286115477` 已核对成功。
+1. **先核对第 14 步提交与对应完整 SHA 的 CI**（执行证据见修复记录、交付回复及 `logs/step14-20261013/ci-result.json`）。第 13 步完整 SHA `b08268b6d295ecce5c0e299329622e193b0fd680` 的 Quality `38387765843` 已现场核对成功。第 12 步完整 SHA `5329f58f1540aae216903bf68f70c94bfab1297e` 的 Quality `38383512338` 已现场核对成功。第 11 步完整 SHA `a973ca07a77ca4b443a40d45f6f526975e2c2a92` 的 Quality `38378331509` 已现场核对成功。第 10 步完整 SHA `7e9b8b45a2822f3ecc86e36295ad8556704e20d5` 的 Quality `38374534319` 已现场核对成功。第 9 步完整 SHA `466e967173732c7c84f9525aececb6e5429213d2` 的 Quality `38370477638` 已现场核对成功。第 8 步完整 SHA `0356f0f84643201d90b86d700bbecbb45063dd29` 对应 Quality `38367612013` 已核对成功。第 7 步完整 SHA `d7c50e134f38a2a47841189f750e1af6cdd57dcd` 对应 Quality `38353412835` 已核对成功。第 6 步完整 SHA `bb5cb402a550175468c46c5b3172798932b5ece5` 对应 Quality `38286115477` 已核对成功。
 2. **第 5 步已落实的用户确认规则**：
    - 客服只能处理分配给自己的咨询；未分配和重新分配由超级管理员负责。服务端覆盖列表、详情相关操作、统计及回收恢复。艺术家申请保持共享；只读角色原有脱敏读取权限保持。
    - 联系方式查看按账号合并咨询/艺术家申请计数，包含超级管理员，重复查看也计数。默认 10 分钟达到 30 次只告警、不阻断；`CONTACT_VIEW_WINDOW_MS` / `CONTACT_VIEW_ALERT_THRESHOLD` 可配置，同窗口告警去重。
@@ -147,7 +152,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
    - 后续阶段范围待用户确认。数据库特权者全链重写、整库回滚与基线前历史真实性不在本地哈希链保证范围；外部留存/可信锚点需另行设计，不可声称绝对防篡改。
 3. **待用户决定**（不要擅自改）：咨询状态“待联系”与优先级“紧急”同用危险色，是否改为警告色或主色。
 4. **已知但未处理**：产品模板与演示产品为钢琴、吉他、合成器，与管乐品牌不符，涉及业务内容，需用户提供真实资料。7 月远端分支 `codex/commercial-readiness` 的 S3/Redis/Sentry/PostgreSQL/src 分层未合入当前基线，是否合并由用户决定。
-5. **第 13 步后的验收边界**：本地正常启动/停机、周期审计与三档容量演练已完成。下一步建议汇总生产准入清单与未决决策，不自动进行生产操作，也不把单次合成数据演练认作真实 RPO/RTO、管理器宽限期或强杀/断电验收。真实品牌内容、真机/辅助技术、外部可信锚点及异地不可变留存仍须相应资料与授权；涉及业务规则、外部服务或费用先问。六项工具链例外须在原 2027-01-09 期限前跟进，构建清单继续保留生成代码归因及未签名边界。
+5. **第 14 步后的验收边界**：生产准入清单与未决决策已整理到 `docs/production-readiness.md`（G01–G11、D01–D07）。后续先补真实资料、恢复目标、职责和环境证据，不自动进行生产操作，也不把单次合成数据演练认作真实 RPO/RTO、管理器宽限期或强杀/断电验收。真实品牌内容、真机/辅助技术、外部可信锚点及异地不可变留存仍须相应资料与授权；涉及业务规则、外部服务或费用先问。六项工具链例外须在原 2027-01-09 期限前跟进，构建清单继续保留生成代码归因及未签名边界。
 
 ## 7. 每步汇报格式
 

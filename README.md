@@ -54,7 +54,7 @@ flowchart LR
   GATEWAY --> API
 ```
 
-完整的三端组件关系、CMS 内容流、咨询线索流、鉴权审计和部署安全边界见 [架构说明](docs/architecture.md)。
+完整的三端组件关系、CMS 内容流、咨询线索流、鉴权审计和部署安全边界见 [架构说明](docs/architecture.md)。生产准入、证据要求与待决策事项见 [生产准入清单](docs/production-readiness.md)；本地验证与 CI 通过不代表已部署或生产验收。
 
 ## 技术栈
 

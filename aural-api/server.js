@@ -15,6 +15,7 @@ const { createAuditScheduler, auditVerifyInterval } = require('./lib/scheduled-a
 const { createBackupScheduler } = require('./lib/scheduled-backup');
 const { createWorkTracker } = require('./lib/work-tracker');
 const { createServiceLifecycle, shutdownTimeout } = require('./lib/service-lifecycle');
+const { parseProductionUrl, isProductionUrl } = require('./lib/production-url');
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient, Prisma } = require('@prisma/client');
@@ -192,20 +193,19 @@ const defaultDevOrigins = [
   'http://127.0.0.1:5175',
   'http://localhost:5175',
 ];
-const configuredOrigins = splitEnvList(
-  process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGINS,
-)
+const explicitOrigins = String(process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGINS || '')
+  .split(',').map((item) => item.trim()).filter(Boolean);
+const productionOrigins = explicitOrigins.map((origin) => parseProductionUrl(origin, { originOnly: true }));
+const configuredOrigins = splitEnvList(process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGINS)
   .concat(splitEnvList(process.env.PUBLIC_SITE_URL))
   .concat(splitEnvList(process.env.PUBLIC_ADMIN_URL));
 const allowedOrigins = new Set(
   (IS_PRODUCTION
-    ? configuredOrigins
+    ? productionOrigins.map((url) => url?.origin)
+        .concat([PUBLIC_SITE_URL, PUBLIC_ADMIN_URL].map((value) => parseProductionUrl(value)?.origin))
     : configuredOrigins.concat(defaultDevOrigins)
   ).filter(Boolean),
 );
-const isProductionUrl = (value) =>
-  /^https:\/\//i.test(String(value || '')) &&
-  !/localhost|127\.0\.0\.1/i.test(String(value || ''));
 
 // Legacy true means loopback proxy only; explicit CIDRs configure other trusted gateways.
 const trustedProxies = process.env.TRUST_PROXY;
@@ -343,6 +343,7 @@ if (
     /replace|change.?me|placeholder/i.test(ADMIN_TOKEN_SECRET) ||
     /^replace[-_ ]with/i.test(ADMIN_PASSWORD) ||
     allowedOrigins.size === 0 ||
+    productionOrigins.some((url) => !url) ||
     ![
       PUBLIC_SITE_URL,
       PUBLIC_ADMIN_URL,
