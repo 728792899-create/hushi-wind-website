@@ -404,3 +404,43 @@
 - **没有生产部署、生产数据操作、真实通知或费用支出**。进程级故障全部作用于新建的本地合成夹具；没有执行真实 PM2 或其他环境的停机。
 - 正常排空不覆盖 SIGKILL、断电、进程崩溃、同步事件循环长时间阻塞或超出截止预算的强制退出；这些情况不能保证 finally 执行，需重启后核查运行中记录/备份锁和包完整性。实际生产管理器的终止宽限期、大数据量耗时及业务 RPO/RTO 未验收，不能称为整个项目生产成熟度验收完成。
 - 下一步可先现场复核公开产品下载链接与手机返回控件名称，再处理官网构建警告/工具链审计例外；周期全量审计、外部可信锚点、不可变留存、异地备份仍待另行设计。外部服务、费用或业务规则继续先确认。
+
+## 第 9 步：公开下载链接、手机返回与 CI 环境固定（2026-10-13）
+
+### 目标与现场复核
+
+- 在唯一授权目录与既有分支完整复读交接、修复记录和 Git 状态，起点干净；第 8 步完整 SHA `0356f0f84643201d90b86d700bbecbb45063dd29` 的 [Quality 38367612013](https://github.com/728792899-create/hushi-wind-website/actions/runs/38367612013) 已实时核对 completed/success。
+- 产品详情直接绑定 API 返回的 `fileUrl`，相对 `/uploads/...` 会落到官网域名；支持页已经通过 `mediaUrl` 指向 API。同一资源在两个入口不一致。现有 CMS 写入限制 HTTP(S) 或 `/uploads/`；异常协议防御针对历史/异常输入，不能声称正常后台可任意写入脚本协议。
+- 8 页返回控件在手机隐藏唯一文字后没有名称；390 宽度浏览器基线实际为无名称的 36×36 按钮。上一轮 CI 成功，但存在旧 Action 的 Node 20 强制升级提示，以及 `ubuntu-latest` 即将迁移 Ubuntu 26 的提示。
+
+### 改动文件与行为变化
+
+- `aural-website/app/composables/useAuralApi.js`：媒体 URL 保留合法相对路径、绝对 HTTP(S)、public API base 和调用方 fallback；拒绝非字符串、控制字符、反斜杠、网络路径、非 HTTP(S) 协议和畸形 HTTP(S) 地址。不使用 SSR 内部 API 地址生成公开链接。
+- `app/pages/products/[id].vue`：前三条下载先保留原数量/顺序，再统一归一文件地址；空值仍跳原支持入口。`tests/api-contracts.test.mjs` 执行两个页面的实际 computed 和产品 href 表达式，覆盖同一资源、顺序、查询参数/片段、空值、输入不变、内部地址隔离及异常输入。
+- `app/pages/{products/index,products/[id],news/index,news/[id],audio,artists,support,info/brand-story}.vue`：返回按钮补 `type="button"`、中文名称，装饰 SVG 从辅助技术隐藏；品牌页原显示条件不变。`app/app.vue` 将按钮命中区至少设为 44×44，保留原圆形图标及返回逻辑。
+- `.github/workflows/quality.yml`：固定 `ubuntu-24.04`；checkout 固定官方 [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) 的完整 SHA，setup-node 固定官方 [v7.1.0](https://github.com/actions/setup-node/releases/tag/v7.1.0) 的完整 SHA，二者声明 Node 24；显式 `contents: read`。项目 Node 22、TOKIO 2、缓存及原测试/构建步骤不变。上一轮 runner 2.337.0 满足 Action 最低 2.327.1；没有引入新的外部服务、权限用途或费用。
+- 同步本交接记录和 `CODEX_HANDOFF.md`；无依赖锁文件、数据库迁移、业务权限、审批规则、品牌文案或状态颜色变更。
+
+### 测试与反向验证
+
+- `TOKIO_WORKER_THREADS=2 npm test` **238/238**（API 171、后台 51、官网 16），0 失败、0 跳过；`npm run quality`、`check:admin-ui`（distChecked=yes）、`check:admin-colors`、`check:bom`、改动文件 BOM 扫描及 `git diff --check` 通过。
+- 下载定向测试旧实现 2/6 通过、4 项失败；修复后 **6/6**。覆盖危险协议、网络路径、C0/C1/DEL、反斜杠、错误类型及无有效主机/非法端口等输入；合法 HTTP(S)、普通相对文件、查询参数/片段和调用方 fallback 保持。
+- 使用仓库已有 YAML 解析器核对 workflow，与 HEAD 结构比较仅允许 runner、两个 Action 引用及显式读取权限变化。Action 发布信息和声明从官方仓库实读；最终兼容性以本提交实际 CI 为准。
+- 独立只读 diff 审查与第 2 轮完成门均返回 `NO_ACTIONABLE_FINDINGS`，无本步剩余 P1/P2；已复核实际改动与浏览器/测试证据，不将配置静态通过等同于 GitHub CI 通过。
+
+### 浏览器与本地证据
+
+- 隔离合成 API `18342` / 官网生产构建预览 `13101`；仅虚构产品、资讯和下载文件，通知渠道为空。没有迁移、重启或修改原演示数据库及原服务。
+- 390×844 粗指针与 1440×1000 桌面，8 页 × 2：全部 AX/DOM 名称为“返回”，手机实际命中区 44×44，桌面约 84.8×44；文档宽度等于视口，无整页横向溢出。验证范围是本步返回控件和下载链路，不代表全站完整可用性或全页对比度验收。
+- 桌面从产品目录进入详情，键盘返回恢复目录；手机新标签无 history.back、无 referrer 时从详情回退目录；再从目录进入支持页，返回使用实际站内历史回到目录。原 `useSmartBack` 未修改。
+- 产品页相对与绝对本地文件指向相同 API URL，保留 `?version=9#readme`；实际点击打开 48 字节的虚构说明文本，HTTP 200。手机支持弹窗同样解析两个合法地址，空地址和 `javascript:void(0)` 历史夹具显示 NO FILE、没有链接；支持页键盘激活也打开相同文本。文本资源在新页打开，未声称强制附件保存或验收外部供应商文件。
+- 首次隔离 buildDir 放在 logs 导致 Tailwind config-ctx 模块解析失败，未计作成功构建；改用官网 node_modules 下独立缓存目录后同源码构建成功，产物仍独立保存 logs。未安装依赖、未放宽 CSP。验收结束清除临时视口覆盖。
+
+证据目录 `logs/step9-20261013/`（Git 忽略）：`download-url-{before,after}.log`、`test.log`、`quality.log`、`admin-ui.log`、`admin-colors.log`、`bom.log`、`return-controls-audit.json`、`browser-behavior.json`、`mobile-back-before.{json,png}`、`mobile-return-after.png`、`product-mobile.png`、`support-download-{desktop,mobile}.png`、`download-response.png`、隔离构建及 API 日志。合成库、脚本、素材、截图、日志和测试凭据不提交。
+
+### 提交、生产状态、剩余风险与下一步
+
+- 本步单独提交并普通推送到 `codex/admin-core-redesign`；按实际完整 SHA 核对 Quality 全部成功，并检查旧 Node 20 与 Ubuntu 26 迁移 annotation 是否消失。结果链接在交付回复提供，保存 `ci-result.json` 与本地/远端/CI SHA 一致性证据；上一轮 CI 不能代替本轮。
+- **未部署、无生产数据操作、真实通知或费用支出**。合法外部 HTTP(S) 地址继续允许，本步只用本地资源验证，不保证第三方可用性。
+- 官网既有 `NUXT_B7027` 与 6 项未进入 24 个运行包的工具链审计例外（2027-01-09 到期）仍在；API/后台生产依赖审计 0 漏洞。建议下一步先复核官网构建警告与工具链例外，不直接扩大依赖升级范围。
+- 未改变不匹配管乐品牌的演示内容；全站可用性、生产终止预算、大数据量恢复、周期审计/可信锚点/异地不可变留存与真实 RPO/RTO 仍需分别验收。涉及外部服务、费用或业务规则继续先问用户。

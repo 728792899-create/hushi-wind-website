@@ -8,9 +8,9 @@
     </Transition>
 
     <div class="page-back-button fixed top-24 left-4 md:top-32 md:left-12 z-[70] md:z-[100] mix-blend-difference pointer-events-none">
-      <button @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto cursor-pointer">
+      <button type="button" aria-label="返回" @click="handleBack" class="flex items-center gap-4 text-white hover:scale-105 transition-transform duration-300 group pointer-events-auto cursor-pointer">
         <div class="w-10 h-10 flex items-center justify-center rounded-full border border-white/50 group-hover:border-white transition-colors">
-          <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          <svg aria-hidden="true" class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         </div>
         <span class="hidden md:block text-xs font-bold tracking-[0.2em]">返回</span>
       </button>
@@ -511,7 +511,9 @@ const relatedProducts = computed(() => {
     .slice(0, 3)
 })
 const relatedFaqs = computed(() => (faqResponse.value?.data || []).slice(0,3))
-const supportDownloads = computed(() => (downloadResponse.value?.data || []).slice(0,3))
+const supportDownloads = computed(() => (downloadResponse.value?.data || [])
+  .slice(0, 3)
+  .map(file => ({ ...file, fileUrl: mediaUrl(file.fileUrl, null) })))
 
 watch(product, (nextProduct) => {
   activeImage.value = nextProduct?.gallery?.[0] || nextProduct?.imageUrl || ''

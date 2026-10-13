@@ -565,6 +565,12 @@ html[data-scroll-direction="up"] main :where(.interactive-card, .product-tile, .
   }
 }
 
+.page-back-button button {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
 /* Toast */
 .toast-slide-enter-active, .toast-slide-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
 .toast-slide-enter-from, .toast-slide-leave-to { opacity: 0; transform: translate(-50%, -20px); backdrop-filter: blur(0px); }

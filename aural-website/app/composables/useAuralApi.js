@@ -30,9 +30,20 @@ export const useApiUrl = (path = '') => {
 export const useMediaUrl = () => {
   const apiBase = usePublicApiBase()
   return (path, fallback = '') => {
-    if (!path) return fallback
-    if (/^https?:\/\//i.test(path)) return path
-    const normalizedPath = String(path).startsWith('/') ? path : `/${path}`
+    // Reject characters browsers can reinterpret before resolving a media URL.
+    if (typeof path !== 'string' || /[\u0000-\u001f\u007f-\u009f\\]/.test(path)) return fallback
+    const value = path.trim()
+    if (!value || value.startsWith('//')) return fallback
+    if (/^[a-z][a-z\d+.-]*:/i.test(value)) {
+      if (!/^https?:\/\/[^/?#]/i.test(value)) return fallback
+      try {
+        if (!new URL(value).hostname) return fallback
+        return value
+      } catch {
+        return fallback
+      }
+    }
+    const normalizedPath = value.startsWith('/') ? value : `/${value}`
     return `${apiBase.value}${normalizedPath}`
   }
 }
