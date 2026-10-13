@@ -8,6 +8,20 @@
 const pending = [];
 const MAX_PENDING = 256;
 let active = false;
+const idleWaiters = new Set();
+
+function notifyIdle() {
+  if (active || pending.length) return;
+  for (const resolve of idleWaiters) resolve();
+  idleWaiters.clear();
+}
+
+async function whenSqliteIdle() {
+  // Call after stopping new roots and draining their continuations. This is an
+  // observation barrier, never cancellation of already accepted transactions.
+  while (active || pending.length)
+    await new Promise((resolve) => idleWaiters.add(resolve));
+}
 
 function queueError(code) {
   const error = new Error('数据库操作繁忙，请稍后重试');
@@ -16,7 +30,8 @@ function queueError(code) {
   return error;
 }
 function drain() {
-  if (active || !pending.length) return;
+  if (active) return;
+  if (!pending.length) return notifyIdle();
   const job = pending.shift();
   clearTimeout(job.timer);
   active = true;
@@ -44,10 +59,11 @@ function runSqliteTransaction(db, action, options = {}) {
       if (index === -1) return;
       pending.splice(index, 1);
       reject(queueError('SQLITE_TRANSACTION_QUEUE_TIMEOUT'));
+      notifyIdle();
     }, waitMs);
     pending.push(job);
     drain();
   });
 }
 
-module.exports = { runSqliteTransaction };
+module.exports = { runSqliteTransaction, whenSqliteIdle };

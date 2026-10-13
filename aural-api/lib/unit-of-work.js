@@ -8,9 +8,10 @@ const WRITE_RAW_METHODS = new Set(['$executeRaw', '$executeRawUnsafe']);
 const TRANSACTION_OPTIONS = { maxWait: 10000, timeout: 15000 };
 
 // Helpers and route handlers share the same transaction without a global mutable client.
-function createUnitOfWork(client) {
+function createUnitOfWork(client, { work } = {}) {
   const scope = new AsyncLocalStorage();
   const delegates = new Map();
+  const track = (label, action) => work ? work.track(label, action) : action();
   const prisma = new Proxy(client, {
     get(target, key) {
       const tx = scope.getStore()?.tx;
@@ -20,8 +21,8 @@ function createUnitOfWork(client) {
         return (...args) => {
           const scoped = scope.getStore()?.tx;
           if (scoped) return scoped[key](...args);
-          return runSqliteTransaction(client,
-            (transactionClient) => transactionClient[key](...args), TRANSACTION_OPTIONS);
+          return track('sqlite-write', () => runSqliteTransaction(client,
+            (transactionClient) => transactionClient[key](...args), TRANSACTION_OPTIONS));
         };
       if (!tx && value && typeof value === 'object' &&
           typeof value.findMany === 'function' && typeof value.create === 'function') {
@@ -36,8 +37,8 @@ function createUnitOfWork(client) {
                 // A saved method may be invoked later inside a transaction.
                 const activeTx = scope.getStore()?.tx;
                 if (activeTx) return activeTx[key][method](...args);
-                return runSqliteTransaction(client,
-                  (transactionClient) => transactionClient[key][method](...args), TRANSACTION_OPTIONS);
+                return track('sqlite-write', () => runSqliteTransaction(client,
+                  (transactionClient) => transactionClient[key][method](...args), TRANSACTION_OPTIONS));
               };
             const operation = delegate[method];
             return typeof operation === 'function' ? operation.bind(delegate) : operation;
@@ -52,13 +53,13 @@ function createUnitOfWork(client) {
     const state = scope.getStore();
     if (state) state.tasks.push(task);
     else
-      Promise.resolve()
+      track('afterCommit', () => Promise.resolve()
         .then(task)
         .catch((error) =>
           console.warn('Background task failed:', error.code || error.message),
-        );
+        ));
   };
-  const handler = (action) => async (req, res, next) => {
+  const handler = (action) => (req, res, next) => track('http-handler', async () => {
     const tasks = [];
     let response;
     const staged = {
@@ -81,13 +82,13 @@ function createUnitOfWork(client) {
         },
         TRANSACTION_OPTIONS,
       );
-      res.status(response.status).json(response.body);
       for (const task of tasks) afterCommit(task);
+      res.status(response.status).json(response.body);
     } catch (error) {
       next(error);
     }
-  };
-  const transaction = async (action) => {
+  });
+  const transaction = (action) => track('transaction', async () => {
     if (scope.getStore()) return action();
     const tasks = [];
     const result = await runSqliteTransaction(client,
@@ -96,7 +97,7 @@ function createUnitOfWork(client) {
     );
     for (const task of tasks) afterCommit(task);
     return result;
-  };
+  });
   return { prisma, handler, afterCommit, transaction };
 }
 module.exports = { createUnitOfWork };

@@ -116,7 +116,7 @@ test('failed release backup restarts the old service and does not attempt databa
     process.argv[2] = stage;
     cp.spawnSync = (command, args) => {
       calls.push([command, ...args]);
-      if (command === 'pm2' && args[0] === 'jlist') return {status:0,stdout:JSON.stringify(['fixture-api','fixture-web'].map(name=>({name,pm2_env:{pm_exec_path:path.join(current,name,'server.js'),pm_cwd:path.join(current,name)}})))};
+      if (command === 'pm2' && args[0] === 'jlist') return {status:0,stdout:JSON.stringify(['fixture-api','fixture-web'].map(name=>({name,pm2_env:{kill_timeout:65000,SHUTDOWN_TIMEOUT_MS:60000,pm_exec_path:path.join(current,name,'server.js'),pm_cwd:path.join(current,name)}})))};
       return { status: 0 };
     };
     delete require.cache[require.resolve('../scripts/safe-deploy')];
@@ -163,7 +163,7 @@ test('post-deploy failure restores the old database and release while holding th
     let migrated=false,rollbackRestart=false;
     backupLib.createDatabaseBackup=async(source,target)=>{assert.ok(fs.existsSync(gate));fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(source,target)};
     cp.spawnSync=(command,args)=>{
-      if(command==='pm2'&&args[0]==='jlist')return {status:0,stdout:JSON.stringify(['fixture-api','fixture-web'].map(name=>({name,pm2_env:{pm_exec_path:path.join(current,name,'server.js'),pm_cwd:path.join(current,name)}})))};
+      if(command==='pm2'&&args[0]==='jlist')return {status:0,stdout:JSON.stringify(['fixture-api','fixture-web'].map(name=>({name,pm2_env:{kill_timeout:65000,SHUTDOWN_TIMEOUT_MS:60000,pm_exec_path:path.join(current,name,'server.js'),pm_cwd:path.join(current,name)}})))};
       if(args.includes('migrate')){assert.ok(fs.existsSync(gate));fs.writeFileSync(database,'after migration');migrated=true}
       if(args.includes('scripts/post-deploy-check.js')){assert.ok(fs.existsSync(gate));assert.notEqual(fs.realpathSync(current),fs.realpathSync(old));return {status:1}}
       if(migrated && args[0]==='restart' && fs.realpathSync(current)===fs.realpathSync(old)){assert.ok(fs.existsSync(gate));assert.equal(fs.readFileSync(database,'utf8'),'before migration');rollbackRestart=true}

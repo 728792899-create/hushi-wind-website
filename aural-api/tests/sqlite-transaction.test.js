@@ -1,9 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { runSqliteTransaction } = require('../lib/sqlite-transaction');
+const { runSqliteTransaction, whenSqliteIdle } = require('../lib/sqlite-transaction');
 const { createUnitOfWork } = require('../lib/unit-of-work');
+const { createWorkTracker } = require('../lib/work-tracker');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { PrismaClient } = require('@prisma/client');
@@ -94,6 +94,32 @@ test('queue capacity is bounded and overflowing work never enters the engine', a
   assert.equal(calls, 257);
 });
 
+test('SQLite idle barrier waits for active, queued and immediately chained work without altering errors', async () => {
+  const entered = deferred(), firstGate = deferred(), finalGate = deferred(), finalEntered = deferred();
+  const db = { $transaction: (action) => action({}) };
+  const first = runSqliteTransaction(db, async () => { entered.resolve(); await firstGate.promise; });
+  await entered.promise;
+  const original = new Error('queued fixture error');
+  const failure = runSqliteTransaction(db, async () => { throw original; });
+  const rejected = assert.rejects(failure, (error) => error === original);
+  const chained = failure.catch(() => runSqliteTransaction(db, async () => {
+    finalEntered.resolve();
+    await finalGate.promise;
+  }));
+  let idle = false;
+  const waiting = whenSqliteIdle().then(() => { idle = true; });
+  await settle();
+  assert.equal(idle, false);
+  firstGate.resolve();
+  await finalEntered.promise;
+  await settle();
+  assert.equal(idle, false);
+  finalGate.resolve();
+  await Promise.all([first, rejected, chained, waiting]);
+  await whenSqliteIdle();
+  assert.equal(idle, true);
+});
+
 test('unit-of-work nested writes commit once and afterCommit runs once only after commit', async () => {
   const events = [];
   const tx = { marker: 'transaction-client' };
@@ -151,7 +177,9 @@ test('unit-of-work handlers stage responses until commit and discard responses/t
 });
 
 test('real SQLite standalone background writes share the transaction queue while reads and revision extensions keep working', async (t) => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'hushi-sqlite-queue-'));
+  const fixtureRoot = path.resolve(__dirname, '../../logs/step8-20261013/sqlite-fixtures');
+  fs.mkdirSync(fixtureRoot, { recursive: true });
+  const temp = fs.mkdtempSync(path.join(fixtureRoot, 'run-'));
   const filename = path.join(temp, 'fixture.db');
   const migrations = path.resolve(__dirname, '../prisma/migrations');
   const sql = fs.readdirSync(migrations)
@@ -165,7 +193,8 @@ test('real SQLite standalone background writes share the transaction queue while
     await Promise.all([db.$disconnect(), backgroundDb.$disconnect()]);
     fs.rmSync(temp, { recursive: true, force: true });
   });
-  const unit = createUnitOfWork(db), background = createUnitOfWork(backgroundDb);
+  const work = createWorkTracker();
+  const unit = createUnitOfWork(db, { work }), background = createUnitOfWork(backgroundDb, { work });
   const row = await unit.prisma.article.create({ data: { title: 'fixture', category: 'fixture', date: '2026-10-13' } });
   assert.equal(row.revision, 0);
   const savedDelegate = unit.prisma.article;
@@ -196,15 +225,22 @@ test('real SQLite standalone background writes share the transaction queue while
     background.prisma.$executeRaw`UPDATE "Article" SET "category" = ${'raw-tagged'} WHERE "id" = ${row.id}`,
     background.prisma.$executeRawUnsafe('UPDATE "Article" SET "category" = ? WHERE "id" = ?', 'raw-unsafe', row.id),
   ].map((write, index) => write.then((value) => { completed.push(index); return value; }));
+  let drained = false;
+  const waiting = work.drain().then(() => { drained = true; });
   try {
     assert.equal(await background.prisma.loginRecord.count(), 0, 'reads are not queued behind the held transaction');
     await settle();
     assert.deepEqual(completed, [], 'standalone writes wait before entering the engine');
+    assert.equal(drained, false, 'work drain includes the accepted transaction and its queued writes');
+    assert.deepEqual(work.snapshot(), { total: 7, byLabel: { transaction: 1, 'sqlite-write': 6 } });
   } finally {
     release.resolve();
   }
   await business;
   await Promise.all(writes);
+  await waiting;
+  await whenSqliteIdle();
+  assert.equal(work.snapshot().total, 0);
   assert.deepEqual(completed, [0, 1, 2, 3, 4, 5]);
   const current = await unit.prisma.article.findUnique({ where: { id: row.id } });
   assert.equal(current.revision, 3, 'update/updateMany/upsert each bump revision once');

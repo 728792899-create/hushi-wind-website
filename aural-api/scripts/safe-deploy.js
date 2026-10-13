@@ -5,6 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { loadEnvFile } = require('./load-env');
+const { shutdownTimeout } = require('../lib/service-lifecycle');
 const {
   createDatabaseBackup,
   resolveDatabaseFile,
@@ -94,6 +95,17 @@ function validateProcessLinks(current, env = process.env) {
     const entry = processes.find(p => p.name === name)?.pm2_env;
     if (!entry || ![entry.pm_exec_path, entry.pm_cwd].every(p => typeof p === 'string' && (p === current || p.startsWith(current + path.sep))))
       throw new Error(`PM2 ${name} must use the current symlink for both script and cwd before safe deployment`);
+    if (name === env.API_PM2_NAME) {
+      // The running API may have loaded a different budget from its .env.
+      // PM2 cannot prove that value unless it explicitly owns the setting.
+      const runningBudget = entry.SHUTDOWN_TIMEOUT_MS ?? entry.env?.SHUTDOWN_TIMEOUT_MS;
+      if (runningBudget === undefined)
+        throw new Error(`PM2 ${name} must explicitly record SHUTDOWN_TIMEOUT_MS before safe deployment`);
+      const required = Math.max(shutdownTimeout(env.SHUTDOWN_TIMEOUT_MS),
+        shutdownTimeout(runningBudget)) + 5000;
+      if (!Number.isFinite(Number(entry.kill_timeout)) || Number(entry.kill_timeout) < required)
+        throw new Error(`PM2 ${name} kill_timeout must be at least ${required}ms to allow API draining`);
+    }
   }
 }
 async function main() {

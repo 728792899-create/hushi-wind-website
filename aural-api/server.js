@@ -11,6 +11,8 @@ const { inquiryScope } = require('./lib/crm-scope');
 const { monitorContactAccess } = require('./lib/contact-monitor');
 const { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity } = require('./lib/audit-integrity');
 const { createBackupScheduler } = require('./lib/scheduled-backup');
+const { createWorkTracker } = require('./lib/work-tracker');
+const { createServiceLifecycle, shutdownTimeout } = require('./lib/service-lifecycle');
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient, Prisma } = require('@prisma/client');
@@ -47,12 +49,15 @@ const { categories: mediaCategories, readMetadata, buildMediaReferences, describ
 const app = express();
 app.disable('x-powered-by');
 const database = withContentRevision(new PrismaClient());
+const work = createWorkTracker();
+let lifecycle;
+const stopping = () => lifecycle && !['starting', 'ready'].includes(lifecycle.state);
 const {
   prisma,
   handler: writeHandler,
   afterCommit,
   transaction,
-} = createUnitOfWork(database);
+} = createUnitOfWork(database, { work });
 
 class HttpError extends Error {
   constructor(status, code, message) {
@@ -65,7 +70,9 @@ class HttpError extends Error {
 const createError = (status, code, message) =>
   new HttpError(status, code, message);
 const asyncHandler = (handler) => (req, res, next) =>
-  Promise.resolve(handler(req, res, next)).catch(next);
+  work.track('handler', async () => {
+    try { await handler(req, res, next); } catch (error) { next(error); }
+  });
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
@@ -673,8 +680,8 @@ app.get('/api/auth/policy', (req, res) =>
     description: passwordRequirements,
   }),
 );
-app.get('/health', healthHandler);
-app.get('/api/health', healthHandler);
+app.get('/health', asyncHandler(healthHandler));
+app.get('/api/health', asyncHandler(healthHandler));
 
 const roleDefinitions = {
   super_admin: {
@@ -1323,7 +1330,7 @@ const buildWebhookPayload = (payload) => {
 const notificationWorker = createNotificationWorker(prisma, {
   url: ALERT_WEBHOOK_URL,
   provider: ALERT_WEBHOOK_PROVIDER,
-  isPaused: deploymentPaused,
+  isPaused: () => stopping() || deploymentPaused(),
 });
 const enqueueNotification = async (type, payload) => {
   if (!ALERT_WEBHOOK_URL) return;
@@ -1335,7 +1342,8 @@ const enqueueNotification = async (type, payload) => {
 const sendAlertWebhook = (payload) =>
   enqueueNotification('alert', buildWebhookPayload(payload));
 
-const createAlert = async ({
+const createAlert = (payload) => work.track('alert', () => persistAlert(payload));
+const persistAlert = async ({
   level = 'warning',
   type,
   title,
@@ -1592,11 +1600,6 @@ app.use('/api', (req, res, next) => {
 });
 
 const publicFormBuckets = new ExpiringBuckets();
-const bucketCleanup = setInterval(() => {
-  rateBuckets.sweep();
-  publicFormBuckets.sweep();
-}, 60000);
-bucketCleanup.unref();
 const publicFormError = '提交校验未通过或过于频繁，请稍后再试';
 const analyticsEvents = [
   'page_view',
@@ -1697,7 +1700,8 @@ const recordAnalyticsEvent = async (req, payload) => {
   return record;
 };
 
-const recordApiLog = async (req, res, startedAt, error = null) => {
+const recordApiLog = (...args) => work.track('api-log', () => persistApiLog(...args));
+const persistApiLog = async (req, res, startedAt, error = null) => {
   try {
     if (!req.path?.startsWith('/api') || req.path === '/api/events') return;
     const meta = getRequestMeta(req);
@@ -3030,7 +3034,7 @@ const workflows = registerContentWorkflows({
   secret: ADMIN_TOKEN_SECRET,
   createError,
 });
-app.use('/api', workflows.preview);
+app.use('/api', asyncHandler(workflows.preview));
 
 const parseSnapshot = (snapshot) => {
   try {
@@ -3309,8 +3313,17 @@ app.post(
   '/api/upload',
   requireAdmin,
   requirePermission('resources:upload'),
-  upload.single('file'),
-  async (req, res, next) => {
+  (req, res, next) => {
+    const release = work.begin('upload');
+    try {
+      upload.single('file')(req, res, (error) => {
+        try { next(error); } finally { release(); }
+      });
+    } catch (error) {
+      try { next(error); } finally { release(); }
+    }
+  },
+  asyncHandler(async (req, res, next) => {
     try {
       assertSafeUploadedFile(req.file);
       const relativeUrl = `/uploads/${req.file.filename}`;
@@ -3334,7 +3347,7 @@ app.post(
       invalidateUploadHealth();
       return next(error);
     }
-  },
+  }),
 );
 
 const normalizeUploadUrl = canonicalUploadUrl;
@@ -6440,13 +6453,13 @@ app.use((err, req, res, next) => {
   return res.status(status).json({ success: false, error: { code, message } });
 });
 
-const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
+const PORT = process.env.PORT === undefined ? 1337 : Number(process.env.PORT);
 function createScheduledBackups() {
   return createBackupScheduler(prisma, {
     source: resolveSqliteDatabaseFile(),
     uploadsRoot: uploadDir,
     backupRoot: path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups')),
-    isPaused: deploymentPaused,
+    isPaused: () => stopping() || deploymentPaused(),
     onFailure: ({ phase, message }) => transaction(() => createAlert({
       level: phase === 'retention' ? 'warning' : 'critical',
       type: 'backup_failed',
@@ -6459,53 +6472,81 @@ function createScheduledBackups() {
 }
 function startBackgroundTasks() {
   const backups = createScheduledBackups();
-  const backupTick = () => backups.run().catch(e=>console.warn('Scheduled backup:',e.code || 'BACKUP_FAILED'));
-  const backupTimer = setInterval(backupTick,3600000); backupTimer.unref();
-  backupTick();
-  const maintenanceTimer = setInterval(
-    () =>
-      !deploymentPaused() &&
-      runMaintenance(
-        prisma,
-        path.resolve(
-          process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
-        ),
-      ).catch((e) => console.warn('Maintenance:', e.code || e.message)),
-    3600000,
-  );
-  maintenanceTimer.unref();
-  if (!deploymentPaused())
-    runMaintenance(
-      prisma,
-      path.resolve(
-        process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'),
-      ),
-    ).catch((e) => console.warn('Maintenance:', e.code || e.message));
-  const deliveryTimer = setInterval(
-    () =>
-      !deploymentPaused() &&
-      notificationWorker
-        .run()
-        .catch((error) =>
-          console.warn('Notification worker:', error.code || error.message),
-        ),
-    30000,
-  );
-  deliveryTimer.unref();
+  let stopped = false;
+  const timers = [];
+  const schedule = (label, action, interval, immediate = false) => {
+    let busy = false;
+    const tick = () => {
+      if (stopped || stopping() || deploymentPaused() || busy) return;
+      busy = true;
+      work.track(label, action)
+        .catch((error) => console.warn(`${label}:`, error.code || 'BACKGROUND_FAILED'))
+        .finally(() => { busy = false; });
+    };
+    const timer = setInterval(tick, interval);
+    timer.unref();
+    timers.push(timer);
+    if (immediate) tick();
+  };
+  schedule('scheduled-backup', () => backups.run(), 3600000, true);
+  schedule('maintenance', () => runMaintenance(prisma,
+    path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups'))), 3600000, true);
+  schedule('notification', () => notificationWorker.run(), 30000);
+  schedule('bucket-cleanup', () => {
+    rateBuckets.sweep();
+    publicFormBuckets.sweep();
+  }, 60000);
+  return () => {
+    stopped = true;
+    for (const timer of timers) clearInterval(timer);
+  };
 }
-if (require.main === module)
-  initializeAuditIntegrity(database)
-    .then(() => initializeCatalog(database))
-    .then(() => {
-      startBackgroundTasks();
-      app.listen(PORT, HOST, () =>
-        console.log(`🚀 Backend running on http://${HOST}:${PORT}`),
+function startServer({ port = PORT, host = HOST, installSignalHandlers = false } = {}) {
+  if (lifecycle) throw new Error('Server lifecycle already started');
+  lifecycle = createServiceLifecycle({
+    app, work, port, host,
+    timeoutMs: shutdownTimeout(process.env.SHUTDOWN_TIMEOUT_MS),
+    initialize: async () => {
+      await initializeAuditIntegrity(database);
+      if (!stopping()) await initializeCatalog(database);
+    },
+    startBackground: startBackgroundTasks,
+    disconnect: () => database.$disconnect(),
+    report: (event, details) => {
+      console.log(`Service ${event}`, details || '');
+      if (event === 'ready' && typeof process.send === 'function') process.send('ready');
+    },
+  });
+  if (installSignalHandlers) {
+    const shutdown = (signal, failed = false) => {
+      lifecycle.stop(signal).then(
+        () => process.exit(failed ? 1 : 0),
+        () => process.exit(1),
       );
-    })
-    .catch((error) => {
-      console.error('Startup failed:', error.code || error.message);
-      process.exitCode = 1;
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    lifecycle.server.on('error', (error) => {
+      if (lifecycle.state === 'ready') {
+        console.error('Listener failed:', error.code || 'LISTENER_FAILED');
+        shutdown('listener_failed', true);
+      }
     });
+  }
+  const ready = lifecycle.start();
+  return { lifecycle, ready };
+}
+if (require.main === module) {
+  try {
+    startServer({ installSignalHandlers: true }).ready.catch((error) => {
+      console.error('Startup failed:', error.code || error.message);
+      process.exit(1);
+    });
+  } catch (error) {
+    console.error('Startup failed:', error.code || error.message);
+    process.exitCode = 1;
+  }
+}
 module.exports = {
   app,
   database,
@@ -6514,4 +6555,5 @@ module.exports = {
   hashPassword,
   totpCode,
   createScheduledBackups,
+  startServer,
 };
