@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { sanitizeTelemetry } from '../utils/telemetryPrivacy.js'
 
 const VISITOR_KEY = 'hushi:visitor-id'
 const SESSION_KEY = 'hushi:session-id'
@@ -53,7 +54,7 @@ export const useAuralTrack = () => {
     try {
       await $fetch(eventUrl.value, {
         method: 'POST',
-        body: {
+        body: sanitizeTelemetry({
           eventType,
           ...context.value,
           ...payload,
@@ -63,12 +64,12 @@ export const useAuralTrack = () => {
             device: deviceCategory(),
             reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
           }
-        }
+        })
       })
     } catch {}
   }
 
-  const guardPayload = () => context.value
+  const guardPayload = () => sanitizeTelemetry(context.value)
 
   return { track, guardPayload }
 }

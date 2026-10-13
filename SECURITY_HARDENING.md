@@ -314,3 +314,47 @@
 - 本地哈希链不能抵御特权者重写整链/整包或整库回滚；没有外部不可变留存或可信锚点。同盘备份不能抵御整机丢失；本次小型合成演练耗时不是生产 RTO/RPO 承诺。旧无链备份不会被自动重签为可信。尚未启动恢复后的完整业务应用或执行真实停机灾备；大体积数据/素材、真实多进程压力和真机辅助技术不在本次验收范围。
 - API/后台生产依赖漏洞为 0；官网 6 项既有工具链例外未进入 24 个运行时包，到期 2027-01-09；`NUXT_B7027` 构建警告保持，构建成功。
 - 下一步：先核对本提交 CI，然后按用户确认的下一阶段继续。外部审计留存、异地副本或 RPO/RTO 规则涉及外部服务、费用或业务含义，必须先确认，不自动执行。
+
+## 第 7 步：访问边界与备份失败可见性（2026-10-13）
+
+### 目标与现场复核
+
+- 只在 `~/Projects/hushi-wind-website`、`codex/admin-core-redesign` 操作。先完整复读交接、修复记录与实际 Git 状态；起点工作区干净。第 6 步完整 SHA `bb5cb402a550175468c46c5b3172798932b5ece5` 对应 [Quality 38286115477](https://github.com/728792899-create/hushi-wind-website/actions/runs/38286115477) 已实时核对 completed/success。
+- 定向安全复核与独立只读审查确认四个可本地闭环的问题：登录/续期/2FA 请求可在并发撤销后签出新版本会话；艺术家 `preview=1` 漏掉既有读取权限；有效草稿预览票据随 fullPath 进入统计与监控告警；自动备份失败只写维护日志，使旧成功掩盖新失败。
+- 不改变用户已确认的客服分配、艺术家申请共享、联系方式只告警不阻断、个人信息导出关闭等规则；不引入外部服务、收费组件、通知渠道、权限角色或审批流程。
+
+### 最小改动与行为变化
+
+- `aural-api/server.js`：登录成功更新和成功日志放在统一 SQLite 事务内，重读并绑定原认证版本、密码及 2FA 状态，同时复核停用/锁定。续期及个人密码/2FA 设置在执行点复核令牌版本、状态、锁定与有效期，避免排队期间撤销被绕过。保持空闲/绝对会话时长；正常 2FA 换签不延长原始登录时间。
+- 同文件艺术家列表对 `admin=1`、`preview=1` 统一执行登录与 `artists:read` 门禁；公开列表仍只显示发布内容，授权编辑者预览可用。
+- `aural-api/lib/telemetry-privacy.js`、`lib/security.js` 与官网 `app/utils/telemetryPrivacy.js`、`app/composables/useAuralTrack.js`：在最终 payload 合并后、截断及入库前过滤明确凭证参数/对象键，覆盖重复、编码、嵌套 URL、片段和错误消息中的查询参数。保留正常 UTM/source/search；metadata 原白名单和类型规则保持。前后端由共同契约测试约束一致性，真实预览 URL 本身不被改写。
+- `aural-api/lib/scheduled-backup.js` 与 server 工厂接入：创建/校验失败依次尝试写失败 BackupRecord、MaintenanceRun 和告警；固定中文消息不携带内部路径或原始异常。任何报告失败都不覆盖原异常，busy 总会解除。稳定键复用现有 `backup_failed` 冷却规则；留存清理失败有独立 phase/说明，不将已校验完整包改成创建失败。保留原每日计划、14 天规则与至少两个有效点要求。
+- 新增 `auth-races.test.js`、`scheduled-backup.test.js`、`scheduled-backup-api.test.js`、`telemetry-privacy.test.js` 和官网 `telemetry-privacy.test.mjs`；既有 `commercial-readiness.test.js` 仅补新增失败记录事件断言。交接说明同步本步与剩余风险；无数据库迁移、无后台 UI 源码变更。
+
+### 测试与反向验证
+
+- 冻结源码后 `TOKIO_WORKER_THREADS=2 npm test` **208/208**：API 145、后台 51、官网 12，0 失败、0 跳过。`npm run quality`、`check:admin-ui`（真实 distChecked=yes）、`check:admin-colors`、暂存后 `check:bom`、全改动文件 BOM 检查及 `git diff --check` 通过。
+- 认证负例用真实 HTTP/SQLite，在捕获账号读取后提交并发安全变更，不依赖抢时间或生产测试后门。旧实现原 11 项中 **10 项真实失败**（9 个安全竞态、1 个艺术家权限旁路）；修复后及追加边界共 **14/14**。覆盖密码重置、启用 2FA、停用、锁定、过期、个人安全设置排队撤销、正常登录/续期/换签、公开列表与授权预览。被拒请求无令牌、无成功登录或安全设置审计，锁定不被清除。
+- 调度器新增 **4 项负例旧实现全部失败**；修复后与既有商业回归共 **14/14**。覆盖真实 SQLite 素材缺失、后置校验失败、三种报告环节失败仍保留原异常/允许重试，以及留存失败保留成功状态。
+- 新增实际 server 调度工厂集成 **1/1**：先成功、旧化合成时间、移走引用素材、连续失败两次，GET 备份最新失败、告警只有一条且无内部路径；恢复素材后再成功。旧 DB/清单/素材 SHA 不变且完整验证通过，失败历史保留，通知入队/非本机请求均 0。
+- 脱敏新增 API **4/4**、官网新增 **3/3**（官网全 12/12）。旧实现确实将真实签发且可使用的预览票据写入 AnalyticsEvent、AlertRecord；API 日志本来不含查询票据，作为回归保持。修复后包括截断片段、编码 URL、重复参数和直接 API 调用均不泄漏，正常来源统计保留；输入对象和预览链接不被修改。
+- 独立只读完成门审查返回 `NO_ACTIONABLE_FINDINGS`，无本次范围内未解决 P1/P2；补齐了首轮指出的中间件后停用/锁定/过期，以及真实 server 去重告警测试缺口。
+
+### 浏览器与本地数据证据
+
+- 独立合成 API `18340`、后台 `15177`、官网 `13100`；通知 URL/邮箱为空。原 `1337/3100/5175` 与原演示 `dev.db` 未迁移、未重启。新增服务启动前核对端口空闲；后续只重启本步已核对 PID/cwd 的独立进程。
+- 1440×1000 桌面与 390×844 手机：备份页显示两条创建失败，原成功点仍在；安全告警只有一条固定中文失败说明。恢复合成素材并重跑调度后，最新成功与两条失败历史并存，旧包哈希不变且仍验证通过。只读账号能看四条记录，没有创建/演练按钮。
+- 只撤销合成管理员 tokenVersion 后，浏览器下一次读取返回重新登录界面；同账号重新登录、刷新后正常加载。并发请求本身由确定性接口测试验证，没有用浏览器成功登录代替竞态证据。
+- 六个后台状态的全页扫描共 254 处文字/111 个控件，最低对比度 **4.70:1**；没有整页溢出、小于 12px 可见文字、小于 24px 启用目标或文字对比度失败。相关操作的可读名称由 AX/DOM 核对，未修改 UI；手机失败卡片完整可读。结束时恢复普通视口。
+- 官网草稿在 1440/390 宽度正常显示预览提示和合成正文；浏览器实际发出的 page_view、product_view、performance_metric 等请求已将 previewToken 替换为 `[redacted]`，UTM/source 保留，手机 viewport 为 390x844。随后查询本地 AnalyticsEvent、AlertRecord、ApiRequestLog，均无完整或截断票据，通知数 0。
+- 官网首次隔离 dev 因原 Nuxt 进程锁拒绝启动；未停止原服务。quality 构建的占位 HTTPS 域名与本机 HTTP 运行时覆盖不匹配 CSP，初次预览未计入埋点验收。改用同源码、本机域名构建产物重开独立预览后复验成功；没有禁用或放宽 CSP。
+
+证据在忽略目录 `logs/step7-20261013/`：`auth-{before,after}.log`、`scheduled-backup-{before,after}-fix.log`、`scheduled-backup-api.log`、`telemetry-*-before.log`、`telemetry-api-after.log`、`telemetry-website-after.log`、`final-npm-test.log`、`final-quality.log`、`final-check-admin-ui.log`、`final-check-admin-colors.log`、`final-staged-bom.log`、`final-bom-changed-files.json`、`browser-audits.json`、`browser-recovery.json`、`browser-telemetry-{requests,mobile,storage}.json`、`backup-failures-{desktop,mobile}.png`、`backup-alert-{desktop,mobile}.png`、`backup-recovered-mobile.png`、`backup-readonly-mobile.png`、`session-revoked-mobile.png`、`preview-{desktop,mobile}.png`。不提交数据库、合成凭据、票据、备份包、截图或运行日志。
+
+### 提交、生产状态、剩余风险与下一步
+
+- 本步单独提交并普通推送至 `codex/admin-core-redesign`。提交后按实际完整 SHA 核对 GitHub Actions Quality，成功链接及状态在交付回复提供，结果另存 `ci-result.json`；此前 CI、本地测试不能替代本提交 CI。
+- **未部署、未执行生产数据操作、未接入外部服务或发送真实通知**。所有破坏性故障注入只作用于合成素材/账号，素材已还原；本步无生产迁移事项。
+- 本次是定向加固，不能视为整个项目已达生产成熟度。下一优先项：主入口监听成功前已启动后台任务，仍缺少 SIGINT/SIGTERM 停接请求、停止计时器及排空事务/备份/演练的统一收尾；需本地子进程故障演练后再修复。强杀、整机丢失及外部通知可靠性未验收。
+- 公开产品详情的相对下载链接域名与手机返回按钮名称仍待后续可用性复核；未改变品牌内容或状态色语义。官网 `NUXT_B7027` 构建警告、6 项未进入 24 个运行时包的工具链审计例外（2027-01-09 到期）保持；API/后台生产依赖审计 0 漏洞。
+- 脱敏覆盖明确凭证参数和对象键，不等于任意裸秘密/全部 PII 过滤，未追溯修改历史日志或审计。周期全量审计、外部可信锚点、不可变留存、异地备份与真实 RPO/RTO 仍未验收；涉及服务、费用和业务规则先确认。

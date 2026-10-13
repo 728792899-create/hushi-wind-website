@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { sanitizeTelemetry } = require('./telemetry-privacy');
 
 function validationError(message) {
   return Object.assign(new Error(message), {
@@ -82,7 +83,7 @@ function sanitizeMetadata(value) {
           allowed.has(key) &&
           ['string', 'number', 'boolean'].includes(typeof v),
       )
-      .map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 200) : v]),
+      .map(([k, v]) => [k, typeof v === 'string' ? sanitizeTelemetry(v).slice(0, 200) : v]),
   );
   return JSON.stringify(clean);
 }
@@ -117,6 +118,7 @@ module.exports = {
   hideContact,
   redactPrivate,
   sanitizeMetadata,
+  sanitizeTelemetry,
   ExpiringBuckets,
   csvCell,
   validationError,

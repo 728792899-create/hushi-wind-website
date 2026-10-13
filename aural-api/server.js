@@ -32,6 +32,7 @@ const {
   hideContact,
   redactPrivate,
   sanitizeMetadata,
+  sanitizeTelemetry,
   ExpiringBuckets,
   csvCell,
 } = require('./lib/security');
@@ -1018,6 +1019,22 @@ const requestAuthTime = (req) => {
   return Number(parsed.auth || parsed.iat) || Date.now();
 };
 
+// Recheck at the point of issuing a session or changing its security settings.
+// Middleware authentication may predate a queued password reset or 2FA change.
+const assertCurrentAdminState = (admin, tokenVersion) => {
+  if (!admin || admin.status !== 'active')
+    throw createError(401, 'ACCOUNT_INACTIVE', '账号已停用，请重新登录后台');
+  if (Number(admin.tokenVersion) !== Number(tokenVersion))
+    throw createError(401, 'TOKEN_REVOKED', '账号安全状态已变更，请重新登录后台');
+  if (admin.lockedUntil && new Date(admin.lockedUntil).getTime() > Date.now())
+    throw createError(401, 'ACCOUNT_LOCKED', '账号已暂时锁定，请稍后重新登录');
+};
+const assertCurrentSession = (req, admin) => {
+  const state = parseAdminToken(adminTokenFromRequest(req));
+  if (!state.ok) throw createError(401, state.code, '登录已失效，请重新登录后台');
+  assertCurrentAdminState(admin, state.parsed.tv);
+};
+
 const adminTokenFromRequest = (req) => {
   const rawHeader = req.headers.authorization || '';
   return rawHeader.startsWith('Bearer ') ? rawHeader.slice(7).trim() : '';
@@ -1618,6 +1635,7 @@ const parseAnalyticsMetadata = (value) => {
 };
 
 const normalizeAnalyticsPayload = (body = {}) => {
+  body = sanitizeTelemetry(body);
   const eventType = sanitizeText(body.eventType || body.type, 60);
   if (!analyticsEvents.includes(eventType))
     throw createError(400, 'INVALID_EVENT_TYPE', '无效的埋点事件类型');
@@ -4072,11 +4090,23 @@ app.post(
       throw createError(401, 'TOTP_REQUIRED', '请输入正确的 2FA 动态验证码');
     }
 
-    const updated = await prisma.adminUser.update({
-      where: { id: admin.id },
-      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+    const updated = await transaction(async () => {
+      const current = await prisma.adminUser.findUnique({ where: { id: admin.id } });
+      assertCurrentAdminState(current, admin.tokenVersion);
+      if (['passwordSalt', 'passwordHash', 'totpEnabled', 'totpSecret']
+        .some((field) => current[field] !== admin[field]))
+        throw createError(401, 'TOKEN_REVOKED', '账号安全状态已变更，请重新登录后台');
+      const result = await prisma.adminUser.update({
+        where: { id: admin.id },
+        data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+      });
+      await writeLogin(true, '登录成功', result);
+      return result;
+    }).catch(async (error) => {
+      if (['ACCOUNT_INACTIVE', 'TOKEN_REVOKED', 'ACCOUNT_LOCKED'].includes(error.code))
+        await writeLogin(false, '登录期间账号安全状态已变更');
+      throw error;
     });
-    await writeLogin(true, '登录成功', updated);
     const lastSuccessLogin = await prisma.loginRecord.findFirst({
       where: { adminUserId: admin.id, success: true },
       orderBy: { createdAt: 'desc' },
@@ -4122,8 +4152,7 @@ app.post(
     const admin = await prisma.adminUser.findUnique({
       where: { id: req.admin.id },
     });
-    if (!admin || admin.status !== 'active')
-      throw createError(401, 'UNAUTHORIZED', '请先登录后台');
+    assertCurrentSession(req, admin);
     res.json({
       success: true,
       ...sessionPayload(admin, requestAuthTime(req)),
@@ -4147,6 +4176,7 @@ app.post(
     const admin = await prisma.adminUser.findUnique({
       where: { id: req.admin.id },
     });
+    assertCurrentSession(req, admin);
     if (!verifyPassword(oldPassword, admin.passwordSalt, admin.passwordHash))
       throw createError(400, 'INVALID_PASSWORD', '原密码不正确');
     const { salt, hash } = hashPassword(newPassword);
@@ -4175,7 +4205,7 @@ app.post(
     const admin = await prisma.adminUser.findUnique({
       where: { id: req.admin.id },
     });
-    if (!admin) throw createError(404, 'NOT_FOUND', '管理员不存在');
+    assertCurrentSession(req, admin);
     if (admin.totpEnabled)
       throw createError(
         409,
@@ -4210,6 +4240,7 @@ app.post(
     const admin = await prisma.adminUser.findUnique({
       where: { id: req.admin.id },
     });
+    assertCurrentSession(req, admin);
     if (!admin?.totpSecret)
       throw createError(400, 'TOTP_SETUP_REQUIRED', '请先生成并绑定 2FA 密钥');
     if (!verifyTotp(admin.totpSecret, req.body.code))
@@ -4239,7 +4270,7 @@ app.post(
     const admin = await prisma.adminUser.findUnique({
       where: { id: req.admin.id },
     });
-    if (!admin) throw createError(404, 'NOT_FOUND', '管理员不存在');
+    assertCurrentSession(req, admin);
     if (admin.totpEnabled && !verifyTotp(admin.totpSecret, req.body.code))
       throw createError(400, 'INVALID_TOTP_CODE', '2FA 动态验证码不正确');
     const updated = await prisma.adminUser.update({
@@ -5601,9 +5632,9 @@ app.put(
 app.get(
   '/api/artists',
   asyncHandler(async (req, res) => {
-    if (req.query.admin === '1' && !isAuthorizedAdmin(req))
+    if ((req.query.admin === '1' || req.query.preview === '1') && !isAuthorizedAdmin(req))
       throw createError(401, 'UNAUTHORIZED', '请先登录后台');
-    if (req.query.admin === '1' && !canAdmin(req.admin, 'artists:read'))
+    if (isAdminRequest(req) && !canAdmin(req.admin, 'artists:read'))
       throw createError(403, 'FORBIDDEN', '当前账号没有艺术家查看权限');
     const { page, pageSize, skip, take } = normalizePagination(
       req,
@@ -6410,8 +6441,24 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 1337;
+function createScheduledBackups() {
+  return createBackupScheduler(prisma, {
+    source: resolveSqliteDatabaseFile(),
+    uploadsRoot: uploadDir,
+    backupRoot: path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname, 'backups')),
+    isPaused: deploymentPaused,
+    onFailure: ({ phase, message }) => transaction(() => createAlert({
+      level: phase === 'retention' ? 'warning' : 'critical',
+      type: 'backup_failed',
+      title: phase === 'retention' ? '自动备份留存清理失败' : '自动数据库备份失败',
+      message,
+      // Stable keys reuse the existing cooldown across repeated attempts.
+      metadata: { path: `scheduled-backup:${phase}`, phase },
+    })),
+  });
+}
 function startBackgroundTasks() {
-  const backups = createBackupScheduler(prisma, {source:resolveSqliteDatabaseFile(), uploadsRoot:uploadDir, backupRoot:path.resolve(process.env.DATABASE_BACKUP_DIR || path.join(__dirname,'backups')),isPaused:deploymentPaused});
+  const backups = createScheduledBackups();
   const backupTick = () => backups.run().catch(e=>console.warn('Scheduled backup:',e.code || 'BACKUP_FAILED'));
   const backupTimer = setInterval(backupTick,3600000); backupTimer.unref();
   backupTick();
@@ -6466,4 +6513,5 @@ module.exports = {
   createAdminToken,
   hashPassword,
   totpCode,
+  createScheduledBackups,
 };

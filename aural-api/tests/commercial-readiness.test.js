@@ -50,7 +50,7 @@ test('scheduled backups verify and record before pruning; failures never prune',
   assert.deepEqual(f.events,['create','verify','record','prune']);
   const bad=schedulerFixture({verify:async()=>{throw Error('corrupt')}});
   await assert.rejects(createBackupScheduler(bad.db,bad.options).run(),/corrupt/);
-  assert.deepEqual(bad.events,['create','failure']);
+  assert.deepEqual(bad.events,['create','record','failure']);
 });
 test('scheduled backups honor pause and concurrency and replace a missing recent backup',async()=>{
   const paused=schedulerFixture({isPaused:()=>true});
