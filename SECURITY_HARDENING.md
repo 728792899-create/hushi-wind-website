@@ -444,3 +444,11 @@
 - **未部署、无生产数据操作、真实通知或费用支出**。合法外部 HTTP(S) 地址继续允许，本步只用本地资源验证，不保证第三方可用性。
 - 官网既有 `NUXT_B7027` 与 6 项未进入 24 个运行包的工具链审计例外（2027-01-09 到期）仍在；API/后台生产依赖审计 0 漏洞。建议下一步先复核官网构建警告与工具链例外，不直接扩大依赖升级范围。
 - 未改变不匹配管乐品牌的演示内容；全站可用性、生产终止预算、大数据量恢复、周期审计/可信锚点/异地不可变留存与真实 RPO/RTO 仍需分别验收。涉及外部服务、费用或业务规则继续先问用户。
+
+### 第 9 步首次 CI 失败复核与追加修复
+
+- 主提交 `451483a97f0bd3dfadd8cfdc4f8ecaac8a2cfb3e` 已普通推送。[首次 Quality 38369879548](https://github.com/728792899-create/hushi-wind-website/actions/runs/38369879548) 的新 Action 和依赖安装均通过，但原审计测试 `missing or replaced guards and missing state fail verification without recreating state` 在测试 helper 的 finally 恢复触发器处报 `AuditIntegrityState_no_delete already exists`；quality 因前置失败跳过，不能记作 CI 通过。该 run 的 annotation 只剩退出码失败，原 Node 20/Ubuntu 26 两条提示已消失。
+- 原审计测试文件在本机连续 30 轮全部通过，故没有将 Linux 的底层 schema-cache 原因记作已复现。现场可确认原 helper 的查询、移除、回调和恢复各自通过池化根客户端执行，缺少同一连接/事务边界；生产审计实现只校验触发器，不会创建或恢复它。
+- 追加修改仅 `aural-api/tests/audit-integrity.test.js`：`bypassGuard` 全生命周期通过已有 `runSqliteTransaction` 固定同一事务客户端，全部回调显式使用 `tx`；无 `IF NOT EXISTS`、吞错、重试放宽或生产实现变更。新增错误路径确认原错误对象、触发器 SQL 保持、非法写仍拒绝、篡改与审计链回滚。新测试在旧非事务 helper 上确定性失败（留下篡改），修后审计测试 **12/12**；这证明夹具回滚缺口修复，不等于复现了 Linux 底层缓存故障。
+- 最终双线程全量 **239/239**（API 172、后台 51、官网 16），0 失败/跳过；quality、admin-ui（distChecked=yes）、admin-colors、暂存后 BOM、改动文件 BOM 与 diff 检查通过。独立追加范围审查返回 `NO_ACTIONABLE_FINDINGS`；公开页面源码/运行实现未变，浏览器刷新后名称与两个实际下载 URL 仍正确，沿用前述 16 组完整验收。
+- 证据追加 `audit-focused-initial.log`、`audit-repeat-before.json`、`audit-helper-{before,after}.log`、`ci-failed.log`、`ci-first-annotations.json`、`test-final.log`、`quality-final.log` 和最终门禁日志。保留首个已推送提交，另行普通追加提交，再按新完整 SHA 验证 CI；不改写历史，不把首次失败掩盖成通过。

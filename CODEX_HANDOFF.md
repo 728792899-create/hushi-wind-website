@@ -27,7 +27,7 @@
 | `d7c50e1` | 第 7 步访问边界、埋点脱敏和备份失败可见性；Quality `38353412835` 已按完整 SHA 核对成功 |
 | `0356f0f` | 第 8 步监听保护与正常停机排空；Quality `38367612013` 已按完整 SHA 核对成功 |
 
-每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：两个引擎线程下 `npm test` 共 238 项（API 171、后台 51、官网 16）全部通过。第 9 步最终测试与 CI 核对方式见修复记录；不要把历史基线当作最新结果。
+每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：两个引擎线程下 `npm test` 共 239 项（API 172、后台 51、官网 16）全部通过。第 9 步最终测试与 CI 核对方式见修复记录；不要把历史基线当作最新结果。
 
 ## 3. 第 4 步「布局与可用性」已完成本地验收
 
@@ -83,6 +83,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 - 产品详情与支持页通过同一 `mediaUrl` 解析文件，合法外部 HTTP(S) 保留，异常协议/网络路径/控制字符回退；前三条和空值跳转规则不变。8 页返回控件补可读名称和至少 44px 点击区，原返回逻辑不变。
 - CI 固定 Ubuntu 24.04、checkout v7.0.1 / setup-node v7.1.0 完整 SHA（Action Node 24），项目仍 Node 22/TOKIO 2；最终新 SHA CI 见修复记录交付回复及 `logs/step9-20261013/ci-result.json`。
+- 第 9 步主提交 `451483a` 首次 CI 因旧审计测试 helper 恢复 trigger 失败；仅追加测试夹具事务隔离与回滚回归，不改生产审计实现。原用例本机 30 轮通过，Linux 底层机制未复现；最终追加提交的 CI 仍须按完整 SHA 查证，详见修复记录末段。
 - 本地合成 API `18342` / 官网预览 `13101`，数据与独立构建产物在 `logs/step9-20261013/`。官网 buildDir 使用 `aural-website/node_modules/.cache/nuxt/step9-build`，避免 logs 下无法解析 Tailwind 模块；原服务/数据不变，通知为空。已验证 390/1440 控件名称/尺寸/无横溢出、真实下载文本和返回行为，未声称全站可用性审计。
 
 ## 5. 已踩过的坑

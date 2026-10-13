@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { PrismaClient } = require('@prisma/client');
 const { createUnitOfWork } = require('../lib/unit-of-work');
+const { runSqliteTransaction } = require('../lib/sqlite-transaction');
 const { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity } = require('../lib/audit-integrity');
 
 const root = path.resolve(__dirname, '..');
@@ -48,9 +49,13 @@ async function fixture(t) {
   return { db, filename };
 }
 async function bypassGuard(db, name, action) {
-  const [{ sql }] = await db.$queryRawUnsafe('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?', 'trigger', name);
-  await db.$executeRawUnsafe(`DROP TRIGGER "${name}"`);
-  try { await action(); } finally { await db.$executeRawUnsafe(sql); }
+  // Pin temporary schema changes and their action to one connection. A failing
+  // fixture must roll back both its data changes and the temporary guard removal.
+  return runSqliteTransaction(db, async (tx) => {
+    const [{ sql }] = await tx.$queryRawUnsafe('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?', 'trigger', name);
+    await tx.$executeRawUnsafe(`DROP TRIGGER "${name}"`);
+    try { return await action(tx); } finally { await tx.$executeRawUnsafe(sql); }
+  });
 }
 
 test('migration preserves historical log fields and safely backfills only inquiry integer owners', async (t) => {
@@ -120,13 +125,29 @@ test('database guards reject update, delete and INSERT OR REPLACE while LoginRec
   assert.equal((await verifyAuditIntegrity(db)).ok, true);
 });
 
+test('guard bypass rolls back tampering when its callback fails and preserves database protection', async (t) => {
+  const { db } = await fixture(t);
+  const row = await appendOperationLog(db, logData('must survive fixture failure'));
+  const before = await verifyAuditIntegrity(db);
+  const guardSql = await db.$queryRawUnsafe("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'OperationLog_no_update'");
+  const failure = new Error('fixture callback failure');
+  await assert.rejects(bypassGuard(db, 'OperationLog_no_update', async (tx) => {
+    await tx.operationLog.update({ where: { id: row.id }, data: { summary: 'must roll back' } });
+    throw failure;
+  }), (error) => error === failure);
+  assert.deepEqual(await db.$queryRawUnsafe("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'OperationLog_no_update'"), guardSql);
+  await assert.rejects(db.operationLog.update({ where: { id: row.id }, data: { summary: 'must remain blocked' } }));
+  assert.deepEqual(await db.operationLog.findUnique({ where: { id: row.id } }), row);
+  assert.deepEqual(await verifyAuditIntegrity(db), before);
+});
+
 test('full verification detects historical and interior signed-row changes and refuses resealing', async (t) => {
   for (const target of ['history', 'interior']) {
     const { db } = await fixture(t);
     const row = await appendOperationLog(db, logData('original'));
     await appendOperationLog(db, logData('tail'));
     const state = await db.auditIntegrityState.findUnique({ where: { id: 1 } });
-    await bypassGuard(db, 'OperationLog_no_update', () => db.operationLog.update({
+    await bypassGuard(db, 'OperationLog_no_update', (tx) => tx.operationLog.update({
       where: { id: target === 'history' ? 1 : row.id }, data: { summary: '特权绕过触发器后的修改' },
     }));
     await rejectsIntegrity(verifyAuditIntegrity(db));
@@ -140,8 +161,8 @@ test('independent head detects both interior deletion and jointly removed traili
     const { db } = await fixture(t);
     const one = await appendOperationLog(db, logData('one'));
     const two = await appendOperationLog(db, logData('two'));
-    await bypassGuard(db, 'OperationLog_no_delete', () => db.operationLog.delete({ where: { id: position === 1 ? one.id : two.id } }));
-    await bypassGuard(db, 'AuditLogEntry_no_delete', () => db.auditLogEntry.delete({ where: { sequence: position } }));
+    await bypassGuard(db, 'OperationLog_no_delete', (tx) => tx.operationLog.delete({ where: { id: position === 1 ? one.id : two.id } }));
+    await bypassGuard(db, 'AuditLogEntry_no_delete', (tx) => tx.auditLogEntry.delete({ where: { sequence: position } }));
     await rejectsIntegrity(verifyAuditIntegrity(db));
     await rejectsIntegrity(initializeAuditIntegrity(db));
     if (position === 2) await rejectsIntegrity(appendOperationLog(db, logData('must fail')));
@@ -169,13 +190,13 @@ test('post-migration unsigned rows cannot be silently accepted into the first hi
 test('missing or replaced guards and missing state fail verification without recreating state', async (t) => {
   const { db } = await fixture(t);
   await appendOperationLog(db, logData());
-  await bypassGuard(db, 'OperationLog_no_update', async () => {
-    await rejectsIntegrity(verifyAuditIntegrity(db));
-    await db.$executeRawUnsafe('CREATE TRIGGER OperationLog_no_update BEFORE UPDATE ON OperationLog BEGIN SELECT 1; END');
-    await rejectsIntegrity(verifyAuditIntegrity(db));
-    await db.$executeRawUnsafe('DROP TRIGGER OperationLog_no_update');
+  await bypassGuard(db, 'OperationLog_no_update', async (tx) => {
+    await rejectsIntegrity(verifyAuditIntegrity(tx));
+    await tx.$executeRawUnsafe('CREATE TRIGGER OperationLog_no_update BEFORE UPDATE ON OperationLog BEGIN SELECT 1; END');
+    await rejectsIntegrity(verifyAuditIntegrity(tx));
+    await tx.$executeRawUnsafe('DROP TRIGGER OperationLog_no_update');
   });
-  await bypassGuard(db, 'AuditIntegrityState_no_delete', () => db.auditIntegrityState.delete({ where: { id: 1 } }));
+  await bypassGuard(db, 'AuditIntegrityState_no_delete', (tx) => tx.auditIntegrityState.delete({ where: { id: 1 } }));
   await rejectsIntegrity(initializeAuditIntegrity(db));
   await rejectsIntegrity(appendOperationLog(db, logData()));
   assert.equal(await db.auditIntegrityState.count(), 0);
