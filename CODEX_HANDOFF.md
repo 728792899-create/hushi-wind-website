@@ -37,6 +37,7 @@
 
 ### 当前临时完整站状态（2026-10-14）
 
+- 客户文档：[正式后台操作手册（Word）](docs/client-guides/胡氏管乐官网后台操作手册.docx)，[可维护源稿](docs/client-guides/胡氏管乐官网后台操作手册.md)。版本 1.0，共 26 页、20 章，涵盖资料准备、上传替换、各栏目编辑发布、客户管理、账号权限及备份恢复；不含密码。依据实际界面与服务端实现核对，已完成文档逐页渲染验收，不代表本次已完成线上浏览器操作验收。证据位于忽略目录 `logs/admin-manual-20261014/`；应用或按钮变化后需同步手册。
 - 应用版本 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；本轮后续文档提交不改变该运行产物版本。
 - 远端 `/srv/hushi-preview`，独立系统用户 `hushi-preview`、API/web 服务与受限 slice。API `127.0.0.1:19337`，官网 `127.0.0.1:19310`；仅 `hushi-preview-api.service` 与 `hushi-preview-web.service` 已设置开机启动，现场均为 enabled/active。本轮没有重启宿主机验证开机启动。
 - 新库完成 7 个迁移，仅导入 14 个内容模型的 49 条展示记录和 23 个资源；不迁入原管理员、咨询、会话、审计或告警。新 owner/customer 凭据仅在忽略目录的私有交付文件中，绝不可输出或提交。按用户最新授权，客户 `admin` 已是 super_admin，开放全部后台权限；密码保持，旧客户账号停用、站主账号保留。
