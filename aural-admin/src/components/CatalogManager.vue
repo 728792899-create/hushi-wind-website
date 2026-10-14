@@ -15,7 +15,13 @@
     :before-close="close"
   >
     <p class="field-hint">按乐器品类建立参数模板；在产品编辑中直接选用。</p>
-    <el-radio-group v-model="kind" @change="reset"
+    <el-radio-group
+      :key="selectionVersion"
+      ref="kindControl"
+      :model-value="kind"
+      :disabled="saving || switching"
+      aria-label="目录类型"
+      @update:model-value="changeKind"
       ><el-radio-button value="categories">乐器分类</el-radio-button
       ><el-radio-button value="series"
         >产品系列</el-radio-button
@@ -87,20 +93,24 @@
   </el-dialog>
 </template>
 <script setup>
-import { reactive, ref } from 'vue'
+import { nextTick, reactive, ref } from 'vue'
 import { useUnsavedChanges } from '../lib/editorLifecycle'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElRadioGroup, ElRadioButton } from 'element-plus'
 import { api, hasPermission as can, extractErrorMessage } from '../lib/api'
 const emit = defineEmits(['changed'])
 const open = ref(false),
   kind = ref('categories'),
   loading = ref(false),
   saving = ref(false),
+  switching = ref(false),
+  selectionVersion = ref(0),
+  kindControl = ref(null),
   error = ref('')
 const catalog = reactive({ categories: [], series: [] }),
-  form = reactive({})
+  form = reactive({}),
+  originalForm = ref('')
 const { confirmLeave } = useUnsavedChanges({
-  dirty: () => open.value && !!form.name,
+  dirty: () => open.value && JSON.stringify(form) !== originalForm.value,
   busy: () => saving.value,
 })
 async function close(done) {
@@ -116,6 +126,27 @@ function reset() {
     template: '',
     sortOrder: 0,
   })
+  originalForm.value = JSON.stringify(form)
+  error.value = ''
+}
+async function changeKind(next) {
+  if (next === kind.value || saving.value || switching.value) return
+  if (next !== 'categories' && next !== 'series') return
+  switching.value = true
+  try {
+    if (!(await confirmLeave())) {
+      // Native radio selection changes before the asynchronous discard dialog.
+      // Remount on cancellation so checked state and keyboard focus follow kind.
+      selectionVersion.value++
+      return
+    }
+    kind.value = next
+    reset()
+  } finally {
+    switching.value = false
+    await nextTick()
+    kindControl.value?.$el.querySelector('input:checked')?.focus()
+  }
 }
 function edit(row) {
   reset()
@@ -123,6 +154,7 @@ function edit(row) {
     template: JSON.parse(row.specTemplate || '[]').join('\n'),
     editDefault: !row.id,
   })
+  originalForm.value = JSON.stringify(form)
 }
 async function load() {
   loading.value = true
