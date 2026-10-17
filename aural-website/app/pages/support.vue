@@ -262,7 +262,6 @@ const route = useRoute(); const router = useRouter()
 const smartBack = useSmartBack('/')
 const handleBack = () => smartBack()
 
-const isOffline = useState('global-offline')
 const toast = useState('global-toast')
 const mediaUrl = useMediaUrl()
 const brandAssets = useBrandAssets()
@@ -275,7 +274,7 @@ const { track, guardPayload: getTrackingPayload } = useAuralTrack()
 const triggerToast = (msg, type) => { toast.value = { show: true, message: msg, type }; setTimeout(() => toast.value.show = false, 4000) }
 
 // 🌟 抓取全局系统配置以获取支持页巨幕
-const { data: configRes, error: errC, refresh: refreshC } = await useFetch(configUrl, { lazy: true, key: 'support-config' })
+const { data: configRes, error: errC, refresh: refreshC } = await useAuralFetch(configUrl, { lazy: true, key: 'support-config' })
 const sysConfig = computed(() => configRes.value || {})
 const supportPhone = computed(() => sysConfig.value.contactPhone || '')
 const supportEmail = computed(() => sysConfig.value.contactEmail || '')
@@ -310,7 +309,7 @@ const displayGuides = computed(() => {
   return []
 })
 
-watch([errC, errF, errD, errG], (errs) => { isOffline.value = errs.some(Boolean) }, { immediate: true })
+usePageConnection([errC, errF, errD, errG])
 
 const activeFaq = ref(null)
 const modal = reactive({ show: false, type: '' })

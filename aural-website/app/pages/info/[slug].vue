@@ -56,12 +56,11 @@ const router = useRouter()
 const smartBack = useSmartBack('/')
 const handleBack = () => smartBack()
 
-const isOffline = useState('global-offline')
 const pageUrl = useApiUrl(`/api/page-contents/${route.params.slug}`)
 
-const { data: rawPage, pending, error, refresh } = await useFetch(pageUrl, { lazy: true, key: `info-page-${route.params.slug}` })
+const { data: rawPage, pending, error, refresh } = await useAuralFetch(pageUrl, { lazy: true, key: `info-page-${route.params.slug}` })
 
-watch(error, (newErr) => { if (newErr) isOffline.value = true }, { immediate: true })
+usePageConnection([error])
 
 const pageData = computed(() => rawPage.value?.data || null)
 

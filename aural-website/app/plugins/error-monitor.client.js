@@ -1,3 +1,5 @@
+import { isRequestAbort } from '../utils/requestRecovery.js'
+
 export default defineNuxtPlugin((nuxtApp) => {
   const { track } = useAuralTrack()
   const apiBase = usePublicApiBase()
@@ -76,9 +78,10 @@ export default defineNuxtPlugin((nuxtApp) => {
       lineno: event.lineno,
       colno: event.colno
     })
-  })
+  }, true)
 
   window.addEventListener('unhandledrejection', (event) => {
+    if (isRequestAbort(event.reason)) return
     if (isChunkLoadError(event.reason)) {
       event.preventDefault()
       reloadAfterChunkError(event.reason)
@@ -116,7 +119,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         return response
       } catch (error) {
         const url = String(args[0]?.url || args[0] || '')
-        if (!url.includes('/api/events')) reportEvent('api_error', {
+        if (!isRequestAbort(error) && !url.includes('/api/events')) reportEvent('api_error', {
           entityTitle: url,
           metadata: {
             url: url.slice(0, 500),

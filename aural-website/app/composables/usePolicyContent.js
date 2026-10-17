@@ -135,7 +135,7 @@ export const usePolicyContent = async (slug, fallback = {}) => {
     pending,
     error,
     refresh
-  } = await useFetch(pageUrl, {
+  } = await useAuralFetch(pageUrl, {
     lazy: true,
     key: `policy-page-${slug}`
   })

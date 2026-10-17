@@ -38,6 +38,13 @@ export function pageHarness({ path = '/', route, siteMode = 'starter', rows = [a
     useDialogFocus() {}, useOverlayLock() {}, useOverlayHistory: () => ({ closeDirect() {}, closeViaHistory() {} }),
     $fetch: fetcher,
     useFetch: (url, options) => load(() => fetcher(Vue.unref(url)), options),
+    useAuralFetch: (url, options) => load(() => fetcher(Vue.unref(url)), options),
+    usePageRecovery: requests => ({
+      failed: Vue.computed(() => requests.some(request => request.error.value)),
+      pending: Vue.computed(() => requests.some(request => request.pending?.value)),
+      retry: () => Promise.all(requests.filter(request => request.error.value).map(request => request.refresh()))
+    }),
+    usePageConnection: errors => Vue.computed(() => errors.some(error => error.value)),
     useCompleteApiList: (url, options) => load(() => fetcher(Vue.unref(url)), options),
     useAsyncData: (_key, run, options) => load(run, options),
     useRequestEvent: () => ({}), setResponseStatus: (_event, status) => statuses.push(status),

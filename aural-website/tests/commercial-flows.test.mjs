@@ -23,12 +23,5 @@ test('service links map to actionable flows and appointments use their own copy'
   assert.match(supportCopy('repair').message,/故障/);
 });
 
-test('performance observer sends supported events through the tracking composable',async()=>{
-  const fs=await import('node:fs/promises');const source=await fs.readFile(new URL('../app/plugins/performance-monitor.client.js',import.meta.url),'utf8');
-  const observers=[],sent=[];let unload;
-  class Observer{constructor(callback){this.callback=callback}observe({type}){observers.push({type,callback:this.callback})}}
-  const window={PerformanceObserver:Observer,location:{pathname:'/support'},addEventListener:(type,fn)=>{unload=fn}};
-  Function('defineNuxtPlugin','useAuralTrack','window','PerformanceObserver',source.replace('export default ','').replace('import.meta.server','false'))(fn=>fn(),()=>({track:(...args)=>sent.push(args)}),window,Observer);
-  observers.find(o=>o.type==='largest-contentful-paint').callback({getEntries:()=>[{renderTime:3000,loadTime:3000}]});
-  assert.equal(sent[0][0],'performance_metric');assert.equal(sent[0][1].metadata.metric,'LCP');assert.equal(sent[0][1].metadata.value,3000);
-});
+// The observer's bounded reporting and lifecycle are exercised with actual
+// plugin code in loading-resilience.test.mjs.

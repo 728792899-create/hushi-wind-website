@@ -52,11 +52,32 @@ export const useMediaUrl = () => {
   }
 }
 
+export const useApiRequestKey = (url, namespace = 'api') => {
+  const config = useRuntimeConfig()
+  return computed(() => {
+    const value = String(typeof url === 'function' ? url() : unref(url))
+    const bases = [config.apiInternalBase, config.public.apiBase]
+      .filter(Boolean).map(base => String(base).replace(/\/$/, '')).sort((a, b) => b.length - a.length)
+    const base = bases.find(candidate => value.startsWith(`${candidate}/`) || value === candidate || value.startsWith(`${candidate}?`))
+    // The transport origin differs on SSR, but content identity does not.
+    // Keep every query parameter, including preview credentials, in the key.
+    const identity = base ? value.slice(base.length) || '/' : value
+    return `${typeof namespace === 'function' ? namespace() : unref(namespace)}:${identity}`
+  })
+}
+
+export const useAuralFetch = (url, options = {}) => useFetch(url, {
+  timeout: 15000,
+  retry: 0,
+  ...options,
+  key: useApiRequestKey(url, options.key || 'api')
+})
+
 export const useCompleteApiList = (url, options = {}) => {
-  const key = computed(() => `${options.key || 'catalog'}:${unref(url)}`)
+  const key = useApiRequestKey(url, options.key || 'catalog')
   return useAsyncData(
     key,
     (_app, { signal } = {}) => fetchCompleteList(unref(url), $fetch, { signal }),
-    { default: () => ({ data: [] }), ...options, key: undefined }
+    { default: () => ({ data: [] }), timeout: 15000, ...options, key: undefined }
   )
 }

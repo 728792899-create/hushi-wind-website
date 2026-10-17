@@ -94,17 +94,16 @@ const router = useRouter()
 const smartBack = useSmartBack('/')
 const handleBack = () => smartBack()
 
-const isOffline = useState('global-offline')
 const mediaUrl = useMediaUrl()
 const brandAssets = useBrandAssets()
 const configUrl = useApiUrl('/api/config')
 const solutionsUrl = useApiUrl('/api/audio-solutions')
 const statsUrl = useApiUrl('/api/audio-stats')
 
-const { data: configRes, error: errC, refresh: refreshC } = await useFetch(configUrl, { lazy: true, key: 'audio-config' })
+const { data: configRes, error: errC, refresh: refreshC } = await useAuralFetch(configUrl, { lazy: true, key: 'audio-config' })
 const sysConfig = computed(() => configRes.value || {})
 
-const { data: rawSol, pending: pendingSol, error: errSol, refresh: refreshSol } = await useFetch(solutionsUrl, { lazy: true, key: 'audio-solutions' })
+const { data: rawSol, pending: pendingSol, error: errSol, refresh: refreshSol } = await useAuralFetch(solutionsUrl, { lazy: true, key: 'audio-solutions' })
 const displaySolutions = computed(() => {
   if (rawSol.value?.data?.length > 0) {
     return rawSol.value.data.map(s => ({ ...s, image: mediaUrl(s.imageUrl, brandAssets.audioConsole) }))
@@ -112,15 +111,13 @@ const displaySolutions = computed(() => {
   return []
 })
 
-const { data: rawStat, pending: pendingStat, error: errStat } = await useFetch(statsUrl, { lazy: true, key: 'audio-stats' })
+const { data: rawStat, pending: pendingStat, error: errStat } = await useAuralFetch(statsUrl, { lazy: true, key: 'audio-stats' })
 const displayStats = computed(() => {
   if (rawStat.value?.data?.length > 0) return rawStat.value.data
   return []
 })
 
-watch([errC, errSol, errStat], (errs) => {
-  isOffline.value = errs.some(Boolean)
-}, { immediate: true })
+usePageConnection([errC, errSol, errStat])
 
 useSiteSeo({
   title: '专业音响 | 胡氏管乐',

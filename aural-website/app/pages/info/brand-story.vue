@@ -84,7 +84,7 @@ const brandAssets = useBrandAssets()
 const timelineUrl = useApiUrl('/api/brand-timelines')
 
 // 🌟 动态拉取 时间轴
-const { data: rawTimeline, pending } = await useFetch(timelineUrl, { lazy: true, key: 'timeline' })
+const { data: rawTimeline, pending } = await useAuralFetch(timelineUrl, { lazy: true, key: 'timeline' })
 
 const fallbackTimelines = [
   { id: 1, year: '2016', title: '从声学维修与选品服务开始。', desc: '胡氏管乐团队最早服务于本地音乐教室、排练室与演出空间，围绕乐器维护、试奏选型和音频系统调试建立服务标准。', image: brandAssets.brandCraft },

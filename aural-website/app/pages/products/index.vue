@@ -105,7 +105,7 @@
         title="产品数据暂时无法加载"
         description="无法连接至胡氏管乐数据中心，请检查后端服务状态，或稍后重新加载产品目录。"
         show-retry
-        @retry="refresh"
+        @retry="retryProducts"
       />
 
       <template v-else>
@@ -351,7 +351,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
@@ -371,6 +371,7 @@ const { data: apiResponse, pending, error, refresh } = await useCompleteApiList(
   key: 'products-index',
   default: () => ({ data: [] })
 })
+const { retry: retryProducts } = usePageRecovery([{ error, pending, refresh }])
 
 const allowedValues = {
   category: ['all'],

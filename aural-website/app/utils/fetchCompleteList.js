@@ -3,7 +3,7 @@ export async function fetchCompleteList(url, fetcher, { signal } = {}) {
   const data = [], ids = new Set();
   let pageCount = 1;
   for (let page = 1; page <= pageCount; page++) {
-    const response = await fetcher(url, { query: { page, pageSize: 100 }, signal });
+    const response = await fetcher(url, { query: { page, pageSize: 100 }, signal, retry: 0 });
     if (!Array.isArray(response?.data)) throw new Error('Invalid collection response');
     const pagination = response.meta?.pagination;
     pageCount = pagination?.pageCount ?? 1;

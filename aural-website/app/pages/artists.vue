@@ -192,7 +192,6 @@ const smartBack = useSmartBack('/')
 const handleBack = () => smartBack()
 
 const toast = useState('global-toast')
-const isOffline = useState('global-offline')
 const triggerToast = (msg, type) => { toast.value = { show: true, message: msg, type }; setTimeout(() => toast.value.show = false, 4000) }
 
 const mediaUrl = useMediaUrl()
@@ -203,7 +202,7 @@ const artistsUrl = useApiUrl('/api/artists')
 const artistApplicationsUrl = useApiUrl('/api/artist-applications')
 const { track, guardPayload: getTrackingPayload } = useAuralTrack()
 
-const { data: configRes, error: errC, refresh: refreshC } = await useFetch(configUrl, { lazy: true, key: 'artists-config' })
+const { data: configRes, error: errC, refresh: refreshC } = await useAuralFetch(configUrl, { lazy: true, key: 'artists-config' })
 const sysConfig = computed(() => configRes.value || {})
 
 useSiteSeo({
@@ -220,9 +219,7 @@ useBreadcrumbSchema(() => [
 
 const { data: rawArtists, pending, error, refresh: refreshA } = await useCompleteApiList(artistsUrl, { lazy: true, key: 'artists-list' })
 
-watch([error, errC], (errs) => {
-  isOffline.value = errs.some(Boolean)
-}, { immediate: true })
+usePageConnection([error, errC])
 
 const displayArtists = computed(() => {
   if (rawArtists.value?.data && rawArtists.value.data.length > 0) {

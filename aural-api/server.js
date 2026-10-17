@@ -16,6 +16,7 @@ const { verifyLiveAuditSnapshot } = require('./lib/audit-snapshot');
 const { createAuditScheduler, auditVerifyInterval } = require('./lib/scheduled-audit');
 const { createBackupScheduler } = require('./lib/scheduled-backup');
 const { createWorkTracker } = require('./lib/work-tracker');
+const { createApiRateLimiter } = require('./lib/api-rate-limit');
 const { createServiceLifecycle, shutdownTimeout } = require('./lib/service-lifecycle');
 const { parseProductionUrl, isProductionUrl } = require('./lib/production-url');
 const express = require('express');
@@ -252,6 +253,7 @@ const corsOptions = {
   },
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  exposedHeaders: ['Retry-After'],
   allowedHeaders: [
     "If-Match",
     'Content-Type',
@@ -1585,25 +1587,19 @@ const assertSafeUploadedFile = (file) => {
   return true;
 };
 
-const rateBuckets = new ExpiringBuckets();
 app.use('/api', (req, res, next) => {
-  const meta = getRequestMeta(req);
-  const key = meta.ip;
-  const now = Date.now();
-  const bucket = rateBuckets.get(key) || {
-    count: 0,
-    resetAt: now + API_RATE_WINDOW_MS,
-  };
-  if (bucket.resetAt < now) {
-    bucket.count = 0;
-    bucket.resetAt = now + API_RATE_WINDOW_MS;
-  }
-  bucket.count += 1;
-  rateBuckets.set(key, bucket);
-  if (bucket.count > API_RATE_LIMIT)
-    return next(createError(429, 'RATE_LIMITED', '访问过于频繁，请稍后再试'));
+  const startedAt = Date.now();
+  req.apiStartedAt = startedAt;
+  res.on('finish', () => {
+    if (res.statusCode < 400) recordApiLog(req, res, startedAt);
+  });
   return next();
 });
+// Telemetry remains bounded, but cannot spend the normal API allowance.
+const apiRateLimiter = createApiRateLimiter({
+  limit: API_RATE_LIMIT, windowMs: API_RATE_WINDOW_MS,
+});
+app.use('/api', apiRateLimiter);
 
 const publicFormBuckets = new ExpiringBuckets();
 const publicFormError = '提交校验未通过或过于频繁，请稍后再试';
@@ -1709,7 +1705,7 @@ const recordAnalyticsEvent = async (req, payload) => {
 const recordApiLog = (...args) => work.track('api-log', () => persistApiLog(...args));
 const persistApiLog = async (req, res, startedAt, error = null) => {
   try {
-    if (!req.path?.startsWith('/api') || req.path === '/api/events') return;
+    if (!req.path?.startsWith('/api') || /^\/api\/events\/?$/i.test(req.path)) return;
     const meta = getRequestMeta(req);
     const durationMs = Math.max(0, Date.now() - startedAt);
     const status = error?.status || res.statusCode || 500;
@@ -1760,15 +1756,6 @@ const persistApiLog = async (req, res, startedAt, error = null) => {
     if (!IS_PRODUCTION) console.warn('API log failed:', logError.message);
   }
 };
-
-app.use('/api', (req, res, next) => {
-  const startedAt = Date.now();
-  req.apiStartedAt = startedAt;
-  res.on('finish', () => {
-    if (res.statusCode < 400) recordApiLog(req, res, startedAt);
-  });
-  return next();
-});
 
 const assertPublicFormGuard = (req, formKey) => {
   const body = req.body || {};
@@ -6472,7 +6459,7 @@ app.use((err, req, res, next) => {
     message = '服务器处理失败';
   }
 
-  if (req.apiStartedAt) {
+  if (req.apiStartedAt && req.rateLimitLogAllowed !== false) {
     recordApiLog(req, res, req.apiStartedAt, { ...err, status, code, message });
   }
 
@@ -6534,7 +6521,7 @@ function startBackgroundTasks() {
   schedule('notification', () => notificationWorker.run(), 30000);
   schedule('scheduled-audit', () => audit.run(), Math.min(audit.intervalMs, 60000), true);
   schedule('bucket-cleanup', () => {
-    rateBuckets.sweep();
+    apiRateLimiter.sweep();
     publicFormBuckets.sweep();
   }, 60000);
   return () => {

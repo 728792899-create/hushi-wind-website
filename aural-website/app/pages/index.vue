@@ -23,6 +23,10 @@
           </NuxtLink>
           <NuxtLink v-if="!isStarter" to="/support?type=experience" class="inline-flex min-h-11 items-center rounded-full border border-white/60 px-7 py-4 text-sm font-medium text-white hover:bg-white/15" @click="trackHomeCta('hero-appointment')">预约试奏 →</NuxtLink>
         </div>
+        <div v-if="homeLoadFailed" role="status" class="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-black/70 px-4 py-2 text-sm text-white">
+          <span>部分内容暂时无法加载，请稍后重试。</span>
+          <button type="button" class="min-h-11 rounded border border-white/60 px-4 disabled:opacity-60" :disabled="homeRetryPending" @click="retryHome">{{ homeRetryPending ? '正在重试…' : '重新加载' }}</button>
+        </div>
         <p v-if="isStarter" class="mt-6 text-xs text-zinc-300">音乐场景配图，非本品牌产品或场地展示。</p>
       </div>
 
@@ -209,7 +213,6 @@ let animationTimer = 0
 let gsapLib = null
 let scrollTriggerLib = null
 
-const isOffline = useState('global-offline')
 const mediaUrl = useMediaUrl()
 const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.productPiano)
@@ -221,7 +224,7 @@ const articlesUrl = useApiUrl('/api/articles?populate=*')
 const servicesUrl = useApiUrl('/api/ecosystem-services')
 const { track } = useAuralTrack()
 
-const { data: configRes, error: errC, refresh: refreshC } = await useFetch(configUrl, { lazy: true, key: 'home-config' })
+const { data: configRes, pending: configPending, error: errC, refresh: refreshC } = await useAuralFetch(configUrl, { lazy: true, key: 'home-config' })
 const sysConfig = computed(() => configRes.value || {})
 const heroTitle = computed(() => String(sysConfig.value.aboutTitle || (isStarter ? STARTER_TITLE : '纯粹之音，始于指尖。')).trim())
 const splitHeroTitleLine = (value, maxLength = 9) => {
@@ -261,17 +264,17 @@ useHead(() => {
 })
 
 const localProducts = ref([])
-const { data: productsRes, pending: productsPending, error: errP, refresh: refreshP } = isStarter ? { data: ref(null), pending: ref(false), error: ref(null), refresh: async () => {} } : await useFetch(productsUrl, { lazy: true, key: 'home-products' })
+const { data: productsRes, pending: productsPending, error: errP, refresh: refreshP } = isStarter ? { data: ref(null), pending: ref(false), error: ref(null), refresh: async () => {} } : await useAuralFetch(productsUrl, { lazy: true, key: 'home-products' })
 watch(productsRes, (newVal) => { if (newVal?.data && newVal.data.length > 0) localProducts.value = newVal.data.slice(0, 4) }, { immediate: true })
 
 const localNews = ref([])
-const { data: strapiNews, pending: newsPending, error: errN, refresh: refreshN } = await useFetch(articlesUrl, { lazy: true, key: 'home-articles', transform: isStarter ? publicStarterArticles : undefined })
+const { data: strapiNews, pending: newsPending, error: errN, refresh: refreshN } = await useAuralFetch(articlesUrl, { lazy: true, key: 'home-articles', transform: isStarter ? publicStarterArticles : undefined })
 watch(strapiNews, (newVal) => {
   if (newVal?.data?.length > 0) localNews.value = newVal.data.slice(0, 3).map(item => ({ id: item.id, slug: item.attributes.slug || '', date: item.attributes.date || 'NEW', title: item.attributes.title, image: item.attributes.image?.data ? mediaUrl(item.attributes.image.data.attributes.url) : null }))
   else localNews.value = []
 }, { immediate: true })
 
-const { data: rawServices, error: errS, refresh: refreshS } = isStarter ? { data: ref(null), error: ref(null), refresh: async () => {} } : await useFetch(servicesUrl, { lazy: true, key: 'home-services' })
+const { data: rawServices, pending: servicesPending, error: errS, refresh: refreshS } = isStarter ? { data: ref(null), pending: ref(false), error: ref(null), refresh: async () => {} } : await useAuralFetch(servicesUrl, { lazy: true, key: 'home-services' })
 const fallbackServices = [
   { icon: 'CARE', title: '胡氏管乐 Care+', desc: '覆盖保修登记、维修工单、调律预约和配件咨询，为乐器和音频设备提供持续服务。', link: '/support' },
   { icon: 'LIVE', title: '演出与扩声方案', desc: '为剧场、学校、Livehouse 和录音棚提供设备选型、系统调试与应用建议。', link: '/audio' },
@@ -340,9 +343,12 @@ const trackHomeNews = (news) => {
   })
 }
 
-watch([errC, errP, errN, errS], (errs) => {
-  isOffline.value = errs.some(Boolean)
-}, { immediate: true })
+const { failed: homeLoadFailed, pending: homeRetryPending, retry: retryHome } = usePageRecovery([
+  { error: errC, pending: configPending, refresh: refreshC },
+  { error: errP, pending: productsPending, refresh: refreshP },
+  { error: errN, pending: newsPending, refresh: refreshN },
+  { error: errS, pending: servicesPending, refresh: refreshS }
+])
 
 onBeforeRouteLeave((to, from, next) => { if (process.client) sessionStorage.setItem('homeScrollPos', window.scrollY.toString()); next() })
 onActivated(async () => {

@@ -155,7 +155,7 @@ const { track } = useAuralTrack()
 const toast = useState('global-toast')
 const canNativeShare = ref(false)
 
-const { data: strapiNews, pending: listPending, error: listError, refresh: refreshList } = await useFetch(articlesUrl, {
+const { data: strapiNews, pending: listPending, error: listError, refresh: refreshList } = await useAuralFetch(articlesUrl, {
   lazy: true,
   key: 'news-detail-source',
   transform: isStarter ? publicStarterArticles : undefined,

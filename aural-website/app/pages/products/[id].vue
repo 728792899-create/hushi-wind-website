@@ -23,7 +23,7 @@
       title="产品详情暂时无法加载"
       description="无法连接至产品数据源，请检查后端服务状态，或稍后重新加载。"
       show-retry
-      @retry="refresh"
+      @retry="retryProduct"
     />
 
     <FrontState
@@ -357,7 +357,7 @@
 <script setup>
 import { createPageMotion } from '../../utils/pageMotion'
 import { computed, ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { resetSubmittedFields } from '../../utils/supportSubmission'
@@ -370,10 +370,12 @@ const brandAssets = useBrandAssets()
 const imageFallback = useImageFallback(brandAssets.productPiano)
 const siteUrl = useSiteUrl()
 const productsUrl = useApiUrl('/api/products')
-const detailUrl = useApiUrl(() => `/api/products/by-key/${encodeURIComponent(route.params.id)}`)
+const requestedProductKey = computed(() => typeof route.params.id === 'string' ? route.params.id.trim() : '')
+const detailUrl = useApiUrl(() => `/api/products/by-key/${encodeURIComponent(requestedProductKey.value)}`)
 const configUrl = useApiUrl('/api/config')
-const {data: contactConfig} = await useFetch(configUrl)
-const {data: detailData, pending, error, refresh} = await useFetch(detailUrl)
+const {data: contactConfig} = await useAuralFetch(configUrl)
+const {data: detailData, pending, error, refresh} = await useAuralFetch(detailUrl, { key: 'product-detail', enabled: computed(() => Boolean(requestedProductKey.value)) })
+const { retry: retryProduct } = usePageRecovery([{ error, pending, refresh }])
 const inquiryUrl = useApiUrl('/api/inquiries')
 const faqsUrl = useApiUrl(() => `/api/support-faqs?productId=${detailData.value?.data?.id || ""}&series=${encodeURIComponent(detailData.value?.data?.attributes?.series || '')}`)
 const downloadsUrl = useApiUrl(() => `/api/support-downloads?productId=${detailData.value?.data?.id || ""}&series=${encodeURIComponent(detailData.value?.data?.attributes?.series || '')}`)
@@ -418,12 +420,12 @@ const { data: rawData } = await useCompleteApiList(productsUrl, {
   key: 'products-detail-source',
   default: () => ({ data: [] })
 })
-const { data: faqResponse } = await useFetch(faqsUrl, {
+const { data: faqResponse } = await useAuralFetch(faqsUrl, {
   lazy: true,
   key: 'product-detail-faqs',
   default: () => ({ data: [] })
 })
-const { data: downloadResponse } = await useFetch(downloadsUrl, {
+const { data: downloadResponse } = await useAuralFetch(downloadsUrl, {
   lazy: true,
   server: false,
   key: 'product-detail-downloads',
