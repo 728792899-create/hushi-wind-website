@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-完整项目已在 `64.83.10.90` 的独立目录 `/srv/hushi-preview` 部署运行。API/官网版本为 `4f70982f618e221cd1b1c36b7ac5094bc594ec37`（[Quality 39001859139](https://github.com/728792899-create/hushi-wind-website/actions/runs/39001859139) 成功）；后台静态文件已单独更新为系列修复提交 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`（[Quality 38518653397](https://github.com/728792899-create/hushi-wind-website/actions/runs/38518653397) 成功），官网与 API 使用 `full` 模式，保留原完整设计、栏目和后台。仅两个胡氏 systemd 服务 `hushi-preview-api.service`、`hushi-preview-web.service` 设置开机启动，现场状态均为 enabled/active；本轮没有重启宿主机验证开机启动。
+完整项目已在 `64.83.10.90` 的独立目录 `/srv/hushi-preview` 部署运行。API/官网当前发布为 `8743eb4fd759e860df1788f34872fc0cba4e6570`（[Quality 39003190108](https://github.com/728792899-create/hushi-wind-website/actions/runs/39003190108) 成功），含导航恢复修复及私有备份连接关闭补丁；后台静态文件已单独更新为系列修复提交 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`（[Quality 38518653397](https://github.com/728792899-create/hushi-wind-website/actions/runs/38518653397) 成功），官网与 API 使用 `full` 模式，保留原完整设计、栏目和后台。仅两个胡氏 systemd 服务 `hushi-preview-api.service`、`hushi-preview-web.service` 设置开机启动，现场状态均为 enabled/active；本轮没有重启宿主机验证开机启动。
 
 **官网可直接打开；后台也已取消首次浏览器验证，只保留应用账号密码登录。** 两个入口的 DNS、可信 HTTPS 已验证。官网内容及展示资源现在匿名可访问，保留 noindex/no-store；这不等于内容和素材已完成正式品牌验收，最终浏览器页面目视及 UI 上传验收尚未完成。
 
@@ -120,3 +120,11 @@
 - 发现Nitro仅识别编译期资源后，额外为胡氏官网增加 GET/HEAD `/_nuxt/*` 静态路由，指向 `/srv/hushi-preview/current/aural-website/.output/public`；不启用browse，保留no-store/noindex/nosniff。仅平滑reload Caddy，主配置和KingAI路由不变，Caddy与KingAI容器身份及健康前后核对通过。胡氏片段SHA现为 `d71fbeb403045180f5de9bf6ecd2d2f931637f3685fe405b1a41e6e6bfc3db83`，后续维护须以此现场基线为准。
 - 线上91项HTTP检查通过，包括84个新旧JS/CSS字节一致、两张现有图片、8个公开产品及首页/目录真实SSR。客户账号、内容8表、后台文件及运行配置前后不变。无需重新上传或替换素材，已打开的官网刷新一次即可使用新版本。
 - 本地交互与线上HTTP验收分别记录；浏览器工具对真实域名的策略限制未绕过，尚未代替客户电脑实测。后续升级保留旧哈希资源时，必须同时验其HTTP可访问性。现有临时站、演示资料授权及同盘备份边界不变。
+
+
+### 2026-10-17 最终补丁核验
+
+- 当前API/官网发布 `8743eb4fd759e860df1788f34872fc0cba4e6570` 的[CI已通过](https://github.com/728792899-create/hushi-wind-website/actions/runs/39003190108)。仅追加修复CI发现的私有备份连接关闭时序；官网构建与4f版字节一致，完整设计、客户素材和后台版本不变。
+- 本地全量529/529及质量门禁、专项42/42通过；Linux离线解包备份恢复演练通过。授权切换前完整备份，仅停启胡氏两个服务，无迁移或数据库恢复，本次没有重载Caddy。
+- 线上91项HTTP检查再次通过，含全部84个新旧脚本/样式以及真实页面、接口和图片；9项发布前后综合比对通过，客户数据/账号/后台/配置不变，KingAI与Caddy未重启。浏览器交互证据为本地390/1440测试，客户电脑尚待实际使用反馈。
+- 当前官网标签页刷新一次即可使用新版，不需要客户改后台设置或重新上传素材。证据与完整记录见SECURITY_HARDENING末节及本轮忽略日志目录。
