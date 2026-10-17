@@ -131,6 +131,37 @@ test('snapshot fingerprint rejects a same-size mutation before the final read', 
   assert.notEqual(hash(file), before);
 });
 
+test('private snapshot waits for its closing reader sidecars but never deletes persistent sidecars', async (t) => {
+  for (const scenario of ['delayed close', 'persistent sidecar', 'replaced while closing']) await t.test(scenario, async (subtest) => {
+    const clears = scenario !== 'persistent sidecar';
+    const replaces = scenario === 'replaced while closing';
+    const { file } = fixture(subtest);
+    const before = hash(file);
+    let timer;
+    subtest.mock.method(require('@prisma/client'), 'PrismaClient', function (options) {
+      const client = new PrismaClient(options);
+      const disconnect = client.$disconnect.bind(client);
+      client.$disconnect = async () => {
+        await disconnect();
+        fs.writeFileSync(file + '-shm', 'reader close in progress');
+        if (clears) timer = setTimeout(() => {
+          if (replaces) { fs.copyFileSync(file, file + '.swap'); fs.renameSync(file + '.swap', file); }
+          fs.unlinkSync(file + '-shm');
+        }, 100);
+      };
+      return client;
+    });
+    try {
+      if (clears && !replaces) assert.equal((await verifyAuditSnapshot(file)).ok, true);
+      else {
+        await assert.rejects(verifyAuditSnapshot(file), { code: 'AUDIT_INTEGRITY_FAILED' });
+        if (!clears) assert.equal(fs.readFileSync(file + '-shm', 'utf8'), 'reader close in progress');
+      }
+      assert.equal(hash(file), before);
+    } finally { clearTimeout(timer); fs.rmSync(file + '-shm', { force: true }); }
+  });
+});
+
 test('snapshot rejects changed baseline, chain interior, missing entries and unsigned append across page boundaries', async (t) => {
   const cases = [
     ['baseline', 'OperationLog_no_update', 'UPDATE OperationLog SET summary=\'tampered\' WHERE id=501;'],

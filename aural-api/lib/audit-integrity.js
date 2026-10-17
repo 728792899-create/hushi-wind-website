@@ -160,15 +160,29 @@ async function verifyAuditIntegrity(db) {
   return inTransaction(db, verifyInTransaction);
 }
 
-async function snapshotIdentity(file) {
-  const stat = await fsp.lstat(file, { bigint: true });
+async function snapshotIdentity(file, waitForReaderClose = false) {
+  let stat = await fsp.lstat(file, { bigint: true });
   ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0n,
     'snapshot must be a nonempty regular file');
-  for (const suffix of ['-wal', '-shm', '-journal']) {
-    try { await fsp.lstat(file + suffix); }
-    catch (error) { if (error.code === 'ENOENT') continue; throw error; }
-    throw integrityError('snapshot has an active SQLite sidecar');
+  const closeDeadline = Date.now() + (waitForReaderClose ? 1000 : 0);
+  while (true) {
+    let active = false;
+    for (const suffix of ['-wal', '-shm', '-journal']) {
+      try { await fsp.lstat(file + suffix); active = true; }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    if (!active) break;
+    // The native reader can finish WAL/SHM cleanup just after $disconnect
+    // resolves. Only our post-read check may wait; never remove sidecars or
+    // accept them at entry. Persistent files still fail closed.
+    if (Date.now() >= closeDeadline) throw integrityError('snapshot has an active SQLite sidecar');
+    await new Promise(resolve => setTimeout(resolve, 20));
   }
+  // The path may have been replaced while waiting. Bind the final digest to
+  // fresh identity metadata, not to the inode observed before the wait.
+  stat = await fsp.lstat(file, { bigint: true });
+  ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0n,
+    'snapshot must be a nonempty regular file');
   const digest = createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) digest.update(chunk);
   return [stat.dev, stat.ino, stat.size, stat.mtimeNs, digest.digest('hex')].map(String).join(':');
@@ -192,7 +206,7 @@ async function verifyAuditSnapshot(file) {
   } finally {
     await db.$disconnect();
   }
-  ensure(await snapshotIdentity(file) === before, 'snapshot changed during verification');
+  ensure(await snapshotIdentity(file, true) === before, 'snapshot changed during verification');
   return result;
 }
 async function appendOperationLog(db, data) {
