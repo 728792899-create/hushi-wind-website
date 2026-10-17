@@ -3,7 +3,7 @@ const { constants } = require('node:fs');
 const path = require('node:path');
 const { PrismaClient } = require('@prisma/client');
 const { verifyBackupBundle } = require('./database-backup');
-const { appendOperationLog, verifyAuditSnapshot } = require('./audit-integrity');
+const { appendOperationLog, verifyAuditSnapshot, snapshotFileIdentity, waitForSnapshotClose } = require('./audit-integrity');
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const within = (child, parent) => child === parent || child.startsWith(parent + path.sep);
@@ -49,6 +49,7 @@ async function restoreBackupDrill(file, { scratchRoot } = {}) {
     if (!same(source.tables, restored.tables) || source.assetCount !== restored.assetCount ||
         !same(source.audit, restored.audit) || source.databaseSha256 !== restored.databaseSha256 ||
         source.manifestSha256 !== restored.manifestSha256) throw new Error('Restored snapshot differs from the source bundle');
+    const identity = await snapshotFileIdentity(target);
     client = new PrismaClient({ datasourceUrl: `file:${target}` });
     await appendOperationLog(client, {
       operator: 'local-restore-drill', action: 'RESTORE_DRILL', module: 'security',
@@ -58,6 +59,7 @@ async function restoreBackupDrill(file, { scratchRoot } = {}) {
     // read-only full scan; never reserve the live business write queue here.
     await client.$disconnect();
     client = null;
+    await waitForSnapshotClose(target, identity);
     const appended = await verifyAuditSnapshot(target);
     if (appended.entryCount !== restored.audit.entryCount + 1 ||
         appended.logCount !== restored.audit.logCount + 1 ||

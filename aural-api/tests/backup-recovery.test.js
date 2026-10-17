@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const syncFs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { createHash } = require('node:crypto');
@@ -234,6 +235,80 @@ test('local restore copies every artifact, continues the audit chain only in the
   for (const suffix of ['-wal', '-shm', '-journal']) await assert.rejects(fs.access(f.backup + suffix));
   assert.deepEqual(await fs.readdir(scratch), ['keep.txt']);
   assert.ok(!JSON.stringify(report).includes(f.root), 'report omits filesystem paths and record contents');
+});
+
+test('bundle verification drains every owned private reader before returning or opening the next reader', async (t) => {
+  for (const reader of [1, 2, 4]) await t.test(`reader ${reader}`, async (subtest) => {
+    const f = await fixture(subtest);
+    await createDatabaseBackup(f.source, f.backup, f.options);
+    const before = await hash(f.backup);
+    const disconnect = PrismaClient.prototype.$disconnect;
+    let closed = 0, timer, cleaned = false;
+    subtest.mock.method(PrismaClient.prototype, '$disconnect', async function () {
+      await disconnect.call(this);
+      if (++closed !== reader) return;
+      await fs.writeFile(f.backup + '-shm', 'owned reader closing');
+      timer = setTimeout(() => { syncFs.unlinkSync(f.backup + '-shm'); cleaned = true; }, 100);
+    });
+    try {
+      assert.equal((await verifyBackupBundle(f.backup, { requireAssets: true })).audit.status, 'verified');
+      assert.equal(closed, 4, 'table, schema, audit and asset readers all closed');
+      assert.equal(cleaned, true, 'last reader cleanup finishes before bundle succeeds');
+      assert.equal(await hash(f.backup), before);
+      await assert.rejects(fs.access(f.backup + '-shm'));
+    } finally { clearTimeout(timer); await fs.rm(f.backup + '-shm', { force: true }); }
+  });
+});
+
+test('private schema reader close still rejects persistent sidecars and same-content file replacement', async (t) => {
+  for (const replacement of [false, true]) await t.test(replacement ? 'replacement' : 'persistent sidecar', async (subtest) => {
+    const f = await fixture(subtest);
+    await createDatabaseBackup(f.source, f.backup, f.options);
+    const before = await hash(f.backup);
+    const disconnect = PrismaClient.prototype.$disconnect;
+    let closed = 0, timer;
+    subtest.mock.method(PrismaClient.prototype, '$disconnect', async function () {
+      await disconnect.call(this);
+      if (++closed !== 2) return;
+      await fs.writeFile(f.backup + '-shm', 'owned reader closing');
+      if (replacement) timer = setTimeout(() => {
+        syncFs.copyFileSync(f.backup, f.backup + '.swap');
+        syncFs.renameSync(f.backup + '.swap', f.backup);
+        syncFs.unlinkSync(f.backup + '-shm');
+      }, 100);
+    });
+    try {
+      await assert.rejects(verifyBackupBundle(f.backup), { code: 'AUDIT_INTEGRITY_FAILED' });
+      if (!replacement) assert.equal(await fs.readFile(f.backup + '-shm', 'utf8'), 'owned reader closing');
+      assert.equal(await hash(f.backup), before);
+    } finally { clearTimeout(timer); await fs.rm(f.backup + '-shm', { force: true }); }
+  });
+});
+
+test('restore drains its private copy writer before scanning the continued audit chain', async (t) => {
+  const f = await fixture(t);
+  await createDatabaseBackup(f.source, f.backup, f.options);
+  const scratch = path.join(f.root, 'scratch'), before = await hash(f.backup);
+  const disconnect = PrismaClient.prototype.$disconnect;
+  let closed = 0, timer, injected = false;
+  t.mock.method(PrismaClient.prototype, '$disconnect', async function () {
+    await disconnect.call(this);
+    // Four source readers, four copy readers, then the copy's audit writer.
+    if (++closed !== 9) return;
+    const [workspace] = await fs.readdir(scratch);
+    const sidecar = path.join(scratch, workspace, 'database.db-shm');
+    await fs.writeFile(sidecar, 'owned copy writer closing');
+    injected = true;
+    timer = setTimeout(() => { syncFs.unlinkSync(sidecar); }, 100);
+  });
+  try {
+    const report = await restoreBackupDrill(f.backup, { scratchRoot: scratch });
+    assert.equal(injected, true);
+    assert.equal(report.audit.appendVerified, true);
+    assert.equal(report.cleanupVerified, true);
+    assert.equal(await hash(f.backup), before);
+    assert.deepEqual(await fs.readdir(scratch), []);
+  } finally { clearTimeout(timer); }
 });
 
 test('failed continuation cleans copied database, assets and sidecars without altering source', async (t) => {

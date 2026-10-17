@@ -3,7 +3,7 @@ const { createHash } = require('node:crypto');
 const { createReadStream } = require('node:fs');
 const fs = require('node:fs/promises');
 const { PrismaClient, Prisma } = require('@prisma/client');
-const { verifyAuditSnapshot } = require('./audit-integrity');
+const { verifyAuditSnapshot, snapshotFileIdentity, waitForSnapshotClose } = require('./audit-integrity');
 const CHECKPOINT_FIELDS = ['version', 'baselineCount', 'baselineMaxId', 'entryCount', 'logCount', 'headHash', 'sealedAt'];
 const isHash = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -70,6 +70,14 @@ async function verifyDatabase(file, { requireCurrentSchema = true } = {}) {
     await db.$disconnect();
   }
 }
+// verifyDatabase also checks live databases. Keep its behavior unchanged and
+// apply the disconnect barrier only to our private, standalone snapshots.
+async function verifySnapshotDatabase(file, options) {
+  const identity = await snapshotFileIdentity(file);
+  try { return await verifyDatabase(file, options); }
+  finally { await waitForSnapshotClose(file, identity); }
+}
+
 async function hashFile(file) {
   await regularFile(file);
   const digest = createHash('sha256');
@@ -99,12 +107,13 @@ async function assetManifest(root, prefix = '') {
   return rows.sort((a, b) => a.path.localeCompare(b.path));
 }
 async function auditSnapshot(file, { requireCurrentSchema = true } = {}) {
+  const identity = await snapshotFileIdentity(file);
   const db = new PrismaClient({ datasourceUrl: `file:${file}` });
   let names;
   try {
     const rows = await db.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table'");
     names = new Set(rows.map((row) => row.name));
-  } finally { await db.$disconnect(); }
+  } finally { await db.$disconnect(); await waitForSnapshotClose(file, identity); }
   const hasState = names.has('AuditIntegrityState'), hasEntries = names.has('AuditLogEntry');
   if (!hasState && !hasEntries) {
     if (requireCurrentSchema) throw new Error('Audit schema is missing');
@@ -150,6 +159,7 @@ function validateManifest(manifest) {
   if (manifest.schemaVersion === 2 && !manifest.audit) throw new Error('Missing audit checkpoint');
 }
 async function verifyAssetReferences(file, assets, assetOrigins) {
+  const identity = await snapshotFileIdentity(file);
   const { extractLocalUploadUrls } = require('./resource-references');
   const names = new Set(
     assets.map((item) => '/uploads/' + item.path.split(path.sep).join('/')),
@@ -199,6 +209,7 @@ async function verifyAssetReferences(file, assets, assetOrigins) {
     }
   } finally {
     await client.$disconnect();
+    await waitForSnapshotClose(file, identity);
   }
 }
 async function verifyBackupBundle(file, options = {}) {
@@ -216,7 +227,7 @@ async function verifyBackupBundle(file, options = {}) {
     throw new Error('Database size mismatch');
   if (manifest.sha256 !== (await hashFile(file)))
     throw new Error('Database checksum mismatch');
-  const tables = await verifyDatabase(file, options);
+  const tables = await verifySnapshotDatabase(file, options);
   const actualTables = new Map(tables.map((row) => [row.name, row.count]));
   if (manifest.tables.some((row) => actualTables.get(row.name) !== row.count) ||
       (manifest.schemaVersion === 2 && manifest.tables.length !== tables.length))
@@ -273,7 +284,7 @@ async function createDatabaseBackup(source, destination, options = {}) {
     }
     await db.$executeRawUnsafe('VACUUM INTO ?', temporary);
     await fs.chmod(temporary, 0o600);
-    const tables = await verifyDatabase(temporary, options);
+    const tables = await verifySnapshotDatabase(temporary, options);
     const audit = await auditSnapshot(temporary, options);
     let assets = null;
     if (options.uploadsRoot) {

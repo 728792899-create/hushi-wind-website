@@ -160,31 +160,44 @@ async function verifyAuditIntegrity(db) {
   return inTransaction(db, verifyInTransaction);
 }
 
-async function snapshotIdentity(file, waitForReaderClose = false) {
-  let stat = await fsp.lstat(file, { bigint: true });
+async function snapshotStat(file) {
+  const stat = await fsp.lstat(file, { bigint: true });
   ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0n,
     'snapshot must be a nonempty regular file');
-  const closeDeadline = Date.now() + (waitForReaderClose ? 1000 : 0);
+  return stat;
+}
+const fileIdentity = (stat) => [stat.dev, stat.ino].map(String).join(':');
+async function snapshotFileIdentity(file) {
+  return fileIdentity(await snapshotStat(file));
+}
+async function checkSnapshotSidecars(file, expectedIdentity, waitMs) {
+  const closeDeadline = Date.now() + waitMs;
   while (true) {
+    ensure(await snapshotFileIdentity(file) === expectedIdentity, 'snapshot changed during verification');
     let active = false;
     for (const suffix of ['-wal', '-shm', '-journal']) {
       try { await fsp.lstat(file + suffix); active = true; }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-    if (!active) break;
-    // The native reader can finish WAL/SHM cleanup just after $disconnect
-    // resolves. Only our post-read check may wait; never remove sidecars or
-    // accept them at entry. Persistent files still fail closed.
+    const stat = await snapshotStat(file);
+    ensure(fileIdentity(stat) === expectedIdentity, 'snapshot changed during verification');
+    if (!active) return stat;
     if (Date.now() >= closeDeadline) throw integrityError('snapshot has an active SQLite sidecar');
     await new Promise(resolve => setTimeout(resolve, 20));
   }
-  // The path may have been replaced while waiting. Bind the final digest to
-  // fresh identity metadata, not to the inode observed before the wait.
-  stat = await fsp.lstat(file, { bigint: true });
-  ensure(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0n,
-    'snapshot must be a nonempty regular file');
+}
+// Only call after disconnecting a client owned by this private snapshot
+// operation. Native SQLite cleanup may finish shortly after disconnect resolves.
+// Never delete sidecars or wait on entry; pin the inode throughout the wait.
+async function waitForSnapshotClose(file, expectedIdentity) {
+  return checkSnapshotSidecars(file, expectedIdentity, 1000);
+}
+async function snapshotIdentity(file) {
+  const identity = await snapshotFileIdentity(file);
+  const stat = await checkSnapshotSidecars(file, identity, 0);
   const digest = createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) digest.update(chunk);
+  ensure(await snapshotFileIdentity(file) === identity, 'snapshot changed during verification');
   return [stat.dev, stat.ino, stat.size, stat.mtimeNs, digest.digest('hex')].map(String).join(':');
 }
 
@@ -197,6 +210,7 @@ async function verifyAuditSnapshot(file) {
   if (typeof file !== 'string' || !path.isAbsolute(file))
     throw new TypeError('Audit snapshot path must be absolute');
   const before = await snapshotIdentity(file);
+  const identity = await snapshotFileIdentity(file);
   const { PrismaClient } = require('@prisma/client');
   const db = new PrismaClient({ datasourceUrl: `file:${file}?connection_limit=1` });
   let result;
@@ -205,8 +219,9 @@ async function verifyAuditSnapshot(file) {
     result = await verifyInTransaction(db);
   } finally {
     await db.$disconnect();
+    await waitForSnapshotClose(file, identity);
   }
-  ensure(await snapshotIdentity(file, true) === before, 'snapshot changed during verification');
+  ensure(await snapshotIdentity(file) === before, 'snapshot changed during verification');
   return result;
 }
 async function appendOperationLog(db, data) {
@@ -237,4 +252,4 @@ async function appendOperationLog(db, data) {
   });
 }
 
-module.exports = { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity, verifyAuditSnapshot };
+module.exports = { appendOperationLog, initializeAuditIntegrity, verifyAuditIntegrity, verifyAuditSnapshot, snapshotFileIdentity, waitForSnapshotClose };
