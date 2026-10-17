@@ -1,7 +1,7 @@
-# Codex 交接：胡氏管乐官网企业级加固（2026-10-14）
+# Codex 交接：胡氏管乐官网企业级加固（2026-10-17）
 
 你接手的是 `hushi-wind-website` 的完整项目交付。第 0–14 步加固已结束，用户要求停止扩展范围，并明确拒绝精简预览。最新授权：暂时使用承载 KingAI 的 `64.83.10.90`，以两个独立子域名提供完整官网与客户上传后台；不影响 KingAI、不增加费用、保留后续迁移能力。官网/API 均用 `full`，保留原设计、交互和栏目。旧 `154.222.19.51` 的连接排查不再是当前阻塞路径；不要继续让用户改 SSH 或重装系统。详情见 [临时验收站交付记录](docs/temporary-preview-handoff.md)。现场复核、必要验证、记录、独立提交推送与 CI 均用中文；区分服务器内部就绪与客户可访问。
-本轮 2026-10-17 正在修复已确认的官网往返导航故障：CLS 上报挤占 API 额度，叠加 SSR 缓存身份与恢复问题。源码和本地验证见 SECURITY_HARDENING.md 末节；部署完成前仍以现场 current 和完整 SHA 的 CI 为准。不要把本轮临时合成 API 18837/18838、官网 13810 当作正式内容来源。
+2026-10-17 官网往返导航故障的应用修复已发布：CLS 上报与业务额度隔离、SSR 缓存身份统一、有限自动恢复和页面状态归属修正。API/官网为 `4f70982f618e221cd1b1c36b7ac5094bc594ec37`，Quality `39001859139` 已按完整 SHA 核对成功；后台仍为系列修复版本 `c5f9cfe`。本轮证据见 SECURITY_HARDENING.md 末节。为使旧标签页资源可访问，胡氏官网新增 GET/HEAD `/_nuxt/*` 的限定静态路由，平滑重载后 KingAI/Caddy 进程身份保持；胡氏片段SHA为 `d71fbeb403045180f5de9bf6ecd2d2f931637f3685fe405b1a41e6e6bfc3db83`。线上91项HTTP检查通过，真实浏览器交互仅在本地合成环境验收；不要把临时 API18837/18838、官网13810 当作正式内容来源。
 
 ## 1. 工作位置（务必遵守）
 
@@ -37,20 +37,20 @@
 
 每一步的复核、改动、证据都在仓库根目录 **`SECURITY_HARDENING.md`**，先通读它。测试基线：第 14 步两个引擎线程下 `npm test` 共 481 项（API 260、后台 51、官网 170）全部通过。第 14 步最终测试与 CI 核对方式见修复记录；不要把历史基线当作最新结果。
 
-### 当前临时完整站状态（2026-10-14）
+### 当前临时完整站状态与首发历史（更新至2026-10-17）
 
 - 客户文档：[正式后台操作手册（Word）](docs/client-guides/胡氏管乐官网后台操作手册.docx)，[可维护源稿](docs/client-guides/胡氏管乐官网后台操作手册.md)。版本 1.0，共 26 页、20 章，涵盖资料准备、上传替换、各栏目编辑发布、客户管理、账号权限及备份恢复；不含密码。依据实际界面与服务端实现核对，已完成文档逐页渲染验收，不代表本次已完成线上浏览器操作验收。证据位于忽略目录 `logs/admin-manual-20261014/`；应用或按钮变化后需同步手册。
 - 客户新增交付：[图文详解版 PDF](docs/client-guides/胡氏管乐官网后台操作手册.pdf) 及[图文版正文源稿](docs/client-guides/胡氏管乐官网后台操作手册-图文详解版.md)，版本 1.2，81 页、20 章、52 张真实界面截图、5 张流程图；目录、书签及 77 个内部链接已核验。截图来自独立本地教学环境 API18414/后台15194/官网13194，使用虚构资料和教学账号；上传、草稿、历史版本、回收站、备份与恢复均只在该环境演练，不代表线上浏览器已验收。证据、原图及生成器在忽略目录 `logs/admin-pdf-20261014/`。旧 Word 1.0 保留，操作说明存在差异时以新版图文说明为准。本次教学浏览器和三个教学服务在截图完成后已停止；原有本地预览与线上服务保持。
 - “产品系列”修复已按用户授权上线：后台静态产物来源 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`，对应 [Quality 38518653397](https://github.com/728792899-create/hushi-wind-website/actions/runs/38518653397) 成功。补齐 Radio 注册，保护未保存内容和保存中切换；508项本地测试、quality及14项生产式本地浏览器检查通过。仅追加13个散列资源并原子替换后台入口，服务器和本机分别核验27个HTTPS文件与候选完全一致；KingAI四探针200、容器/Caddy/胡氏进程及配置保持，没有重启、数据库或业务写入。原dist私有备份在incoming，详见 `logs/catalog-series-fix-20261014/deploy-result.json`。PDF1.2已更换分类/系列真实配图及说明，保留用户短文件名；截图和交互验证仍来自独立本地环境，不声称线上浏览器点击验证通过。
-- API/官网运行版本仍为 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；后台静态产物已单独更新为上条系列修复版本；文档提交不改变运行产物。
+- API/官网历史首发版本为 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；后台静态产物已单独更新为上条系列修复版本。API/官网现已更新为首段列明的 `4f70982`；后续纯文档提交不改变运行产物。
 - 远端 `/srv/hushi-preview`，独立系统用户 `hushi-preview`、API/web 服务与受限 slice。API `127.0.0.1:19337`，官网 `127.0.0.1:19310`；仅 `hushi-preview-api.service` 与 `hushi-preview-web.service` 已设置开机启动，现场均为 enabled/active。本轮没有重启宿主机验证开机启动。
-- 新库完成 7 个迁移，仅导入 14 个内容模型的 49 条展示记录和 23 个资源；不迁入原管理员、咨询、会话、审计或告警。新 owner/customer 凭据仅在忽略目录的私有交付文件中，绝不可输出或提交。按用户最新授权，客户 `admin` 已是 super_admin，开放全部后台权限；密码保持，旧客户账号停用、站主账号保留。
+- 首发时新库完成 7 个迁移，仅导入 14 个内容模型的 49 条展示记录和 23 个资源；不迁入原管理员、咨询、会话、审计或告警。新 owner/customer 凭据仅在忽略目录的私有交付文件中，绝不可输出或提交。按用户最新授权，客户 `admin` 已是 super_admin，开放全部后台权限；密码保持，旧客户账号停用、站主账号保留。
 - 两个入口 [官网](https://preview.dayouyusd.com) / [后台](https://admin.preview.dayouyusd.com) 已完成 DNS 与 HTTPS 接入；用户随后要求取消官网首次验证，官网现可匿名访问，后台外层门禁也已按用户要求取消，只保留应用账号登录。客户登录名为 `admin`，已按最新授权改为 super_admin；原 `hushi_client` 已停用、历史保留，站主管理账号不变。阿里云新增 `preview`、`admin.preview` 两条 A 记录至 `64.83.10.90`，原 `@ → 38.76.203.179` 不变；`dns13.hichina.com`、`dns14.hichina.com` 均核对通过，三条记录的 UI 截图为 `dns-records-confirmed.jpg`。这是保留完整原设计的临时站；官网内容已匿名可见，正式品牌资料尚未验收。
 - Caddy 接入已在升级操作锁内完成：核对无活动升级、备份完整主配置、追加胡氏片段 import、验证完整配置后平滑 reload。`activation-result.json` 记录 activated=true，原三个 Host 路由保持，Caddy PID 376641、KingAI 四容器 ID/启动时间不变，KingAI 内外健康及 Canvas 内外页面探针均 200；未重启现有服务。Canvas 页面 200 不等于其业务 API 健康验证。
 - 两域 Let's Encrypt YE1 证书的 CA/主机名验证通过、TLS1.3；官网/后台证书分别至北京时间 2027-01-12 00:01:45 / 00:01:27。初次双域门禁接入在真实 HTTPS 下完成 **38/38** 项门禁、登录、Bearer、API 上传下载、权限、六页及响应头检查，测试 PNG 已由管理员清理，证据为 `https-preview-checks.json`、`https-acceptance-summary.json` 和 `https-certificates-local.json`。先前备份/隔离恢复调用 1.062s / 1.309s、35 表和 23 资源核验仍为小库演练证据；不代表整机故障 RTO。
 - 浏览器工具对两域根路径与 robots 导航均出现 `net::ERR_BLOCKED_BY_CLIENT`，读取错误页时明确返回 browser URL policy blocks；已停止尝试，不绕过工具策略。最终页面目视及浏览器 UI 上传尚未完成，API 上传成功不能替代它们。下一步仅补齐可获准的浏览器验收、单独交付访问资料并完成本次文档提交/推送/CI。`客户访问资料.txt`、`站主专用资料.txt` 已生成，权限均为 0600；凭据、配置和证据在忽略目录 `logs/temporary-server-20261013/`，绝不可加入 Git。
-- 上一轮变更只更新 `/etc/caddy/hushi-preview.Caddyfile` 的官网 Host：取消官网门禁，按实际前端调用白名单开放公开 API/资源，其他管理 API 拒绝；后台与 KingAI 三站路由结构不变。证据 `public-preview-activation.json` / `public-preview-checks.json`，具体结果见修复记录末节。原主配置 SHA 仍为 `81153b46462b0812e4556cfb17b26c560bfef5c1b79ba12892cc2309fa219cd7`。不要重新载入旧双域门禁候选。
-- 最新变更取消后台外层验证，只改胡氏代理片段中的后台 Host，保留应用 Bearer 鉴权、noindex/no-store 和原 RBAC；官网及 KingAI 三站路由不变。当前片段 SHA 为 `8f5464adbab2f1e78c478fc6737ba2a3b07ea44a91bd26aaded03b724857d228`，证据 `password-only-admin-activation.json`。通过审计 API 新建同权限 `admin` 并停用旧客户账号，没有改生产密码规则或环境配置。就绪报告仅因启用用户名 `admin` 会提示默认账号 critical，该提示不阻断正常登录（客户现已另按用户授权升为超级管理员）；不为隐藏提示修改指标。新凭据在私有交付文件，不进 Git。此处账号替换当时为 editor；随后用户明确授权全后台权限，现已通过审计 API 将同一账号升为 super_admin，未改密码或代理。51 项 API/权限反向验证和 16 条审计链核验通过，证据 `admin-full-permissions-result.json`。
+- 此前取消官网验证时只更新 `/etc/caddy/hushi-preview.Caddyfile` 的官网 Host：取消官网门禁，按实际前端调用白名单开放公开 API/资源，其他管理 API 拒绝；后台与 KingAI 三站路由结构不变。证据 `public-preview-activation.json` / `public-preview-checks.json`，具体结果见修复记录末节。原主配置 SHA 仍为 `81153b46462b0812e4556cfb17b26c560bfef5c1b79ba12892cc2309fa219cd7`。不要重新载入旧双域门禁候选。
+- 此前取消后台外层验证，只改胡氏代理片段中的后台 Host，保留应用 Bearer 鉴权、noindex/no-store 和原 RBAC；官网及 KingAI 三站路由不变。当时片段 SHA 为 `8f5464adbab2f1e78c478fc6737ba2a3b07ea44a91bd26aaded03b724857d228`（现行片段以首段本轮资源修复后的 SHA 为准），证据 `password-only-admin-activation.json`。通过审计 API 新建同权限 `admin` 并停用旧客户账号，没有改生产密码规则或环境配置。就绪报告仅因启用用户名 `admin` 会提示默认账号 critical，该提示不阻断正常登录（客户现已另按用户授权升为超级管理员）；不为隐藏提示修改指标。新凭据在私有交付文件，不进 Git。此处账号替换当时为 editor；随后用户明确授权全后台权限，现已通过审计 API 将同一账号升为 super_admin，未改密码或代理。51 项 API/权限反向验证和 16 条审计链核验通过，证据 `admin-full-permissions-result.json`。
 - 本地完整站使用1337/3100/5175与 `logs/restore-full-local-20261013/` 的隔离副本，先查当前PID与启动记录；旧starter13110仅历史候选，不能当作用户选定版本。原 `dev.db` 保留，不直接连接新代码。
 
 ## 3. 第 4 步「布局与可用性」已完成本地验收
@@ -162,7 +162,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 ## 6. 后续计划（上线准备，不增加加固轮次）
 
-1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前 API/官网为 `0232667`（Quality `38407137350` 成功），后台静态文件为 `c5f9cfe`（Quality `38518653397` 成功）；本轮文档仍须独立提交、推送并核对新 CI，不能用应用历史 CI 代替。第 0–14 步与首发候选的历史 SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第 14 步当作当前运行版本。
+1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前 API/官网为 `4f70982`（Quality `39001859139` 成功），后台静态文件为 `c5f9cfe`（Quality `38518653397` 成功）；本轮文档仍须独立提交、推送并核对新 CI，不能用应用历史 CI 代替。第 0–14 步与首发候选的历史 SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第 14 步当作当前运行版本。
 2. **第 5 步已落实的用户确认规则**：
    - 客服只能处理分配给自己的咨询；未分配和重新分配由超级管理员负责。服务端覆盖列表、详情相关操作、统计及回收恢复。艺术家申请保持共享；只读角色原有脱敏读取权限保持。
    - 联系方式查看按账号合并咨询/艺术家申请计数，包含超级管理员，重复查看也计数。默认 10 分钟达到 30 次只告警、不阻断；`CONTACT_VIEW_WINDOW_MS` / `CONTACT_VIEW_ALERT_THRESHOLD` 可配置，同窗口告警去重。
