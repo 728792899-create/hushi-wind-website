@@ -35,7 +35,8 @@
       >
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <div class="media-picker-grid" v-loading="loading">
+    <p v-if="loading && rows.length" class="field-hint" role="status">正在更新素材列表…</p>
+    <div class="media-picker-grid" v-loading="loading && !rows.length" :aria-busy="loading">
       <button
         v-for="item in rows"
         :key="item.url"
@@ -64,13 +65,13 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { mediaCategories } from '../lib/mediaCategories'
-import { api, mediaSrc, extractErrorMessage } from '../lib/api'
+import { readList, isQueryCancelled, mediaSrc, extractErrorMessage } from '../lib/api'
 defineProps({ disabled: Boolean })
 const route = useRoute()
 const category = ref('all')
 function openPicker(){ category.value = ({'/products':'product','/articles':'news','/artists':'artist','/config':'brand','/cms':'support'})[route.path] || 'all'; page.value=1;keyword.value='';open.value=true;load() }
 function search(){page.value=1;load()}
-function invalidate(){requestId++;loading.value=false}
+function invalidate(){requestId++;requestController?.abort();loading.value=false}
 const emit = defineEmits(['select'])
 const open = ref(false),
   loading = ref(false),
@@ -79,27 +80,33 @@ const open = ref(false),
   rows = ref([]),
   page = ref(1),
   total = ref(0)
-let requestId = 0
-onBeforeUnmount(() => requestId++)
+let requestId = 0, requestController, loadedQueryKey = ''
+onBeforeUnmount(invalidate)
 async function load() {
-  const id = ++requestId
+  const id = ++requestId, previous = requestController
+  requestController = new AbortController()
+  const params = {
+    compact: 1,
+    kind: 'image',
+    category: category.value,
+    search: keyword.value,
+    page: page.value,
+    pageSize: 12,
+  }
+  const key = JSON.stringify(params)
+  if (key !== loadedQueryKey) { rows.value = []; total.value = 0 }
   loading.value = true
   error.value = ''
+  const request = readList('/api/admin/resources', { params, signal: requestController.signal })
+  previous?.abort()
   try {
-    const r = await api.get('/api/admin/resources', {
-      params: {
-        kind: 'image',
-        category: category.value,
-        search: keyword.value,
-        page: page.value,
-        pageSize: 12,
-      },
-    })
+    const r = await request
     if (id !== requestId) return
     rows.value = r.data.uploads
+    loadedQueryKey = key
     total.value = r.data.meta.pagination.total
   } catch (e) {
-    if (id === requestId) error.value = extractErrorMessage(e)
+    if (id === requestId && !isQueryCancelled(e)) error.value = extractErrorMessage(e)
   } finally {
     if (id === requestId) loading.value = false
   }

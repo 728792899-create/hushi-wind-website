@@ -95,6 +95,9 @@ for (const [name, query, fetch, data, error] of [
     }
     vm[query].value = 'first'
     const first = name === 'Cms' ? vm[fetch]('faq') : vm[fetch]()
+    // Ensure the first transport has started; requests cancelled before dispatch
+    // no longer reach the adapter after the list cancellation optimization.
+    await new Promise((resolve) => setImmediate(resolve))
     vm[query].value = 'second'
     const second = name === 'Cms' ? vm[fetch]('faq') : vm[fetch]()
     await new Promise((resolve) => setImmediate(resolve))

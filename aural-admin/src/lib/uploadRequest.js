@@ -1,4 +1,5 @@
 // Element Plus request adapter: bounded upload lifetime, abort support and progress.
+import { invalidateListQueries } from './api.js'
 export function uploadRequest(options) {
   const xhr = new XMLHttpRequest(),
     form = new FormData()
@@ -28,9 +29,10 @@ export function uploadRequest(options) {
     } catch {
       return fail('上传服务返回格式不正确')
     }
-    if (xhr.status >= 200 && xhr.status < 300 && body.url)
+    if (xhr.status >= 200 && xhr.status < 300 && body.url) {
+      invalidateListQueries()
       options.onSuccess(body)
-    else fail(body.error?.message || '上传失败，请重试')
+    } else fail(body.error?.message || '上传失败，请重试')
   }
   xhr.send(form)
   return xhr

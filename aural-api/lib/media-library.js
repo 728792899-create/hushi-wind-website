@@ -80,3 +80,51 @@ async function historicalMediaReferences(prisma, batchSize = 250) {
   return [...unique.values()];
 }
 module.exports.historicalMediaReferences = historicalMediaReferences;
+
+// Content versions are append-only through the application. Keep their extracted
+// URLs in memory, not their potentially large snapshots. Reconcile on count/range
+// changes, database replacement, and periodically for out-of-process maintenance.
+// This index is only for the read-only inventory; deletion still checks live data.
+function createHistoricalMediaIndex({ db, identity = async () => '', now = Date.now,
+  reconcileAfter = 300000, batchSize = 250 }) {
+  let cached = null;
+  const bounds = async () => {
+    const value = await db.contentVersion.aggregate({
+      _min: { id: true }, _max: { id: true }, _count: { _all: true },
+    });
+    return { min: value._min.id || 0, max: value._max.id || 0, count: value._count._all };
+  };
+  return async () => {
+    const source = await identity();
+    const before = await bounds();
+    const reusable = cached && cached.source === source && cached.reconcileAt > now();
+    if (reusable && before.min === cached.min && before.max === cached.max && before.count === cached.count)
+      return [...cached.references.values()];
+    const append = reusable && before.min === cached.min && before.max > cached.max && before.count > cached.count;
+    const references = append ? new Map(cached.references) : new Map();
+    let cursor = append ? cached.max : 0, count = append ? cached.count : 0;
+    while (cursor < before.max) {
+      const rows = await db.contentVersion.findMany({
+        where: { id: { gt: cursor, lte: before.max } }, orderBy: { id: 'asc' }, take: batchSize,
+        select: { id: true, module: true, recordId: true, title: true, snapshot: true },
+      });
+      if (!rows.length) break;
+      count += rows.length;
+      for (const ref of buildMediaReferences([], [['历史版本', rows]])) {
+        const key = `${ref.module}:${ref.recordId}:${ref.url}`;
+        if (!references.has(key)) references.set(key, ref);
+      }
+      cursor = rows.at(-1).id;
+    }
+    const after = await bounds();
+    if (count !== before.count || JSON.stringify(after) !== JSON.stringify(before) || source !== await identity()) {
+      // A deletion can race an append without changing the minimum ID. Drop the
+      // incremental base so the next bounded inventory attempt does a full scan.
+      cached = null;
+      throw Object.assign(new Error('素材历史正在更新，请稍后刷新'), { status: 503, code: 'RESOURCE_INVENTORY_CHANGED' });
+    }
+    cached = { ...before, source, references, reconcileAt: append ? cached.reconcileAt : now() + reconcileAfter };
+    return [...references.values()];
+  };
+}
+module.exports.createHistoricalMediaIndex = createHistoricalMediaIndex;

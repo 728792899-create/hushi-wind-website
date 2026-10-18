@@ -71,7 +71,7 @@ const request = async (
     if (data?.data?.version) draftVersions.set(draftKey, data.data.version);
     else if (method === 'DELETE' || url.endsWith('/publish') || (method === 'GET' && !data.data)) draftVersions.delete(draftKey);
   }
-  return { status: response.status, data };
+  return { status: response.status, data, headers: Object.fromEntries(response.headers) };
 };
 const product = (slug, extra = {}) => ({
   title: slug,
@@ -920,6 +920,47 @@ test('failed resource audit restores the file and metadata, successful retry rem
   const success=await request('/api/admin/resources',{method:'DELETE',body:{url,confirmation:'确认执行'}});assert.equal(success.status,200,JSON.stringify(success));assert.equal(fs.existsSync(file),false);assert.equal(await db.mediaAsset.findUnique({where:{url}}),null);
 });
 
+test('a cold inventory read during failed delete cannot retain the quarantined file state', async () => {
+  const url = '/uploads/delete-cache-rollback.pdf', file = path.join(temp, 'uploads/delete-cache-rollback.pdf');
+  fs.writeFileSync(file, '%PDF-1.4\nrollback cache fixture');
+  assert.equal((await request('/api/admin/resources/metadata', { method: 'PUT', body: { url, name: 'rollback cache fixture' } })).status, 200);
+  const query = '/api/admin/resources?compact=1&search=' + encodeURIComponent(url);
+  assert.ok((await request(query)).data.uploads.some((asset) => asset.url === url));
+  await db.$executeRawUnsafe("CREATE TRIGGER fixture_cache_audit BEFORE INSERT ON OperationLog BEGIN SELECT RAISE(ABORT,'fixture audit unavailable'); END");
+  let markRollback, releaseRollback;
+  const rollbackReached = new Promise((resolve) => { markRollback = resolve; });
+  const rollbackGate = new Promise((resolve) => { releaseRollback = resolve; });
+  const originalRename = fs.promises.rename;
+  fs.promises.rename = async (from, to) => {
+    if (String(from).includes(`${path.sep}.deleted${path.sep}`) && to === file) {
+      markRollback();
+      await rollbackGate;
+    }
+    return originalRename(from, to);
+  };
+  let deletion, timeout;
+  try {
+    deletion = request('/api/admin/resources', { method: 'DELETE', body: { url, confirmation: '确认执行' } });
+    await Promise.race([rollbackReached, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('rollback gate was not reached')), 5000); })]);
+    clearTimeout(timeout);
+    const duringRollback = await request(query);
+    assert.equal(duringRollback.status, 200);
+    assert.equal(duringRollback.data.uploads.some((asset) => asset.url === url), false);
+    releaseRollback();
+    assert.ok((await deletion).status >= 400);
+    const restored = await request(query);
+    assert.equal(restored.status, 200);
+    assert.ok(restored.data.uploads.some((asset) => asset.url === url));
+    assert.match(restored.headers['server-timing'], /inventory_cache;desc="miss"/);
+  } finally {
+    clearTimeout(timeout);
+    releaseRollback();
+    if (deletion) await deletion;
+    fs.promises.rename = originalRename;
+    await db.$executeRawUnsafe('DROP TRIGGER fixture_cache_audit');
+  }
+});
+
 test('retention removes expired logs and sent notifications, preserves business and pending work', async()=>{
   const old=new Date(Date.now()-400*86400000),recent=new Date();
   const expired=await db.loginRecord.create({data:{username:'retention-old',success:true,createdAt:old}});
@@ -969,6 +1010,34 @@ test('upload category is persisted and invalid category leaves no file or metada
  const valid=new FormData();valid.append('category','support');valid.append('file',new Blob(['%PDF-1.4\nfixture'],{type:'application/pdf'}),'support-manual.pdf');
  const uploaded=await request('/api/upload',{method:'POST',body:valid});assert.equal(uploaded.status,200);
  const result=await request('/api/admin/resources?page=1&category=support&search=support-manual');const asset=result.data.uploads.find(a=>a.url===uploaded.data.url);assert.equal(asset.name,'support-manual.pdf');assert.equal(asset.category,'support');assert.equal(asset.nameMode,'auto');
+});
+
+test('compact inventory preserves page data and authorization without duplicating the full reference inventory', async () => {
+  const full = await request('/api/admin/resources?page=1&pageSize=1');
+  const compact = await request('/api/admin/resources?page=1&pageSize=1&compact=1');
+  assert.equal(full.status, 200); assert.equal(compact.status, 200);
+  assert.ok(Array.isArray(full.data.used)); assert.ok(full.data.summary);
+  assert.equal('used' in compact.data, false); assert.equal('summary' in compact.data, false);
+  for (const key of ['uploads', 'categories', 'meta']) assert.deepEqual(compact.data[key], full.data[key]);
+  assert.match(compact.headers['server-timing'], /inventory;dur=\d/);
+  assert.match(compact.headers['server-timing'], /inventory_cache;desc="hit"/);
+  assert.equal((await request('/api/admin/resources?compact=1', { role: null })).status, 401);
+  assert.equal((await request('/api/admin/resources?compact=1', { role: 'support' })).status, 403);
+});
+
+test('failed resource changes preserve the inventory cache while committed changes refresh it', async () => {
+  const form = new FormData(); form.append('file', new Blob(['%PDF-1.4\ninventory cache fixture'], { type: 'application/pdf' }), 'cache-fixture.pdf');
+  const uploaded = await request('/api/upload', { method: 'POST', body: form });
+  assert.equal(uploaded.status, 200); const url = uploaded.data.url;
+  const endpoint = '/api/admin/resources?page=1&compact=1&search=' + encodeURIComponent(url);
+  const first = await request(endpoint); assert.equal(first.status, 200);
+  assert.match(first.headers['server-timing'], /inventory_cache;desc="miss"/);
+  assert.equal((await request('/api/admin/resources/metadata', { method: 'PUT', body: { url, category: 'invalid' } })).status, 400);
+  const afterFailure = await request(endpoint); assert.match(afterFailure.headers['server-timing'], /inventory_cache;desc="hit"/);
+  assert.equal((await request('/api/admin/resources/metadata', { method: 'PUT', body: { url, nameMode: 'manual', name: '提交后立即可见', category: 'support' } })).status, 200);
+  const afterCommit = await request(endpoint); assert.equal(afterCommit.data.uploads[0].name, '提交后立即可见');
+  assert.equal(afterCommit.data.uploads[0].category, 'support');
+  assert.match(afterCommit.headers['server-timing'], /inventory_cache;desc="miss"/);
 });
 
 

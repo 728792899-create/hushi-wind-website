@@ -2,6 +2,8 @@ import axios from 'axios'
 import { ref } from 'vue'
 const sessionRevision = ref(0)
 import { sessionExpired } from './navigation.js'
+import { tokenClaims } from './sessionIdle.js'
+import { createQueryCache, isQueryCancelled, queryCancelled } from './queryCache.js'
 
 export const BASE = (
   import.meta.env.VITE_API_BASE ||
@@ -15,6 +17,7 @@ export const SENSITIVE_CONFIRMATION_TEXT =
   import.meta.env.VITE_SENSITIVE_CONFIRMATION_TEXT || '确认执行'
 export const AUTH_KEY = 'aural-admin-auth-token'
 export const USER_KEY = 'aural-admin-user'
+const QUERY_REVISION_KEY = 'aural-admin-query-revision'
 
 export const storageGet = (key, fallback = '') => {
   try {
@@ -37,10 +40,16 @@ export const storageRemove = (key) => {
 }
 
 export const getToken = () => storageGet(AUTH_KEY)
-export const setToken = (token) => storageSet(AUTH_KEY, token)
+export const setToken = (token) => {
+  const previous = queryScope()
+  storageSet(AUTH_KEY, token)
+  if (previous !== queryScope()) listQueries.clear()
+}
 export const setCurrentUser = (user) => {
+  const previous = queryScope()
   storageSet(USER_KEY, JSON.stringify(user || null))
   sessionRevision.value++
+  if (previous !== queryScope()) listQueries.clear()
 }
 export const getCurrentUser = () => {
   sessionRevision.value
@@ -51,6 +60,7 @@ export const getCurrentUser = () => {
   }
 }
 export const clearToken = () => {
+  listQueries.clear()
   storageRemove(AUTH_KEY)
   storageRemove(USER_KEY)
   sessionRevision.value++
@@ -104,6 +114,43 @@ export const api = axios.create({
   timeout: 20000,
 })
 
+function queryScope() {
+  const token = getToken(), user = getCurrentUser(), claims = tokenClaims(token)
+  if (!token || !user || (claims?.exp && claims.exp <= Date.now())) return ''
+  // Refresh changes iat/exp but keeps the same login owner and token version.
+  // A fresh login, permission change or session revocation gets a different scope.
+  return JSON.stringify([user.id, user.role, user.status, [...(user.permissions || [])].sort(),
+    claims ? [claims.uid, claims.tv, claims.auth] : token])
+}
+const listQueries = createQueryCache({
+  getScope: queryScope,
+  read: async (url, params, signal) => (await api.get(url, { params, signal })).data,
+})
+export { isQueryCancelled }
+export const invalidateListQueries = () => {
+  listQueries.invalidate()
+  storageSet(QUERY_REVISION_KEY, `${Date.now()}:${Math.random()}`)
+}
+const cacheableLists = new Set(['/api/admin/resources', '/api/products', '/api/catalog'])
+export const readList = async (url, { params = {}, signal, force = false } = {}) => {
+  if (!cacheableLists.has(url)) throw new Error('该接口不支持列表缓存')
+  const scope = queryScope()
+  for (let attempt = 0; ; attempt++) {
+    try { return { data: await listQueries.get(url, params, { signal, force }) } }
+    catch (error) {
+      if (error?.code !== 'ERR_QUERY_INVALIDATED') throw error
+      if (signal?.aborted || !scope || scope !== queryScope()) throw queryCancelled()
+      // A concurrent edit must not turn an active first load into a silent empty
+      // page. Retry only data invalidation, never permission/auth/network errors.
+      if (attempt >= 2) throw new Error('列表正在频繁更新，请稍后重新加载')
+    }
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener?.('storage', event => {
+  if (event.key === QUERY_REVISION_KEY) listQueries.invalidate()
+  else if ([AUTH_KEY, USER_KEY, null].includes(event.key)) listQueries.refreshScope()
+})
+
 api.interceptors.request.use((config) => {
   const token = getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
@@ -111,10 +158,17 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const { method = 'get', url = '' } = response.config || {}
+    if (!['get', 'head', 'options'].includes(method.toLowerCase()) && url !== '/api/auth/refresh')
+      invalidateListQueries()
+    return response
+  },
   (error) => {
     const status = error?.response?.status
     const url = error?.config?.url || ''
+    if (status === 403) listQueries.clear({ exceptSignal: error?.config?.signal })
+    else if (error?.response?.data?.error?.code === 'RECORD_CHANGED') invalidateListQueries()
     if (sessionExpired(status, url)) {
       clearToken()
       window.dispatchEvent(

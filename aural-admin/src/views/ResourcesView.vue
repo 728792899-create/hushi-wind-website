@@ -10,7 +10,7 @@
         <el-select v-model="kind" class="w-140" aria-label="素材类型"><el-option label="全部类型" value="all"/><el-option label="图片" value="image"/><el-option label="视频" value="video"/><el-option label="文档" value="document"/></el-select>
         <el-select v-model="usage" class="w-140" aria-label="素材使用状态"><el-option label="全部状态" value="all"/><el-option label="已引用" value="used"/><el-option label="未引用" value="unused"/></el-select>
       </div>
-      <div class="filter-row"><el-button :loading="loading" @click="load">刷新</el-button><el-button v-if="can('resources:upload')" type="primary" :icon="Upload" @click="openUpload">上传素材</el-button></div>
+      <div class="filter-row"><el-button :loading="loading" @click="load({force:true})">刷新</el-button><el-button v-if="can('resources:upload')" type="primary" :icon="Upload" @click="openUpload">上传素材</el-button></div>
     </div>
     <p class="field-hint">名称与分类可跟随引用自动更新；自定义名称会优先保留，文件链接不变。</p>
     <div v-if="can('resources:write') && uploads.length" class="media-batch-bar">
@@ -21,7 +21,8 @@
       <el-button v-if="selectedUrls.length" text :disabled="busy" @click="selectedUrls=[]">取消选择</el-button>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/>
-    <div class="media-grid" v-loading="loading">
+    <p v-if="loading && uploads.length" class="field-hint" role="status">正在更新素材列表…</p>
+    <div class="media-grid" v-loading="loading && !uploads.length" :aria-busy="loading">
       <article v-for="row in uploads" :key="row.url" class="media-card" :class="{'media-card-selected':selectedUrls.includes(row.url)}">
         <el-checkbox v-if="can('resources:write')" class="media-select" :model-value="selectedUrls.includes(row.url)" :disabled="busy" @change="toggleSelection(row.url,$event)"><span class="visually-hidden">选择 {{ row.name }}</span></el-checkbox>
         <button class="media-image" :class="{ 'media-image-transparent': row.type === 'image' }" @click="preview=row" :aria-label="`预览素材 ${row.name}`"><img v-if="row.type==='image'" :src="mediaSrc(row.url)" :alt="row.altText || row.name" loading="lazy"/><el-icon v-else><Document/></el-icon></button>
@@ -72,7 +73,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElCheckbox, ElRadioGroup, ElRadioButton } from 'element-plus'
 import { Search, Upload, Document, Picture } from '@element-plus/icons-vue'
-import { BASE,api,adminUploadHeaders,mediaSrc,hasPermission as can,sensitiveConfirmation,extractErrorMessage } from '../lib/api'
+import { BASE,api,readList,isQueryCancelled,adminUploadHeaders,mediaSrc,hasPermission as can,sensitiveConfirmation,extractErrorMessage } from '../lib/api'
 import { useUnsavedChanges } from '../lib/editorLifecycle'
 import { UPLOAD_ACCEPT,uploadPolicyText,validateUploadFile } from '../lib/uploadPolicy'
 import { uploadRequest } from '../lib/uploadRequest'
@@ -90,10 +91,32 @@ async function openDetails(row){if(!(await confirmLeave()))return;selected.value
 async function closeDetails(done){if(await confirmLeave())done()}
 function toggleSelection(url,checked){selectedUrls.value=checked?[...new Set([...selectedUrls.value,url])]:selectedUrls.value.filter(u=>u!==url)}
 function toggleAll(checked){selectedUrls.value=checked?uploads.value.map(r=>r.url):[]}
-let requestId=0,active=true,searchTimer
-watch([keyword,kind,usage,category],()=>{clearTimeout(searchTimer);requestId++;selectedUrls.value=[];if(page.value!==1)page.value=1;else searchTimer=setTimeout(load,200)})
+let requestId=0,active=true,searchTimer,requestController,loadedQueryKey=''
+watch([keyword,kind,usage,category],()=>{clearTimeout(searchTimer);requestId++;requestController?.abort();selectedUrls.value=[];if(page.value!==1)page.value=1;else searchTimer=setTimeout(load,200)})
 watch(page,()=>{clearTimeout(searchTimer);selectedUrls.value=[];load()})
-async function load(){const id=++requestId;loading.value=true;error.value='';try{const r=await api.get('/api/admin/resources',{params:{page:page.value,pageSize:24,search:keyword.value,kind:kind.value,usage:usage.value,category:category.value}});if(id!==requestId)return;uploads.value=r.data.uploads||[];categories.value=r.data.categories||mediaCategories;total.value=r.data.meta.pagination.total;selectedUrls.value=selectedUrls.value.filter(u=>uploads.value.some(r=>r.url===u));const last=Math.max(1,Math.ceil(total.value/24));if(page.value>last)page.value=last;return uploads.value}catch(e){if(id===requestId)error.value=extractErrorMessage(e,'素材加载失败')}finally{if(id===requestId)loading.value=false}}
+async function load({force=false}={}) {
+  const id=++requestId, previous=requestController
+  requestController=new AbortController()
+  const params={compact:1,page:page.value,pageSize:24,search:keyword.value,kind:kind.value,usage:usage.value,category:category.value}
+  const key=JSON.stringify(params)
+  if(key!==loadedQueryKey) { uploads.value=[]; total.value=0 }
+  loading.value=true;error.value=''
+  const request=readList('/api/admin/resources',{params,signal:requestController.signal,force})
+  previous?.abort()
+  try {
+    const r=await request
+    if(id!==requestId)return
+    uploads.value=r.data.uploads||[];loadedQueryKey=key
+    categories.value=r.data.categories||mediaCategories
+    total.value=r.data.meta.pagination.total
+    selectedUrls.value=selectedUrls.value.filter(u=>uploads.value.some(r=>r.url===u))
+    const last=Math.max(1,Math.ceil(total.value/24))
+    if(page.value>last)page.value=last
+    return uploads.value
+  } catch(e) {
+    if(id===requestId && !isQueryCancelled(e))error.value=extractErrorMessage(e,'素材加载失败')
+  } finally {if(id===requestId)loading.value=false}
+}
 async function saveMetadata(){if(busy.value||!selected.value)return;const row={...selected.value};saving.value=true;try{await api.put('/api/admin/resources/metadata',{url:row.url,nameMode:row.nameMode,name:row.nameMode==='manual'?row.name:undefined,category:row.categoryMode,altText:row.altText||''});if(row.nameMode==='auto')selected.value.name=row.autoName;metadataSnapshot.value=selectedMetadata();ElMessage.success('素材设置已保存');await load()}catch(e){ElMessage.error(extractErrorMessage(e))}finally{saving.value=false}}
 async function moveSelected(){if(busy.value||!selectedUrls.value.length||!batchCategory.value)return;const urls=[...selectedUrls.value],target=batchCategory.value;batchSaving.value=true;try{await api.put('/api/admin/resources/categories',{urls,category:target});selectedUrls.value=[];batchCategory.value='';await load();ElMessage.success(`已整理 ${urls.length} 个素材`)}catch(e){ElMessage.error(extractErrorMessage(e))}finally{batchSaving.value=false}}
 async function copy(url){try{await navigator.clipboard.writeText(mediaSrc(url));ElMessage.success('已复制素材地址')}catch{ElMessage.error('复制失败，请在管理面板中手动复制地址')}}
@@ -108,7 +131,7 @@ function removeUpload(file){uploadRef.value?.abort(file);pendingFiles.delete(fil
 function cancelUploads(){uploadRef.value?.abort();pendingFiles.clear();pending.value=0;uploadRef.value?.clearFiles();load();ElMessage.info('已取消待完成上传；已完成的文件仍保留在素材库')}
 function closeUpload(done){if(pending.value)return ElMessage.info('请等待上传完成，或先取消待完成上传');done()}
 onMounted(load)
-onBeforeUnmount(()=>{active=false;requestId++;clearTimeout(searchTimer);uploadRef.value?.abort()})
+onBeforeUnmount(()=>{active=false;requestId++;requestController?.abort();clearTimeout(searchTimer);uploadRef.value?.abort()})
 </script>
 <style scoped>
 .media-categories{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:22px;margin-bottom:22px;border-bottom:1px solid var(--el-border-color-lighter)}

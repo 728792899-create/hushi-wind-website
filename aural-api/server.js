@@ -50,7 +50,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { collectContentReferences } = require('./lib/resource-references');
-const { categories: mediaCategories, readMetadata, buildMediaReferences, describeMedia, historicalMediaReferences } = require('./lib/media-library');
+const { categories: mediaCategories, readMetadata, buildMediaReferences, describeMedia, createHistoricalMediaIndex } = require('./lib/media-library');
+const { createResourceCache, createFileRecordCache, mapLimited } = require('./lib/resource-cache');
 
 const app = express();
 app.disable('x-powered-by');
@@ -297,19 +298,6 @@ const securityHeaders = (req, res, next) => {
 app.use(securityHeaders);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
-app.use('/api', (req, res, next) => {
-  if (
-    !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
-    /\/(products|articles|artists|config|support-faqs|support-downloads|audio-solutions|audio-stats|brand-timelines|ecosystem-services|quick-guides|page-contents|upload|admin\/(content-|recycle-bin|resources))/.test(
-      req.originalUrl,
-    )
-  )
-    res.once('finish', () => {
-      resourceInventoryEpoch++;
-      resourceInventoryCache.expiresAt = 0;
-    });
-  next();
-});
 const deploymentPaused = () =>
   Boolean(
     process.env.DEPLOY_WRITE_GATE_FILE &&
@@ -1227,6 +1215,12 @@ const auditOperation = async (
     ip: meta.ip,
     userAgent: meta.userAgent,
   });
+  // Register only after a relevant mutation was audited. The unit of work runs
+  // this callback after commit, including when the HTTP client has disconnected.
+  if (['products', 'articles', 'artists', 'config', 'cms', 'resources'].includes(module) &&
+      ['CREATE', 'UPDATE', 'DELETE', 'RESTORE', 'DRAFT', 'PUBLISH', 'DISCARD_DRAFT',
+        'RESTORE_DELETED', 'REPLACE', 'UPLOAD', 'UPDATE_METADATA', 'CATEGORIZE', 'OPTIMIZE_STATUS'].includes(action))
+    afterCommit(() => resourceInventoryCache.invalidate());
 };
 
 const alertDedupeKey = ({ type, title = '', metadata = null }) => {
@@ -3355,7 +3349,7 @@ app.post(
     } catch (error) {
       if (req.file?.path && fs.existsSync(req.file.path))
         fs.unlinkSync(req.file.path);
-      invalidateUploadHealth();
+      if (req.file?.path) invalidateUploadHealth();
       return next(error);
     }
   }),
@@ -3419,10 +3413,9 @@ const imageOptimizationHint = ({ ext, bytes, dimensions }) => {
     suggestedAction: [...new Set(actions)].join('；'),
   };
 };
-const uploadRecord = async (filePath) => {
+const uploadRecord = async (filePath, stat) => {
   const relativePath = `/uploads/${path.relative(uploadDir, filePath).replace(/\\/g, '/')}`;
-  const stat = await fs.promises.stat(filePath),
-    ext = path.extname(filePath).slice(1).toLowerCase();
+  const ext = path.extname(filePath).slice(1).toLowerCase();
   const type = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)
     ? 'image'
     : 'file';
@@ -3458,32 +3451,32 @@ const uploadRecord = async (filePath) => {
     updatedAt: stat.mtime,
   };
 };
-const walkUploads = async (dir, result = []) => {
+const uploadRecords = createFileRecordCache({ read: uploadRecord, stat: file => fs.promises.stat(file) });
+const walkUploadPaths = async (dir, result = []) => {
   for (const entry of await fs.promises.readdir(dir, { withFileTypes: true })) {
     if (entry.name.startsWith('.')) continue;
     const target = path.join(dir, entry.name);
-    if (entry.isDirectory()) await walkUploads(target, result);
-    else if (entry.isFile())
-      try {
-        result.push(await uploadRecord(target));
-      } catch (error) {
-        if (error.code !== 'ENOENT') throw error;
-      }
+    if (entry.isDirectory()) await walkUploadPaths(target, result);
+    else if (entry.isFile()) result.push(target);
   }
   return result;
 };
-let resourceHealthCache = { expiresAt: 0, uploads: [] }, resourceScan = null, resourceScanEpoch = 0;
-const invalidateUploadHealth = () => { resourceScanEpoch++; resourceHealthCache.expiresAt = 0; };
-const getCachedUploadHealth = async () => {
-  if (resourceHealthCache.expiresAt > Date.now()) return resourceHealthCache.uploads;
-  if (!resourceScan) resourceScan = (async () => {
-    let epoch, uploads;
-    do { epoch = resourceScanEpoch; uploads = await walkUploads(uploadDir); } while (epoch !== resourceScanEpoch);
-    resourceHealthCache = { expiresAt: Date.now() + 60000, uploads };
-    return uploads;
-  })().finally(() => { resourceScan = null; });
-  return resourceScan;
+const uploadHealthCache = createResourceCache({ ttl: 60000, load: async () => {
+  const files = await walkUploadPaths(uploadDir);
+  const records = await mapLimited(files, 2, async file => {
+    try { return await uploadRecords.get(file); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  });
+  uploadRecords.retain(files);
+  return records.filter(Boolean);
+} });
+const invalidateUploadHealth = () => {
+  uploadHealthCache.invalidate();
+  // A physical upload/quarantine/rollback may be observed by an inventory read
+  // before the database transaction ends. Never retain that intermediate view.
+  resourceInventoryCache.invalidate();
 };
+const getCachedUploadHealth = async () => (await uploadHealthCache.get()).value;
 const collectResource = (items, section, title, url, kind = 'image') => {
   const normalizedUrl = normalizeUploadUrl(url);
   if (!normalizedUrl) return;
@@ -3514,10 +3507,16 @@ const resourceOptimizationLogs = async () => {
   return map;
 };
 
-let resourceInventoryEpoch = 0,
-  resourceInventoryCache = { expiresAt: 0, value: null },
-  resourceInventoryPromise = null;
+const historicalResourceReferences = createHistoricalMediaIndex({ db: prisma, identity: async () => {
+  const stat = await fs.promises.stat(resolveDatabaseFile());
+  return `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
+} });
 const loadResourceInventory = async () => {
+  const timings = {};
+  const measure = async (name, action) => {
+    const start = performance.now();
+    try { return await action(); } finally { timings[name] = performance.now() - start; }
+  };
   const [
     config,
     products,
@@ -3528,7 +3527,7 @@ const loadResourceInventory = async () => {
     timelines,
     ecosystem,
     guides,
-  ] = await Promise.all([
+  ] = await measure('content', () => Promise.all([
     prisma.systemConfig.findUnique({ where: { id: 1 } }),
     prisma.product.findMany({ orderBy: { updatedAt: 'desc' } }),
     prisma.article.findMany({ orderBy: { createdAt: 'desc' } }),
@@ -3538,15 +3537,15 @@ const loadResourceInventory = async () => {
     prisma.brandTimeline.findMany({ orderBy: { sortOrder: 'asc' } }),
     prisma.ecosystemService.findMany({ orderBy: { sortOrder: 'asc' } }),
     prisma.quickGuide.findMany({ orderBy: { sortOrder: 'asc' } }),
-  ]);
+  ]));
 
-  const [faqs, pages, drafts, recycled, historicalReferences] = await Promise.all([
+  const [faqs, pages, drafts, recycled, historicalReferences] = await measure('archives', () => Promise.all([
     prisma.supportFaq.findMany(),
     prisma.pageContent.findMany(),
     prisma.contentDraft.findMany(),
     prisma.recycleEntry.findMany(),
-    historicalMediaReferences(prisma),
-  ]);
+    measure('history', historicalResourceReferences),
+  ]));
   const usedResources = buildMediaReferences([
     ['product','产品','product',products], ['config','官网设置','brand',[config]],
     ['article','新闻','news',articles], ['artist','艺术家','artist',artists],
@@ -3556,12 +3555,12 @@ const loadResourceInventory = async () => {
   ], [['修改草稿',drafts], ['回收站',recycled]]);
   usedResources.push(...historicalReferences);
   const usedUrlSet = new Set(usedResources.map((item) => item.url));
-  const optimizationLogs = await resourceOptimizationLogs();
-  const uploads = (await getCachedUploadHealth())
+  const optimizationLogs = await measure('optimization', resourceOptimizationLogs);
+  const uploads = (await measure('files', getCachedUploadHealth))
     .slice()
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   const metadata = new Map(
-    (await prisma.mediaAsset.findMany()).map((row) => [row.url, row]),
+    (await measure('metadata', () => prisma.mediaAsset.findMany())).map((row) => [row.url, row]),
   );
   const referenceMap=new Map();
   for(const ref of usedResources){if(!referenceMap.has(ref.url)) referenceMap.set(ref.url,[]);referenceMap.get(ref.url).push(ref);}
@@ -3583,24 +3582,18 @@ const loadResourceInventory = async () => {
     pendingRiskImages,
     heavyImages,
     usedUrlSet,
+    timings,
   };
 };
-const cachedResourceInventory = async () => {
-  if (resourceInventoryCache.expiresAt > Date.now()) return resourceInventoryCache.value;
-  if (!resourceInventoryPromise) resourceInventoryPromise = (async()=>{
-    let epoch,value;
-    do {epoch=resourceInventoryEpoch;value=await loadResourceInventory();}while(epoch!==resourceInventoryEpoch);
-    resourceInventoryCache={expiresAt:Date.now()+30000,value};
-    return value;
-  })().finally(()=>{resourceInventoryPromise=null});
-  return resourceInventoryPromise;
-};
+const resourceInventoryCache = createResourceCache({ ttl: 30000, load: loadResourceInventory });
 
 app.get(
   '/api/admin/resources',
   requireAdmin,
   requirePermission('resources:read'),
   asyncHandler(async (req, res) => {
+    const started = performance.now();
+    const inventory = await resourceInventoryCache.get();
     const {
       usedResources,
       uploads,
@@ -3609,7 +3602,12 @@ app.get(
       pendingRiskImages,
       heavyImages,
       usedUrlSet,
-    } = await cachedResourceInventory();
+    } = inventory.value;
+    const compact = req.query.compact === '1';
+    const timing = [`inventory;dur=${(performance.now() - started).toFixed(2)}`, `inventory_cache;desc="${inventory.status}"`];
+    if (inventory.status !== 'hit') for (const [name, duration] of Object.entries(inventory.value.timings))
+      timing.push(`${name};dur=${duration.toFixed(2)}`);
+    res.setHeader('Server-Timing', timing.join(', '));
     const keyword = cleanQueryValue(req.query.search).toLowerCase(),
       kind = cleanQueryValue(req.query.kind),
       usage = cleanQueryValue(req.query.usage),
@@ -3630,7 +3628,7 @@ app.get(
     const paging = normalizePagination(req, 24);
     res.json({
       categories: mediaCategories.map(c=>({...c,count:uploadsWithState.filter(item=>item.category===c.value).length})),
-      used: usedResources,
+      ...(!compact ? { used: usedResources } : {}),
       uploads: req.query.page
         ? filtered.slice(paging.skip, paging.skip + paging.take)
         : filtered,
@@ -3642,7 +3640,7 @@ app.get(
           pageCount: Math.max(1, Math.ceil(filtered.length / paging.pageSize)),
         },
       },
-      summary: {
+      ...(!compact ? { summary: {
         usedCount: usedResources.length,
         uploadCount: uploads.length,
         unusedCount: uploads.filter((item) => !usedUrlSet.has(item.url)).length,
@@ -3659,7 +3657,7 @@ app.get(
           cacheControl: `public, max-age=${UPLOAD_CACHE_SECONDS}, immutable`,
           maxAgeSeconds: UPLOAD_CACHE_SECONDS,
         },
-      },
+      } } : {}),
     });
   }),
 );
@@ -4010,7 +4008,7 @@ app.delete(
     } catch (error) {
       if (quarantine && fs.existsSync(quarantine))
         await fs.promises.rename(quarantine, fullPath);
-      invalidateUploadHealth();
+      if (quarantine) invalidateUploadHealth();
       throw error;
     }
   }),

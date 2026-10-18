@@ -49,10 +49,12 @@
       :closable="false"
       class="mb-16"
     />
+    <p v-if="productsLoading && products.length" class="field-hint" role="status">正在更新产品列表…</p>
 
     <div
       class="mobile-admin-list product-mobile-list"
-      v-loading="productsLoading"
+      v-loading="productsLoading && !products.length"
+      :aria-busy="productsLoading"
     >
       <article
         v-for="row in products"
@@ -136,7 +138,8 @@
       :data="products"
       border
       class="wide-table mobile-hidden-table"
-      v-loading="productsLoading"
+      v-loading="productsLoading && !products.length"
+      :aria-busy="productsLoading"
       empty-text="暂无产品内容"
     >
       <el-table-column label="主图" width="90" align="center">
@@ -742,6 +745,8 @@ import {
   hasPermission,
   adminUploadHeaders,
   api,
+  readList,
+  isQueryCancelled,
   extractErrorMessage,
   isRecordConflict,
   listData,
@@ -907,24 +912,29 @@ const restoreProductTableState = () => {
   } catch {}
 }
 
-let listRequestId = 0
+let listRequestId = 0, listController, loadedProductQuery = ''
 const fetchProducts = async () => {
-  const request = ++listRequestId
+  const request = ++listRequestId, previous = listController
+  listController = new AbortController()
+  const params = {
+    admin: 1,
+    search: searchQuery.value,
+    status: productStatusFilter.value,
+    page: productPage.value,
+    pageSize: productPageSize.value,
+  }
+  const key = JSON.stringify(params)
+  if (key !== loadedProductQuery) { products.value = []; productTotal.value = 0 }
   productsLoading.value = true
   productError.value = ''
   saveProductTableState()
+  const pending = readList('/api/products', { params, signal: listController.signal })
+  previous?.abort()
   try {
-    const res = await api.get('/api/products', {
-      params: {
-        admin: 1,
-        search: searchQuery.value,
-        status: productStatusFilter.value,
-        page: productPage.value,
-        pageSize: productPageSize.value,
-      },
-    })
+    const res = await pending
     if (request !== listRequestId) return
     products.value = listData(res)
+    loadedProductQuery = key
     handleRouteAction()
     const meta = paginationMeta(res)
     productTotal.value = meta.total || products.value.length
@@ -939,10 +949,8 @@ const fetchProducts = async () => {
     if (meta.page && meta.page !== productPage.value)
       productPage.value = meta.page
   } catch (error) {
-    if (request !== listRequestId) return
+    if (request !== listRequestId || isQueryCancelled(error)) return
     productError.value = extractErrorMessage(error, '产品列表加载失败')
-    products.value = []
-    productTotal.value = 0
   } finally {
     if (request === listRequestId) productsLoading.value = false
   }
@@ -992,6 +1000,8 @@ function handleRouteAction() {
   }
 }
 const handleProductSearchInput = () => {
+  listRequestId++
+  listController?.abort()
   productPage.value = 1
   window.clearTimeout(productSearchTimer)
   productSearchTimer = window.setTimeout(fetchProducts, 260)
@@ -1029,11 +1039,16 @@ const ensureSlug = () => {
 }
 
 const catalog = reactive({ categories: [], series: [] })
+let catalogController
 const loadCatalog = async () => {
+  const previous = catalogController
+  catalogController = new AbortController()
+  const request = readList('/api/catalog', { signal: catalogController.signal })
+  previous?.abort()
   try {
-    Object.assign(catalog, (await api.get('/api/catalog')).data)
+    Object.assign(catalog, (await request).data)
   } catch (e) {
-    ElMessage.error(extractErrorMessage(e))
+    if (!isQueryCancelled(e)) ElMessage.error(extractErrorMessage(e))
   }
 }
 onMounted(loadCatalog)
@@ -1402,6 +1417,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  listRequestId++
+  listController?.abort()
+  catalogController?.abort()
   window.removeEventListener('admin-page-action', handlePageAction)
   window.clearTimeout(productSearchTimer)
 })

@@ -42,3 +42,50 @@ test('historical inventory scans bounded batches and deduplicates references acr
   assert.deepEqual(visited, [3, 3, 3]); assert.deepEqual(refs.map(row => row.url), ['/uploads/piano.jpg', '/uploads/old-only.jpg']);
   assert.ok(refs.every(row => row.archived));
 });
+
+function historyFixture() {
+  const state = { rows: [], reads: [], source: 'first-db', time: 0, fail: false };
+  const db = { contentVersion: {
+    aggregate: async () => ({ _min: { id: state.rows[0]?.id || null }, _max: { id: state.rows.at(-1)?.id || null }, _count: { _all: state.rows.length } }),
+    findMany: async ({ where, take }) => {
+      if (state.fail) throw new Error('read failed');
+      const rows = state.rows.filter(r => r.id > where.id.gt && r.id <= where.id.lte).slice(0, take);
+      state.reads.push(...rows.map(r => r.id)); return rows;
+    },
+  } };
+  const { createHistoricalMediaIndex } = require('../lib/media-library');
+  state.index = createHistoricalMediaIndex({ db, identity: async () => state.source, now: () => state.time, reconcileAfter: 100, batchSize: 2 });
+  state.add = (id, file = `${id}.jpg`) => state.rows.push({ id, module: 'product', recordId: 1, snapshot: JSON.stringify({ imageUrl: `/uploads/${file}` }) });
+  return state;
+}
+
+test('history index reads only newly appended snapshots and retains deduplicated old references', async () => {
+  const f = historyFixture(); f.add(1); f.add(2); f.add(3, '1.jpg');
+  assert.equal((await f.index()).length, 2); assert.deepEqual(f.reads, [1, 2, 3]);
+  f.reads = []; assert.equal((await f.index()).length, 2); assert.deepEqual(f.reads, []);
+  f.add(4); assert.equal((await f.index()).length, 3); assert.deepEqual(f.reads, [4]);
+});
+
+test('history index reconciles pruning, replacement, rollback and periodic out-of-band changes', async () => {
+  const f = historyFixture(); f.add(1); f.add(2); f.add(3); await f.index();
+  f.rows.shift(); f.reads = [];
+  assert.equal((await f.index()).some(r => r.url === '/uploads/1.jpg'), false); assert.deepEqual(f.reads, [2, 3]);
+  f.source = 'replaced-db'; f.rows[0].snapshot = '{"imageUrl":"/uploads/replaced.jpg"}'; f.reads = [];
+  assert.equal((await f.index()).some(r => r.url === '/uploads/replaced.jpg'), true); assert.deepEqual(f.reads, [2, 3]);
+  f.rows.pop(); assert.equal((await f.index()).some(r => r.url === '/uploads/3.jpg'), false);
+  f.rows[0].snapshot = '{"imageUrl":"/uploads/reconciled.jpg"}'; f.time = 101;
+  assert.deepEqual((await f.index()).map(r => r.url), ['/uploads/reconciled.jpg']);
+});
+
+test('history append mixed with an interior deletion discards the incremental base then rebuilds', async () => {
+  const f = historyFixture(); f.add(1); f.add(2); f.add(3); await f.index();
+  f.rows.splice(1, 1); f.add(4); f.add(5);
+  await assert.rejects(f.index(), { code: 'RESOURCE_INVENTORY_CHANGED' });
+  assert.deepEqual((await f.index()).map(r => r.url), ['/uploads/1.jpg', '/uploads/3.jpg', '/uploads/4.jpg', '/uploads/5.jpg']);
+});
+
+test('history scan failures do not publish partial reference sets', async () => {
+  const f = historyFixture(); f.add(1); await f.index(); f.add(2); f.fail = true;
+  await assert.rejects(f.index(), /read failed/); f.fail = false;
+  assert.deepEqual((await f.index()).map(r => r.url), ['/uploads/1.jpg', '/uploads/2.jpg']);
+});
