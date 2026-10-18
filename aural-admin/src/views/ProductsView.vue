@@ -924,7 +924,8 @@ const fetchProducts = async () => {
     pageSize: productPageSize.value,
   }
   const key = JSON.stringify(params)
-  if (key !== loadedProductQuery) { products.value = []; productTotal.value = 0 }
+  // Preserve the known total so ElPagination does not cancel a pending page.
+  if (key !== loadedProductQuery) products.value = []
   productsLoading.value = true
   productError.value = ''
   saveProductTableState()

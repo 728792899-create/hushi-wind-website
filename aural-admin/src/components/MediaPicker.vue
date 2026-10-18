@@ -94,7 +94,8 @@ async function load() {
     pageSize: 12,
   }
   const key = JSON.stringify(params)
-  if (key !== loadedQueryKey) { rows.value = []; total.value = 0 }
+  // A temporary zero total makes ElPagination reset a pending page to page 1.
+  if (key !== loadedQueryKey) rows.value = []
   loading.value = true
   error.value = ''
   const request = readList('/api/admin/resources', { params, signal: requestController.signal })

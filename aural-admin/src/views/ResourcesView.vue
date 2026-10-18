@@ -99,7 +99,9 @@ async function load({force=false}={}) {
   requestController=new AbortController()
   const params={compact:1,page:page.value,pageSize:24,search:keyword.value,kind:kind.value,usage:usage.value,category:category.value}
   const key=JSON.stringify(params)
-  if(key!==loadedQueryKey) { uploads.value=[]; total.value=0 }
+  // Keep the known total while loading: ElPagination clamps page > 1 if total
+  // briefly becomes zero, cancelling that page before its response can arrive.
+  if(key!==loadedQueryKey) uploads.value=[]
   loading.value=true;error.value=''
   const request=readList('/api/admin/resources',{params,signal:requestController.signal,force})
   previous?.abort()
