@@ -1004,4 +1004,13 @@
 - **止损回退**：仅恢复上一版后台index，`admin-rollback-result.json` 确认success/restored=true，恢复入口SHA `7d679043209aded1aae7abb00d26f24a03fbca76f80bfb42420abc63988a0ede`，2项HTTPS入口核验通过；assetsDeleted/currentChanged/databaseWrites/serviceOperations均false。保留API23c662d、所有静态资源与客户数据，未再次重启胡氏API、官网、Caddy或KingAI。回退前后胡氏两个服务、Caddy及4个KingAI容器身份/启动时间一致；四探针200，官网200、匿名会话401保持。
 - **本地修正完成与反向验证**：ResourcesView、ProductsView、MediaPicker在新query加载期间保留total，同根因修复完成；新增7项真实ElPagination交互用例修前失败、修后全过，独立审查已复核。最终 `npm test` **568/568**（API296、后台81、官网191），`final-full-tests.log` 三组fail均0；`final-quality.log` 记录完整quality、构建及产物审计通过，工具链例外未扩大。
 - **追加本地浏览器验收**：主代理在最新隔离本地素材页实际依次点第2、4、1页，总数81稳定，对应24、9、24项，计数排除“选择本页”复选框，证据 `local-pagination-browser.json`。选择器第2页也实际只读浏览完成，总23项、当前11项，见 `local-picker-pagination.txt`，没有保存。这些是真实本地已执行路径，三个组件自动回归与最终线上验收分别保留结论。
-- **当前发布状态与下一步**：API23c优化保持上线，后台入口仍为上一版；修正版本地完整测试和独立复核已完成，提交推送及对应CI、后台静态重新发布、最终线上分页/往返/滚动/只读搜索验收仍待主代理完成。20秒列表超时仍未复现，既有性能样本保留其单次/缓存窗口限制。后续线上验收继续禁止新增、修改或删除客户内容与素材，不改变API/官网或KingAI，不以再次发布前的本地证据代替最终线上结果。
+- **修正版发布前的状态**：当时API23c保持上线、后台入口为上一版，修正版本地完整测试和独立复核已完成；对应提交、CI、重新发布结果见下节。20秒列表超时仍未复现，既有性能样本保留其单次/缓存窗口限制；不以本地证据代替最终线上结果。
+
+### 分页修正版重新发布与最终浏览器证据限制（2026-10-18）
+
+- **提交与CI**：修正版 `bf390ee6c6f4e43f155c21cee540f7a8539fa07d` 已普通推送，[Quality 39119129572](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119129572) 按完整SHA确认 completed/success，证据 `ci-pagination-result.json`。上述568/568、本地真实分页与选择器只读验收、独立复核保持，不新增范围。
+- **静态再次发布**：`admin-final-deploy-result.json` 记录事务 `fb836e20233c486ebd112d101d427fc8` success/activated、rollback=not_needed，27份HTTPS候选文件逐字节一致，入口SHA `a5f52743a7b6baa02b01740152e80c39ae8ff4968fb6be96d6e663b75dd7dfa9`。databaseWrites=false、serviceOperations=false；API23c/current未动，没有重启任何服务或改变客户内容。
+- **再次保护核验**：`content-after-corrected-deploy.json` 与发布前protectedSha256仍同为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`，18内容表188行、81文件110350361B完全相同。`after-acceptance-server.json` 显示7配置散列、4个KingAI容器身份/启动时间保持；API2511736、官网1905158、Caddy376641均active、身份与修正版发布前相同。发布结果中的KingAI/Canvas四探针200，官网200、匿名会话401保持。
+- **最终浏览器验收未完成**：工具连接不稳定及原生Chrome前台操作冲突使 `final-browser-four-rounds.json` 的AX状态与实际页面不一致，该结果已排除，仅保留故障追踪，不能算通过。主代理正在等用户短暂暂停Chrome后继续可靠的真实分页、往返、滚动和只读搜索。首次23c后台7.116秒3次请求是回退前有效实测，不能当作bf390ee最终结果。
+- **隔离汇总**：`final-isolation-summary.json` 再次确认7配置与4容器保持、Caddy/官网的PID、启动时间及active状态保持；不扩展为未执行的业务操作验收。
+- **当前生产与下一步**：API23c和修正版后台bf390ee已运行，CI、静态HTTPS与客户内容保护核验完成；最终线上实际浏览器验收、本次记录提交/CI仍待补，不称本轮全部完成。继续只读验收，不新增/修改/删除客户素材、不操作KingAI、不扩展功能或费用。

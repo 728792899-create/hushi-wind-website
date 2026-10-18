@@ -2,7 +2,7 @@
 
 日期：2026-10-18。范围：素材列表、素材选择器、产品列表与目录查询，以及这些页面共用的缓存和请求生命周期。
 
-**当前状态：API `23c662d` 保持上线；同版后台在实际分页验收中发现回归，已仅恢复上一版后台入口。三个组件的分页修正、568 项完整测试、质量门禁、独立复核及本地素材/选择器翻页验收已完成；修复后的提交/CI、后台重新发布和最终线上浏览器验收仍待完成。** 首次发布的 HTTP、内容保护和四轮请求减少证据保留，不将它们写成全部线上功能验收通过。
+**当前状态：API `23c662d` 保持上线；修正版后台 `bf390ee` 已提交推送、通过对应 CI 并重新发布，27 份 HTTPS 产物与客户内容保护核验通过。568 项测试、质量门禁、独立复核及本地素材/选择器翻页验收已完成；修正版最终线上实际浏览器验收仍待完成。** 浏览器工具当前连接与前台状态不稳定，已排除不可靠的最终四轮记录，不将首次新版的性能测量写成修正版最终验收通过。
 
 ## 1. 授权与数据保护范围
 
@@ -10,7 +10,7 @@
 
 本轮没有数据库结构或依赖迁移，没有官网源码修改，不改变账号权限、发布审批、素材分类含义或审计规则。发布准备限定为胡氏 API 代码和后台静态产物；不会将本地数据库、uploads、账号、环境配置、私有证据或教学素材打入候选。
 
-工作目录为 `~/Projects/hushi-wind-website`，分支 `codex/admin-core-redesign`，本轮源码基线 `ed3bf66`。发布前 API/官网为 `8743eb4fd759e860df1788f34872fc0cba4e6570`，后台为 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`；本轮 API 与后台首次发布 `23c662d91fb511afff4963ed465fcd0509e2b33d`。后续分页回归使后台入口恢复到上一版，API 保持 `23c662d`，官网运行字节和进程始终保持原状。具体回退与修正过程见第 6.3–6.4 节。
+工作目录为 `~/Projects/hushi-wind-website`，分支 `codex/admin-core-redesign`，本轮源码基线 `ed3bf66`。发布前 API/官网为 `8743eb4fd759e860df1788f34872fc0cba4e6570`，后台为 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`；本轮 API 与后台首次发布 `23c662d91fb511afff4963ed465fcd0509e2b33d`。发现分页回归后先恢复旧后台入口，再修正并重新发布后台 `bf390ee6c6f4e43f155c21cee540f7a8539fa07d`；API 保持 `23c662d`，官网运行字节和进程始终保持原状。完整过程见第 6.3–6.5 节。
 
 ## 2. 现场基线与能确认的结论
 
@@ -144,15 +144,23 @@
 
 发现后只恢复上一版后台 `index.html`。`admin-rollback-result.json` 确认 success/restored=true、恢复入口 SHA `7d679043209aded1aae7abb00d26f24a03fbca76f80bfb42420abc63988a0ede`，两项 HTTPS 入口核验通过；没有删除静态资源、改变 current、写数据库或操作服务。API 仍运行 `23c662d`，官网/胡氏 API/Caddy 的进程身份和 4 个 KingAI 容器身份均与回退前相同，既有四探针仍为 200，官网 200、匿名后台会话 401 保持。客户内容与素材未被此次回退修改。
 
-上述 12→3 是首次新版后台回退前的真实测量，不代表当前已恢复的旧入口仍有该收益。修正版重新发布后需再次实际验收。
+上述 12→3 是首次新版后台回退前的真实测量，不代表当时恢复的旧入口仍有该收益。修正版重新发布后需再次实际验收。
 
-### 6.4 分页修正与剩余完成门
+### 6.4 分页修正与本地完成门
 
 ResourcesView、ProductsView、MediaPicker 已完成同根因修正：新 query 加载期间保留已知 total，避免真实 ElPagination 将当前页误纠正为 1。新增 **7 项真实 ElPagination 交互用例，修前失败、修后全过**，独立审查已复核。最终 `npm test` **568/568**（API 296、后台 81、官网 191），`final-full-tests.log` 三组 fail 均为 0；`final-quality.log` 记录构建和产物审计成功，原工具链例外未扩大。
 
 最新隔离本地浏览器已经实际点击素材第 2、4、1 页：总数始终 81，分别显示 **24、9、24** 个素材，计数排除“选择本页”复选框，证据 `local-pagination-browser.json`。素材选择器第 2 页也完成实际只读浏览：总 23 项，当前 11 项，见 `local-picker-pagination.txt`；没有保存或修改内容。真实浏览器结论仅覆盖上述本地路径，三个组件的自动回归与线上修正版验收分别报告。
 
-下一步由主代理完成修正版提交/推送及对应 SHA 的 CI，再仅发布后台静态产物；API 与客户内容保持。最后重跑线上双页往返、实际分页、滚动和只读搜索，记录图片、计数、请求数与最终结果。当前后台仍为旧入口，修正版重新发布和最终线上浏览器验收均待完成，不能标记本轮全部完成。
+以上本地结果是修正版提交与重新发布的前置验证；随后提交/CI和静态重新发布已完成，见下节。最终线上双页往返、实际分页、滚动和只读搜索仍须得到可靠的真实浏览器证据。
+
+### 6.5 修正版重新发布与最终浏览器验收限制
+
+修正版提交 `bf390ee6c6f4e43f155c21cee540f7a8539fa07d` 已普通推送，[Quality 39119129572](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119129572) 按完整 SHA 核对为 completed/success。后台静态事务 `fb836e20233c486ebd112d101d427fc8` success/activated、rollback=not_needed，**27 份候选文件再次完成 HTTPS 逐字节核验**，新入口 SHA 为 `a5f52743a7b6baa02b01740152e80c39ae8ff4968fb6be96d6e663b75dd7dfa9`。该次发布的 databaseWrites=false、serviceOperations=false；API `23c662d` 和 current 未调整，没有重启任何服务。
+
+`content-after-corrected-deploy.json` 与发布前的 `protectedSha256` 仍同为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`，18 张受保护内容表 188 行、81 个文件 110,350,361B 内容完全相同。最终只读复核 `after-acceptance-server.json` 确认 7 配置散列、4 个 KingAI 容器身份/启动时间保持，API PID2511736、官网PID1905158、Caddy PID376641 均 active 且与修正版发布前身份一致；既有健康/页面探针保持原结果。未导入本地示意资料或变更客户素材。
+
+修正版最终浏览器验收遇到工具连接不稳定与原生 Chrome 前台操作冲突；`final-browser-four-rounds.json` 的 AX 状态与实际页面不一致，**已排除，不计为通过证据**。目前等待用户短暂暂停 Chrome 操作后，由主代理继续可靠的真实分页、往返、滚动和只读搜索验收。7.116 秒内 3 次列表请求只属于首次 `23c662d` 后台回退前的有效测量，不能移用为 `bf390ee` 的最终结果。当前可确认修正版发布及 HTTP/内容保护核验完成；最终线上浏览器验收仍待完成，本轮不能标为全部完成。
 
 ## 7. 证据位置与未决事项
 
@@ -171,5 +179,8 @@ ResourcesView、ProductsView、MediaPicker 已完成同根因修正：新 query 
 - 同目录 `after-browser-four-rounds.json`、`after-browser-api-filter.txt`、`after-products-bottom.*`、`after-resources-{top,bottom,page2}.*`：首次新版后台真实请求测量、图片检查和分页故障现场。
 - 同目录 `admin-rollback-result.json`、`local-pagination-browser.json`：旧后台入口恢复结果与修正版隔离本地素材分页实测。
 - 同目录 `final-full-tests.log`、`final-quality.log`、`local-picker-pagination.txt`：分页修正后的 568 项完整测试、最终质量/构建审计及选择器第 2 页只读浏览。
+- 同目录 `ci-pagination-result.json`、`admin-final-deploy-result.json`、`content-after-corrected-deploy.json`、`after-acceptance-server.json`：修正版完整 SHA 的 CI、再次静态发布、内容完整性与最终服务器只读核验。
+- 同目录 `final-isolation-summary.json`：7 份配置、4 个 KingAI 容器，以及 Caddy/官网 PID、启动时间与 active 状态保持的最终对比汇总。
+- 同目录 `final-browser-four-rounds.json`：因 AX 状态与实际页面不一致已排除，仅保留故障追踪，不能用作验收通过证据。
 
-20 秒列表超时仍未现场复现，不能保证仅凭本轮缓存优化消除所有客户端网络故障。如再出现，应以同一时间的客户端错误、请求阶段、Server-Timing 和服务器日志定位，不先扩大架构或增加费用。API 优化已上线；后台首次上线后因真实分页回归已恢复旧入口。性能收益、失败与回退均保留证据，修正版提交/CI、后台重新发布和最终线上验收仍待主代理完成。
+20 秒列表超时仍未现场复现，不能保证仅凭本轮缓存优化消除所有客户端网络故障。如再出现，应以同一时间的客户端错误、请求阶段、Server-Timing 和服务器日志定位，不先扩大架构或增加费用。API 优化保持上线；后台经历分页回归回退后，修正版已通过 CI 并重新发布。性能收益、失败、回退和再次发布均保留各自证据；修正版最终实际浏览器验收及这次发布记录的提交/CI仍待主代理完成。

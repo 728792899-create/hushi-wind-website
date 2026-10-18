@@ -3,7 +3,7 @@
 你接手的是 `hushi-wind-website` 的完整项目交付。第 0–14 步加固已结束，用户要求停止扩展范围，并明确拒绝精简预览。最新授权：暂时使用承载 KingAI 的 `64.83.10.90`，以两个独立子域名提供完整官网与客户上传后台；不影响 KingAI、不增加费用、保留后续迁移能力。官网/API 均用 `full`，保留原设计、交互和栏目。旧 `154.222.19.51` 的连接排查不再是当前阻塞路径；不要继续让用户改 SSH 或重装系统。详情见 [临时验收站交付记录](docs/temporary-preview-handoff.md)。现场复核、必要验证、记录、独立提交推送与 CI 均用中文；区分服务器内部就绪与客户可访问。
 2026-10-17 官网往返导航故障的应用修复已发布：CLS 上报与业务额度隔离、SSR 缓存身份统一、有限自动恢复和页面状态归属修正。私有备份连接关闭竞态也已补齐；当时 API/官网为 `8743eb4fd759e860df1788f34872fc0cba4e6570`，Quality `39003190108` 已按完整 SHA 核对成功，后台为系列修复版本 `c5f9cfe`；当前 API/后台版本见下节。为使旧标签页资源可访问，胡氏官网新增 GET/HEAD `/_nuxt/*` 的限定静态路由，平滑重载后 KingAI/Caddy 进程身份保持；胡氏片段SHA为 `d71fbeb403045180f5de9bf6ecd2d2f931637f3685fe405b1a41e6e6bfc3db83`。当轮线上91项HTTP检查通过，真实浏览器交互仅在本地合成环境验收；不要把临时 API18837/18838、官网13810 当作正式内容来源。
 
-### 当前进行中：API优化保持上线，后台因分页回归已恢复旧入口（2026-10-18）
+### 当前进行中：API与修正版后台已上线，最终实际浏览器验收待完成（2026-10-18）
 
 - 用户授权素材接口、缓存重建和页面切换优化，测试与浏览器验收后上线；不加功能/费用，不影响 KingAI。**最新边界：线上客户内容与素材不能新增、修改或删除；本地示意资料只在隔离库使用，严禁入包。**
 - 真实基线：最近三天素材 GET 16 条（15×200、1×401），中位109ms、最大1.33s；客户端低频读取素材约806–1150ms，旧 Chrome 四轮双页切换为12次列表请求加1次鉴权续期。20秒超时本轮未复现，现有70条历史共约79KB，不能将增长规模测试当成线上根因。
@@ -11,10 +11,11 @@
 - 首次发布前应用测试561/561（296/74/191）、根quality及显式 `ADMIN_EXPECTED_*` 参数下的 `check:admin-ui`/`verify:dist` 通过；真实本地浏览器4轮素材/产品切换、计数81/11、搜索、本地重命名→素材选择器一致性通过。但该批验收遗漏真实分页控件联动，未阻止本轮回归。现已补7项真实ElPagination用例，修前失败修后全过，独立审查复核；最终完整测试568/568（296/81/191）、quality与构建产物审计通过，证据 `final-full-tests.log`/`final-quality.log`。组件12→3及首次新版线上12→3各有独立证据，不能混用。
 - 隔离环境在 `logs/admin-performance-20261018/demo`，API18937/后台15975；凭据仅在0600私有文件，禁止复制到线上。停止入口为该目录 `stop.cjs`，执行前会核对进程归属。
 - API发布只允许 `server.js`、`lib/media-library.js`、新增`lib/resource-cache.js` 三项运行时变化；适配18项、原API事务28项、后台静态19项本地测试通过后，已完成仅API停启与后台静态替换两个阶段。API事务 `439d6510b9b74c39b69d3c75df13eb01` applied，静态事务 `d89c1be60dc243b38b1928ed6dedd20a` success；均未回滚，无schema迁移或数据库恢复，后台27个候选文件HTTPS逐字节相符。
-- **API与后台首次发布 `23c662d91fb511afff4963ed465fcd0509e2b33d`，代码已普通推送，[Quality 39117599497](https://github.com/728792899-create/hushi-wind-website/actions/runs/39117599497) 按完整SHA确认success；后续后台入口因分页回归恢复上一版，API仍为23c662d。** 官网运行字节与进程保持原8743版本。18张内容表188行、81文件110350361B前后完全相同，`protectedSha256` 均为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`；7配置散列、4个KingAI容器身份/启动时间、Caddy与官网PID/启动时间未变，首次API发布时只有胡氏API重启。指纹不涵盖账号、咨询、艺术家申请及运行/审计日志，不声称整库不变。
+- **API与后台首次发布 `23c662d91fb511afff4963ed465fcd0509e2b33d`，代码已普通推送，[Quality 39117599497](https://github.com/728792899-create/hushi-wind-website/actions/runs/39117599497) 按完整SHA确认success；后续后台曾因分页回归恢复旧入口，现已再发布修正版bf390ee，API始终保留23c662d。** 官网运行字节与进程保持原8743版本。18张内容表188行、81文件110350361B前后完全相同，`protectedSha256` 均为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`；7配置散列、4个KingAI容器身份/启动时间、Caddy与官网PID/启动时间未变，首次API发布时只有胡氏API重启。指纹不涵盖账号、咨询、艺术家申请及运行/审计日志，不声称整库不变。
 - 公网低频样本每项各1次：素材紧接读取805.7→684.5ms、第二页809.9→647.1ms，第一页56373→31907B；产品670.8→680.4ms，不能称产品耗时提升。首次新版后台真实Chrome四轮7.116秒内只有3次列表请求（素材406ms、目录484ms、产品484ms均200），旧版12次，减少75%；素材81/产品11、产品底部和素材首屏/底部图片检查完成。7.116秒包含操作间隔，不是单页响应时间，且这组收益属于回退前的新版入口。
-- **实际分页暴露本轮回归**：新query加载时将total=0，ElPagination把当前页纠正回1；ResourcesView、ProductsView、MediaPicker现已通过加载期间保留total修复。已只恢复上一版后台index，`admin-rollback-result.json` 为success/restored=true，恢复SHA `7d679043209aded1aae7abb00d26f24a03fbca76f80bfb42420abc63988a0ede`，2项HTTPS入口核验通过，无服务操作、数据库写入、资源删除或current变化，KingAI/胡氏进程保持。客户素材未改，修正版尚未上线。
-- 最新隔离本地素材页实际点第2/4/1页通过，81总数、24/9/24项（排除“选择本页”复选框），见 `local-pagination-browser.json`；素材选择器第2页只读浏览为总23/当前11项，无保存，见 `local-picker-pagination.txt`。**修正版本地测试与独立复核已完成，提交/push/CI、后台重新发布和最终线上分页/往返/滚动/只读搜索验收待主代理完成。** 当前仍为旧后台入口和API23c；20秒超时仍未复现，不得把本轮标成全部线上验收完成。详见 [后台性能发布记录](docs/admin-performance-20261018.md) 及 SECURITY_HARDENING 末节。
+- **实际分页暴露本轮回归**：新query加载时将total=0，ElPagination把当前页纠正回1；ResourcesView、ProductsView、MediaPicker现已通过加载期间保留total修复。当时只恢复上一版后台index，`admin-rollback-result.json` 为success/restored=true，恢复SHA `7d679043209aded1aae7abb00d26f24a03fbca76f80bfb42420abc63988a0ede`，2项HTTPS入口核验通过，无服务操作、数据库写入、资源删除或current变化，KingAI/胡氏进程保持。此为修正版重新发布前的回退记录，客户素材未改。
+- 最新隔离本地素材页实际点第2/4/1页通过，81总数、24/9/24项（排除“选择本页”复选框），见 `local-pagination-browser.json`；素材选择器第2页只读浏览为总23/当前11项，无保存，见 `local-picker-pagination.txt`。修正版已普通推送 `bf390ee6c6f4e43f155c21cee540f7a8539fa07d`，[Quality 39119129572](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119129572) 按完整SHA确认success；静态事务 `fb836e20233c486ebd112d101d427fc8` success，27个HTTPS候选文件字节相符，databaseWrites/serviceOperations均false，API23c未变。
+- `content-after-corrected-deploy.json` 与before的受保护指纹仍相同；`after-acceptance-server.json` 确认7配置与4个KingAI容器保持，API/官网/Caddy进程身份与修正版发布前一致。**修正版最终实际浏览器验收仍未完成**：工具连接不稳定与原生Chrome前台冲突，`final-browser-four-rounds.json` 的AX状态和实际页面不一致，已排除，绝不可当通过证据。等待用户短暂暂停Chrome后继续真实分页/往返/滚动/只读搜索；7.116秒3请求仅首次23c回退前有效，不能移用到bf390ee。20秒超时仍未复现，本轮不标全部完成；本次发布记录提交/CI也待补。详见 [后台性能发布记录](docs/admin-performance-20261018.md) 及 SECURITY_HARDENING 末节。
 
 ## 1. 工作位置（务必遵守）
 
@@ -55,7 +56,7 @@
 - 客户文档：[正式后台操作手册（Word）](docs/client-guides/胡氏管乐官网后台操作手册.docx)，[可维护源稿](docs/client-guides/胡氏管乐官网后台操作手册.md)。版本 1.0，共 26 页、20 章，涵盖资料准备、上传替换、各栏目编辑发布、客户管理、账号权限及备份恢复；不含密码。依据实际界面与服务端实现核对，已完成文档逐页渲染验收，不代表本次已完成线上浏览器操作验收。证据位于忽略目录 `logs/admin-manual-20261014/`；应用或按钮变化后需同步手册。
 - 客户新增交付：[图文详解版 PDF](docs/client-guides/胡氏管乐官网后台操作手册.pdf) 及[图文版正文源稿](docs/client-guides/胡氏管乐官网后台操作手册-图文详解版.md)，版本 1.2，81 页、20 章、52 张真实界面截图、5 张流程图；目录、书签及 77 个内部链接已核验。截图来自独立本地教学环境 API18414/后台15194/官网13194，使用虚构资料和教学账号；上传、草稿、历史版本、回收站、备份与恢复均只在该环境演练，不代表线上浏览器已验收。证据、原图及生成器在忽略目录 `logs/admin-pdf-20261014/`。旧 Word 1.0 保留，操作说明存在差异时以新版图文说明为准。本次教学浏览器和三个教学服务在截图完成后已停止；原有本地预览与线上服务保持。
 - “产品系列”修复已按用户授权上线：后台静态产物来源 `c5f9cfe41b1dfb38f62e161463694321e429fd0f`，对应 [Quality 38518653397](https://github.com/728792899-create/hushi-wind-website/actions/runs/38518653397) 成功。补齐 Radio 注册，保护未保存内容和保存中切换；508项本地测试、quality及14项生产式本地浏览器检查通过。仅追加13个散列资源并原子替换后台入口，服务器和本机分别核验27个HTTPS文件与候选完全一致；KingAI四探针200、容器/Caddy/胡氏进程及配置保持，没有重启、数据库或业务写入。原dist私有备份在incoming，详见 `logs/catalog-series-fix-20261014/deploy-result.json`。PDF1.2已更换分类/系列真实配图及说明，保留用户短文件名；截图和交互验证仍来自独立本地环境，不声称线上浏览器点击验证通过。
-- API/官网历史首发版本为 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；后台静态产物已单独更新为上条系列修复版本。API/官网现已更新为首段列明的 `8743eb4`；后续纯文档提交不改变运行产物。
+- API/官网历史首发版本为 `02326674868a9bf3a6daf90d83fd833ea0912de9`，对应 Quality [38407137350](https://github.com/728792899-create/hushi-wind-website/actions/runs/38407137350) 已成功。Linux x64 / Node22.23.3 完整包重新构建并验证；后台曾单独更新为上条系列修复版本。目前API为23c662d、官网运行字节保持8743eb4、后台为bf390ee，具体发布与未决验收见首节；后续纯文档提交不改变运行产物。
 - 远端 `/srv/hushi-preview`，独立系统用户 `hushi-preview`、API/web 服务与受限 slice。API `127.0.0.1:19337`，官网 `127.0.0.1:19310`；仅 `hushi-preview-api.service` 与 `hushi-preview-web.service` 已设置开机启动，现场均为 enabled/active。本轮没有重启宿主机验证开机启动。
 - 首发时新库完成 7 个迁移，仅导入 14 个内容模型的 49 条展示记录和 23 个资源；不迁入原管理员、咨询、会话、审计或告警。新 owner/customer 凭据仅在忽略目录的私有交付文件中，绝不可输出或提交。按用户最新授权，客户 `admin` 已是 super_admin，开放全部后台权限；密码保持，旧客户账号停用、站主账号保留。
 - 两个入口 [官网](https://preview.dayouyusd.com) / [后台](https://admin.preview.dayouyusd.com) 已完成 DNS 与 HTTPS 接入；用户随后要求取消官网首次验证，官网现可匿名访问，后台外层门禁也已按用户要求取消，只保留应用账号登录。客户登录名为 `admin`，已按最新授权改为 super_admin；原 `hushi_client` 已停用、历史保留，站主管理账号不变。阿里云新增 `preview`、`admin.preview` 两条 A 记录至 `64.83.10.90`，原 `@ → 38.76.203.179` 不变；`dns13.hichina.com`、`dns14.hichina.com` 均核对通过，三条记录的 UI 截图为 `dns-records-confirmed.jpg`。这是保留完整原设计的临时站；官网内容已匿名可见，正式品牌资料尚未验收。
@@ -175,7 +176,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 ## 6. 后续计划（上线准备，不增加加固轮次）
 
-1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前 API/官网为 `8743eb4`（Quality `39003190108` 成功），后台静态文件为 `c5f9cfe`（Quality `38518653397` 成功）；本轮文档仍须独立提交、推送并核对新 CI，不能用应用历史 CI 代替。第 0–14 步与首发候选的历史 SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第 14 步当作当前运行版本。
+1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前API为 `23c662d`（Quality `39117599497` 成功），官网运行字节保持 `8743eb4`（Quality `39003190108` 成功），后台为 `bf390ee`（Quality `39119129572` 成功）；后台修正版最终实际浏览器验收仍待完成，本次发布记录仍须独立提交、推送并核对新CI，不能用应用历史CI代替。第0–14步与首发候选的历史SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第14步当作当前运行版本。
 2. **第 5 步已落实的用户确认规则**：
    - 客服只能处理分配给自己的咨询；未分配和重新分配由超级管理员负责。服务端覆盖列表、详情相关操作、统计及回收恢复。艺术家申请保持共享；只读角色原有脱敏读取权限保持。
    - 联系方式查看按账号合并咨询/艺术家申请计数，包含超级管理员，重复查看也计数。默认 10 分钟达到 30 次只告警、不阻断；`CONTACT_VIEW_WINDOW_MS` / `CONTACT_VIEW_ALERT_THRESHOLD` 可配置，同窗口告警去重。
