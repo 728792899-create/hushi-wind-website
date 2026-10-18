@@ -2,7 +2,7 @@
 
 日期：2026-10-18。范围：素材列表、素材选择器、产品列表与目录查询，以及这些页面共用的缓存和请求生命周期。
 
-**当前状态：API `23c662d` 保持上线；修正版后台 `bf390ee` 已提交推送、通过对应 CI 并重新发布，27 份 HTTPS 产物与客户内容保护核验通过。568 项测试、质量门禁、独立复核及本地素材/选择器翻页验收已完成；修正版最终线上实际浏览器验收仍待完成。** 浏览器工具当前连接与前台状态不稳定，已排除不可靠的最终四轮记录，不将首次新版的性能测量写成修正版最终验收通过。
+**当前状态：API `23c662d` 保持上线；修正版后台 `bf390ee` 已提交推送、通过对应 CI 并重新发布，27 份 HTTPS 产物与客户内容保护核验通过。568 项测试、质量门禁、独立复核及本地素材/选择器翻页验收已完成；修正版最终线上实际浏览器验收仍受工具连接故障阻断。** 用户已明确暂停 Chrome 并允许验收，后续实际尝试仍失败；已排除不可靠的最终四轮记录，不将首次新版测量写成修正版最终验收通过。
 
 ## 1. 授权与数据保护范围
 
@@ -160,7 +160,15 @@ ResourcesView、ProductsView、MediaPicker 已完成同根因修正：新 query 
 
 `content-after-corrected-deploy.json` 与发布前的 `protectedSha256` 仍同为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`，18 张受保护内容表 188 行、81 个文件 110,350,361B 内容完全相同。最终只读复核 `after-acceptance-server.json` 确认 7 配置散列、4 个 KingAI 容器身份/启动时间保持，API PID2511736、官网PID1905158、Caddy PID376641 均 active 且与修正版发布前身份一致；既有健康/页面探针保持原结果。未导入本地示意资料或变更客户素材。
 
-修正版最终浏览器验收遇到工具连接不稳定与原生 Chrome 前台操作冲突；`final-browser-four-rounds.json` 的 AX 状态与实际页面不一致，**已排除，不计为通过证据**。目前等待用户短暂暂停 Chrome 操作后，由主代理继续可靠的真实分页、往返、滚动和只读搜索验收。7.116 秒内 3 次列表请求只属于首次 `23c662d` 后台回退前的有效测量，不能移用为 `bf390ee` 的最终结果。当前可确认修正版发布及 HTTP/内容保护核验完成；最终线上浏览器验收仍待完成，本轮不能标为全部完成。
+用户已明确暂停 Chrome 并允许继续验收；主代理随后实际尝试仍未取得可靠页面证据：Chrome 扩展能枚举标签但真实 DOM 读取在 15 秒超时；工具官方 CDP 备用调用 `Page.getLayoutMetrics` 在 10 秒超时；原生 Chrome 截图出现 ScreenCaptureKit 错误；独立 IAB 在 20 秒超时。阻塞属于当前浏览器工具连接故障，不能归咎于用户继续操作，也不能据此判断网站本身不可访问。
+
+`final-browser-four-rounds.json` 的 AX 状态与实际页面不一致，**已排除，不计为通过证据**。7.116 秒内 3 次列表请求只属于首次 `23c662d` 后台回退前的有效测量，不能移用为 `bf390ee` 的最终结果。修正版发布及既有 HTTP/内容保护核验完成，最终线上实际分页、往返、滚动和只读搜索验收仍受工具连接阻断，本轮不能标为全部完成。
+
+后续只读指纹 `content-after-browser-attempt.json` 已与发布前比较：protectedSha256仍为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`，完整content/uploads对象相同，81文件110,350,361B保持。`server-after-browser-attempt.json` 对比 `after-acceptance-server.json`：7配置、4容器完整对象相同，API/官网/Caddy的PID、启动时间和active状态相同，current release不变；内存和CPU仅为不同时间的采样值。此为保护与隔离核验，不替代浏览器功能验收。
+
+收尾仅通过带进程归属校验的 `demo/stop.cjs` 停止本任务两个本地合成服务（PID71599/71600）；其他本地与远端服务未操作。合成数据仍只在隔离目录，不属于发布内容。
+
+此前发布记录提交 `a471856` 的 [Quality 39119821224](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119821224) 已 success，不再将其写成待提交/CI。本次工具故障补充记录的提交与 CI 以本轮交付回复及对应私有证据为准，和 API/后台运行版本的 CI 分别记录。
 
 ## 7. 证据位置与未决事项
 
@@ -182,5 +190,7 @@ ResourcesView、ProductsView、MediaPicker 已完成同根因修正：新 query 
 - 同目录 `ci-pagination-result.json`、`admin-final-deploy-result.json`、`content-after-corrected-deploy.json`、`after-acceptance-server.json`：修正版完整 SHA 的 CI、再次静态发布、内容完整性与最终服务器只读核验。
 - 同目录 `final-isolation-summary.json`：7 份配置、4 个 KingAI 容器，以及 Caddy/官网 PID、启动时间与 active 状态保持的最终对比汇总。
 - 同目录 `final-browser-four-rounds.json`：因 AX 状态与实际页面不一致已排除，仅保留故障追踪，不能用作验收通过证据。
+- 同目录 `content-after-browser-attempt.json`、`server-after-browser-attempt.json`：后续浏览器工具尝试后的内容保护和服务隔离比较均通过，不替代未完成的线上浏览器验收。
+- 同目录 `post-browser-attempt-summary.json`：上述客户内容、7配置、4容器、3服务身份及浏览器工具阻塞的汇总记录。
 
-20 秒列表超时仍未现场复现，不能保证仅凭本轮缓存优化消除所有客户端网络故障。如再出现，应以同一时间的客户端错误、请求阶段、Server-Timing 和服务器日志定位，不先扩大架构或增加费用。API 优化保持上线；后台经历分页回归回退后，修正版已通过 CI 并重新发布。性能收益、失败、回退和再次发布均保留各自证据；修正版最终实际浏览器验收及这次发布记录的提交/CI仍待主代理完成。
+20 秒列表超时仍未现场复现，不能保证仅凭本轮缓存优化消除所有客户端网络故障。如再出现，应以同一时间的客户端错误、请求阶段、Server-Timing 和服务器日志定位，不先扩大架构或增加费用。API 优化保持上线；后台经历分页回归回退后，修正版已通过 CI 并重新发布。性能收益、失败、回退和再次发布均保留各自证据；修正版最终实际浏览器验收仍受工具连接故障阻断。发布记录 a471856 的 CI 已通过，本次补充记录的提交/CI由交付回复和对应私有证据记录。

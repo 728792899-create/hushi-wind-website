@@ -9,13 +9,14 @@
 - 真实基线：最近三天素材 GET 16 条（15×200、1×401），中位109ms、最大1.33s；客户端低频读取素材约806–1150ms，旧 Chrome 四轮双页切换为12次列表请求加1次鉴权续期。20秒超时本轮未复现，现有70条历史共约79KB，不能将增长规模测试当成线上根因。
 - 实现已完成：后台15秒/24项、按会话权限隔离的内存列表缓存及请求取消；API compact显式兼容、有界单飞重建、事务提交后失效、文件回滚失效、历史增量与定期核对、文件元数据复用。无依赖或schema迁移，删除仍使用事务内完整实时引用核验。
 - 首次发布前应用测试561/561（296/74/191）、根quality及显式 `ADMIN_EXPECTED_*` 参数下的 `check:admin-ui`/`verify:dist` 通过；真实本地浏览器4轮素材/产品切换、计数81/11、搜索、本地重命名→素材选择器一致性通过。但该批验收遗漏真实分页控件联动，未阻止本轮回归。现已补7项真实ElPagination用例，修前失败修后全过，独立审查复核；最终完整测试568/568（296/81/191）、quality与构建产物审计通过，证据 `final-full-tests.log`/`final-quality.log`。组件12→3及首次新版线上12→3各有独立证据，不能混用。
-- 隔离环境在 `logs/admin-performance-20261018/demo`，API18937/后台15975；凭据仅在0600私有文件，禁止复制到线上。停止入口为该目录 `stop.cjs`，执行前会核对进程归属。
+- 隔离环境在 `logs/admin-performance-20261018/demo`，API18937/后台15975；凭据仅在0600私有文件，禁止复制到线上。本任务两个合成服务PID71599/71600已通过该目录带归属校验的 `stop.cjs` 停止，其他本地与远端服务未操作；数据与证据保留在隔离目录。
 - API发布只允许 `server.js`、`lib/media-library.js`、新增`lib/resource-cache.js` 三项运行时变化；适配18项、原API事务28项、后台静态19项本地测试通过后，已完成仅API停启与后台静态替换两个阶段。API事务 `439d6510b9b74c39b69d3c75df13eb01` applied，静态事务 `d89c1be60dc243b38b1928ed6dedd20a` success；均未回滚，无schema迁移或数据库恢复，后台27个候选文件HTTPS逐字节相符。
 - **API与后台首次发布 `23c662d91fb511afff4963ed465fcd0509e2b33d`，代码已普通推送，[Quality 39117599497](https://github.com/728792899-create/hushi-wind-website/actions/runs/39117599497) 按完整SHA确认success；后续后台曾因分页回归恢复旧入口，现已再发布修正版bf390ee，API始终保留23c662d。** 官网运行字节与进程保持原8743版本。18张内容表188行、81文件110350361B前后完全相同，`protectedSha256` 均为 `47232a1e2fee398bd0fb60a322627d01f7da9bb3a3ad685732195d6fd158f347`；7配置散列、4个KingAI容器身份/启动时间、Caddy与官网PID/启动时间未变，首次API发布时只有胡氏API重启。指纹不涵盖账号、咨询、艺术家申请及运行/审计日志，不声称整库不变。
 - 公网低频样本每项各1次：素材紧接读取805.7→684.5ms、第二页809.9→647.1ms，第一页56373→31907B；产品670.8→680.4ms，不能称产品耗时提升。首次新版后台真实Chrome四轮7.116秒内只有3次列表请求（素材406ms、目录484ms、产品484ms均200），旧版12次，减少75%；素材81/产品11、产品底部和素材首屏/底部图片检查完成。7.116秒包含操作间隔，不是单页响应时间，且这组收益属于回退前的新版入口。
 - **实际分页暴露本轮回归**：新query加载时将total=0，ElPagination把当前页纠正回1；ResourcesView、ProductsView、MediaPicker现已通过加载期间保留total修复。当时只恢复上一版后台index，`admin-rollback-result.json` 为success/restored=true，恢复SHA `7d679043209aded1aae7abb00d26f24a03fbca76f80bfb42420abc63988a0ede`，2项HTTPS入口核验通过，无服务操作、数据库写入、资源删除或current变化，KingAI/胡氏进程保持。此为修正版重新发布前的回退记录，客户素材未改。
 - 最新隔离本地素材页实际点第2/4/1页通过，81总数、24/9/24项（排除“选择本页”复选框），见 `local-pagination-browser.json`；素材选择器第2页只读浏览为总23/当前11项，无保存，见 `local-picker-pagination.txt`。修正版已普通推送 `bf390ee6c6f4e43f155c21cee540f7a8539fa07d`，[Quality 39119129572](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119129572) 按完整SHA确认success；静态事务 `fb836e20233c486ebd112d101d427fc8` success，27个HTTPS候选文件字节相符，databaseWrites/serviceOperations均false，API23c未变。
-- `content-after-corrected-deploy.json` 与before的受保护指纹仍相同；`after-acceptance-server.json` 确认7配置与4个KingAI容器保持，API/官网/Caddy进程身份与修正版发布前一致。**修正版最终实际浏览器验收仍未完成**：工具连接不稳定与原生Chrome前台冲突，`final-browser-four-rounds.json` 的AX状态和实际页面不一致，已排除，绝不可当通过证据。等待用户短暂暂停Chrome后继续真实分页/往返/滚动/只读搜索；7.116秒3请求仅首次23c回退前有效，不能移用到bf390ee。20秒超时仍未复现，本轮不标全部完成；本次发布记录提交/CI也待补。详见 [后台性能发布记录](docs/admin-performance-20261018.md) 及 SECURITY_HARDENING 末节。
+- `content-after-corrected-deploy.json` 与before的受保护指纹仍相同；`after-acceptance-server.json` 确认7配置与4个KingAI容器保持，API/官网/Caddy进程身份与修正版发布前一致。**修正版最终实际浏览器验收受工具连接故障阻断**：用户已明确暂停Chrome允许验收，随后扩展可枚举标签但真实DOM读取15秒超时，官方CDP备用 `Page.getLayoutMetrics` 10秒超时，原生截图ScreenCaptureKit报错，独立IAB20秒超时，不归咎用户操作。`final-browser-four-rounds.json` 的AX状态和实际页面不一致，已排除，不能算通过；7.116秒3请求仅首次23c回退前有效。后续 `content-after-browser-attempt.json` 的指纹47232a…及完整content/uploads与before相同，81文件110350361B保持；`server-after-browser-attempt.json` 确认7配置、4容器、三服务PID/启动时间/active及release不变，仅内存/CPU采样变化。该保护核验不替代UI验收。20秒列表超时仍未复现，本轮不标全部完成。
+- 发布记录 `a471856` 的 [Quality 39119821224](https://github.com/728792899-create/hushi-wind-website/actions/runs/39119821224) 已success；本次工具故障补充记录的提交/CI以本轮交付回复及对应私有证据为准，不混用API/后台运行版本CI。详见 [后台性能发布记录](docs/admin-performance-20261018.md) 及 SECURITY_HARDENING 末节。
 
 ## 1. 工作位置（务必遵守）
 
@@ -176,7 +177,7 @@ cd ~/Projects/hushi-wind-website && DATABASE_URL=file:./dev.db VITE_API_BASE=htt
 
 ## 6. 后续计划（上线准备，不增加加固轮次）
 
-1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前API为 `23c662d`（Quality `39117599497` 成功），官网运行字节保持 `8743eb4`（Quality `39003190108` 成功），后台为 `bf390ee`（Quality `39119129572` 成功）；后台修正版最终实际浏览器验收仍待完成，本次发布记录仍须独立提交、推送并核对新CI，不能用应用历史CI代替。第0–14步与首发候选的历史SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第14步当作当前运行版本。
+1. **先核对实际运行版本与最新文档提交各自完整 SHA 的 CI**。当前API为 `23c662d`（Quality `39117599497` 成功），官网运行字节保持 `8743eb4`（Quality `39003190108` 成功），后台为 `bf390ee`（Quality `39119129572` 成功）；发布记录 `a471856` 的Quality `39119821224` 已成功。本次工具故障补充记录提交/CI以交付回复及对应私有证据为准，不能用应用历史CI代替；后台修正版最终实际浏览器验收仍受工具连接故障阻断。第0–14步与首发候选的历史SHA/CI、执行证据保留在修复记录及各步骤忽略目录中，不再将第14步当作当前运行版本。
 2. **第 5 步已落实的用户确认规则**：
    - 客服只能处理分配给自己的咨询；未分配和重新分配由超级管理员负责。服务端覆盖列表、详情相关操作、统计及回收恢复。艺术家申请保持共享；只读角色原有脱敏读取权限保持。
    - 联系方式查看按账号合并咨询/艺术家申请计数，包含超级管理员，重复查看也计数。默认 10 分钟达到 30 次只告警、不阻断；`CONTACT_VIEW_WINDOW_MS` / `CONTACT_VIEW_ALERT_THRESHOLD` 可配置，同窗口告警去重。
